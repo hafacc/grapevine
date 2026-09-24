@@ -1,0 +1,190 @@
+name: build
+
+# Build/test gate. Runs on every push to main and every PR, and is reused by the
+# deploy workflow (workflow_call) so a release can't publish over a red build.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  # Its own job: the crate has no Node, no bun and no database, and it is where
+  # the Edge Functions are compiled, because the wasm they read is built here.
+  # The toolchain comes from rust/rust-toolchain.toml, which rustup honours on
+  # its own.
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v7
+
+      - run: rustup show active-toolchain || rustup toolchain install
+
+      - run: rustup component add rustfmt clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - run: cargo fmt --check
+
+      - run: cargo clippy --all-targets -- -D warnings
+
+      # `cargo test` builds with no dependencies at all; the serde feature carries
+      # the boundary's own deserializer, which has its own tests.
+      - run: cargo test --release
+
+      - run: cargo test --release --features serde
+
+      # A prebuilt binary: building wasm-pack from source costs more than everything
+      # else in this job put together.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.15.0
+
+      # Two targets, and only one of them has a caller that ships: `web` glue
+      # takes the bytes and is what the two Deno Edge Functions load. The
+      # `nodejs` one is built because `examples/smoke.mjs` below runs it — the
+      # only thing that exercises the boundary outside Deno, and letting the
+      # untested target break unnoticed is what this line prevents.
+      - run: bash ../scripts/build-wasm.sh nodejs
+
+      - run: bash ../scripts/build-wasm.sh web
+
+      # The script resolves the module against its own path, so it runs from anywhere.
+      - run: node examples/smoke.mjs
+
+      # The Edge Functions, which nothing else compiles. `supabase functions
+      # deploy` bundles them with esbuild, which does not typecheck, and they
+      # import `shared/src/entries.ts` — a file two other packages DO typecheck,
+      # so a signature change there is green in both and breaks only here. It
+      # runs in this job because this is where the `web` wasm they import has
+      # just been built.
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.6
+
+      - run: deno check supabase/functions/refresh-recs/index.ts supabase/functions/refresh-suggestions/index.ts
+        working-directory: .
+
+      # `deno lint` and not just `check`: `no-unused-vars` is the rule that
+      # catches an import left behind by a refactor, and `biome` never sees these
+      # files.
+      - run: deno lint supabase/functions/refresh-recs/index.ts supabase/functions/refresh-suggestions/index.ts
+        working-directory: .
+
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun lint
+
+      # The script, never a copy of its file list, which would drift silently.
+      - run: bun run test
+
+      # The artifact a deploy publishes. It belongs in the gate and not only in
+      # the deploy: web.yml builds the site in a job that `needs: supabase`, so
+      # a build failing only there would go red after forward-only migrations
+      # and both Edge Functions had reached production, leaving the database
+      # ahead of a site stuck on the last good version with no rollback on the
+      # free tier. It needs no secret and no stack.
+      - run: bun export
+
+  # The policy and privilege suites. Its own job because it needs the Supabase
+  # CLI and nothing else in this file does: no bun, no browser, no wasm.
+  #
+  # `supabase db lint` reads the migrations as applied; `supabase test db`
+  # applies every one of them and runs `supabase/tests/` against the result.
+  #
+  # `supabase/tests/run-local.sh` is the other way to run these — a scratch
+  # PostgreSQL cluster, for a machine with no Docker — and is not what CI uses:
+  # it stands in for the `auth` schema, and for pgTAP only when offline with no
+  # cached copy. A suite that passes there and fails here leaned on a stand-in,
+  # so this is the run that decides.
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      # The whole history, so the base of the push or the pull request is here
+      # to diff against.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Append-only once recorded (CLAUDE.md, "Migrations"): `db push` skips a
+      # version the project already has, so an edit to one reaches every fresh
+      # stack, this job's included, and never the project, and nothing else
+      # would go red. Adding a file is the only change allowed here.
+      - name: refuse an edited, renamed or deleted migration
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "no base commit to compare against; nothing to check"
+            exit 0
+          fi
+          changed="$(git diff --name-status --diff-filter=MDR "$BASE" HEAD -- supabase/migrations)"
+          if [ -n "$changed" ]; then
+            echo "::error::a recorded migration changed; add a new one instead"
+            echo "$changed"
+            exit 1
+          fi
+
+      # Pinned, like every other tool here. It is the one that applies
+      # forward-only migrations to production, so "whatever shipped today" is
+      # the last version of it that should float.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      # Both commands run against the local stack, so it has to be up: `db lint`
+      # is plpgsql_check inside the database and `test db` applies the migrations
+      # to it. Docker is on the runner already; nothing here needs a project ref,
+      # a key or a network. Only the database and what the suites touch: the
+      # Edge Runtime would serve both functions, whose `static_files` name a
+      # `.wasm` this job never builds, and the rest is a browser UI and its
+      # logging.
+      - run: supabase start -x edge-runtime,studio,imgproxy,logflare,vector
+
+      # `--fail-on error`: without it the lint prints what it finds and exits 0.
+      - run: supabase db lint --fail-on error
+
+      - run: supabase test db
+
+      - if: always()
+        run: supabase stop --no-backup
+
+  # Its own job: `shared/` is a separate package with no database, no Node
+  # dependencies and no wasm, so it has nothing to gain from the setup above.
+  shared:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: shared
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run lint
+
+      - run: bun test

@@ -1,2 +1,6 @@
 # grapevine
-A social rating app
+
+[![deploy](https://github.com/hafacc/grapevine/actions/workflows/web.yml/badge.svg)](https://github.com/hafacc/grapevine/actions/workflows/web.yml)
+
+A social rating app where your recommendations come from your friends. Go to the
+[site](https://grapevine.hafa.cc/) and start rating!

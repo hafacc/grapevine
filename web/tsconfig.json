@@ -1,0 +1,64 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    // `shared/` has no build step: it is TypeScript source, imported here and
+    // by both Edge Functions, so id normalization has exactly one definition.
+    // A path alias rather than a `file:` dependency because bun installs one as
+    // a tree of symlinks Turbopack refuses to follow.
+    // No `baseUrl`: TypeScript 7 removed it, and paths resolve against this
+    // file's directory without one.
+    "paths": {
+      "grapevine-shared": ["../shared/src/index.ts"],
+      // `entries.ts` too, for the one type the Edge Functions and this app both
+      // have to agree on. It is a separate entry because that module imports
+      // `./index.ts` by its real name — Deno resolves the path it is given —
+      // which is also why `allowImportingTsExtensions` is on below.
+      "grapevine-shared/entries": ["../shared/src/entries.ts"],
+      // The *suggested* rail's estimator, its own entry because it is the one
+      // module here nothing on a server imports — it reads the viewer's own
+      // ratings and nothing else (DESIGN §2.11), and folding it into
+      // `index.ts` would put it in the Edge Functions' bundles.
+      "grapevine-shared/suggest-attributes": [
+        "../shared/src/suggest-attributes.ts"
+      ]
+    },
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    // TypeScript does not sweep `node_modules/@types`, so anything not reached
+    // by an explicit reference has to be named here. `next-env.d.ts` is
+    // generated and untracked, so a fresh checkout has only this list: next's image types are what give
+    // `import mark from "…svg"` a type, and without them `lint` fails until a
+    // build has written that file. Nothing references bun-types, and without it
+    // the `bun:test` imports fail to resolve. `node` rides along as a bun-types
+    // dependency; naming it keeps `scripts/seed-local.ts`'s `process`/`Buffer`
+    // independent of that.
+    "types": ["bun", "node", "next/image-types/global"],
+    "plugins": [{ "name": "next" }]
+  },
+  "include": [
+    "next-env.d.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "utils/**/*.ts",
+    "utils/**/*.tsx",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

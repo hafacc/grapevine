@@ -1,0 +1,47 @@
+[package]
+name = "grapevine-core"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["Erik Brinkman <erik.brinkman@gmail.com>"]
+description = "Personal recommendation scores over a friend graph: the algorithm of grapevine's DESIGN.md section 2, with a synthetic-world simulator."
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# Serde derives on the boundary types. Needed by the examples and implied by `wasm`;
+# `cargo test` leaves it off so the core builds with no dependencies at all.
+serde = ["dep:serde"]
+wasm = ["serde", "dep:wasm-bindgen", "dep:serde-wasm-bindgen"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+serde-wasm-bindgen = { version = "0.6", optional = true }
+
+[dev-dependencies]
+serde_json = "1"
+
+[[example]]
+name = "dump-world"
+required-features = ["serde"]
+
+[[example]]
+name = "compute-user"
+required-features = ["serde"]
+
+[[example]]
+name = "recompute-cost"
+required-features = ["serde"]
+
+[[example]]
+name = "suggest-cost"
+required-features = ["serde"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

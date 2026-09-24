@@ -1,0 +1,8 @@
+-- Applied by `supabase db reset` after every migration.
+--
+-- Deliberately empty. A seeded world needs `auth.users` rows, which the
+-- simulator's dump supplies, and the script that loads one is part of the
+-- checks rather than of the database: `supabase db reset` must produce a
+-- database that is exactly the schema and nothing else, so that a check which
+-- seeds its own world is comparing against zero rather than against whatever
+-- happened to be in here.
