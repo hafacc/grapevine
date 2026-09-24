@@ -1,0 +1,7 @@
+# Pinned rather than tracking `stable`: a lint that ships with a new compiler otherwise fails
+# the build on code nobody touched, and the laptop and CI drift apart silently. Bumping is a
+# deliberate change: raise the channel, run clippy and the test suite, fix what the new lints find.
+[toolchain]
+channel = "1.97.1"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]

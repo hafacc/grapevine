@@ -1,0 +1,167 @@
+# The whole of the backend's configuration, in the repo rather than on a console
+# page somebody has to remember to visit, so that every change to it is a diff.
+# `supabase config push` is what puts it on the project.
+
+project_id = "grapevine"
+
+[api]
+enabled = true
+port = 54321
+# The exposed-schema list is the enforcement point for DESIGN §3.3's schema
+# isolation. `private` is deliberately absent: `private.neighbourhood` returns
+# up to N_max people's raw ratings, and an address PostgREST does not serve is
+# a stronger guarantee than a revoke somebody has to remember. Adding "private"
+# here would hand every viewer the ratings of everyone within two hops.
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+# `config push` sends every value this file declares, and this section describes
+# the LOCAL pooler, which is off. Sizes are therefore left undeclared: any set
+# here would be pushed at the hosted Supavisor and cap the client connections it
+# allows.
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+# The local mail catcher (Inbucket). It stays enabled because the CLI wants a
+# port, and it catches nothing: no door sends mail (see [auth.email]).
+[local_smtp]
+enabled = true
+port = 54324
+
+[storage]
+enabled = false
+
+[analytics]
+enabled = false
+
+[auth]
+enabled = true
+# The site's own origin, at the root: the client sends `origin + "/"`. A
+# redirect target that matches neither this nor the list below is not refused:
+# Supabase falls back to site_url, so a dev server that is not listed signs in
+# on the live site.
+site_url = "https://grapevine.hafa.cc/"
+# `config push` sends this list to the real project, so it names the one dev
+# server that signs in against it — `bun run dev` on :3000 — and not every
+# port: any local process that can listen on a port could otherwise receive a
+# production sign-in code. `dev:local` on :3001 needs no entry, because the local
+# stack has no Google and its sessions are minted. A glob over the path, because
+# the client sends `origin + "/"`, which a bare `http://localhost:3000` does
+# not match.
+additional_redirect_urls = ["http://localhost:3000/**"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+
+# DELIBERATE, and the one setting `private.has_credential()` exists to guard
+# (DESIGN §3.3). An anonymous account cannot prove it owns anything, and a
+# handle is permanent and never released. Turning this on is two clicks in a
+# dashboard and ships no diff — which is why the check in `claim_username`
+# stays although Google-only makes it vacuous today.
+enable_anonymous_sign_ins = false
+
+[auth.email]
+# No magic link, no OTP, no password, and therefore no SMTP section anywhere in
+# this file: with no email door the platform sends no mail at all.
+enable_signup = false
+# Both on although no email door exists, because a Google session can still
+# call `auth.updateUser({ email })`. With confirmations off that rewrites
+# `auth.users.email` to an address the caller does not own, and when the real
+# owner later signs in with Google, GoTrue links the identity into the account
+# that now carries their address — the attacker's. On, the change waits for a
+# link mailed to BOTH the old and the new address, and the attacker holds only
+# one of them.
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = false
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+
+# Declared so that `config push` turns it off: a section this file leaves out is
+# a setting it leaves alone, and there is no phone door and no SMS sender.
+[auth.sms.twilio]
+enabled = false
+account_sid = ""
+message_service_sid = ""
+auth_token = ""
+
+# Declared so that `config push` turns them off, for the same reason. No second
+# factor of any kind.
+[auth.mfa.totp]
+enroll_enabled = false
+verify_enabled = false
+
+[auth.mfa.phone]
+enroll_enabled = false
+verify_enabled = false
+
+[auth.mfa.web_authn]
+enroll_enabled = false
+verify_enabled = false
+
+# The only door. One provider, and the client never receives the redirect —
+# Supabase does, and bounces to site_url.
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+# Left empty so Supabase uses its own `<project>/auth/v1/callback`, which is
+# the OAuth client's SOLE authorized redirect URI.
+#
+# Locally there is no Google at all: `SUPABASE_AUTH_GOOGLE_CLIENT_ID` and
+# `SUPABASE_AUTH_GOOGLE_SECRET` are unset on a developer's machine, the consent
+# screen cannot be driven headlessly anyway, and a session for the local stack
+# is minted against its fixed JWT secret instead (`web/scripts/local-session.mjs`,
+# and "The local stack" in CLAUDE.md). Do not add
+# `http://localhost:54321/auth/v1/callback` to the real client so that the local
+# stack could use it: that puts a production credential in a development config,
+# and a second client would be a second consent screen to keep in step.
+redirect_uri = ""
+skip_nonce_check = false
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+# `supabase functions deploy` ships the modules `index.ts` imports and nothing
+# else, and the core is not imported: it is `Deno.readFile`d. Without this the
+# deployed function has no `.wasm` beside it and fails at boot on every call.
+# Relative to this directory.
+[functions.refresh-recs]
+enabled = true
+static_files = ["./functions/refresh-recs/core-wasm/*.wasm"]
+# The gateway's check is off because it is known to break under Supabase's
+# asymmetric JWT signing keys. What refuses an unauthenticated call is
+# the function itself: `callerUid` hands the bearer token to GoTrue's
+# `/auth/v1/user` and answers 401 unless GoTrue names an account, before any
+# query runs.
+verify_jwt = false
+
+# Taste search for whoever is calling, and nobody else (DESIGN §5.1, §3.7). It
+# is a second function rather than a `security definer` SQL one because the deep
+# walk is the wasm core and a SQL function cannot host it.
+[functions.refresh-suggestions]
+enabled = true
+static_files = ["./functions/refresh-suggestions/core-wasm/*.wasm"]
+# Same reason as above: the function checks the bearer token itself.
+verify_jwt = false
