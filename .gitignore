@@ -1,0 +1,22 @@
+.DS_Store
+.claude/
+*.un~
+
+# wasm-pack output, one directory per target: built from rust/ by CI and by the
+# local script, never committed.
+rust/core-wasm/
+supabase/functions/refresh-recs/core-wasm/
+supabase/functions/refresh-suggestions/core-wasm/
+
+# Rust build output
+rust/target/
+
+# shared/ has its own .gitignore too; this is the belt to those braces.
+shared/node_modules/
+
+# Supabase CLI local state: the running stack's container ids and branch scratch.
+supabase/.temp
+supabase/.branches
+
+# Throwaway analysis harnesses belong in the session scratchpad, never the repo.
+/scratchpad/

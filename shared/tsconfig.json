@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "isolatedModules": true,
+    // `src/entries.ts` imports `./index.ts` by its real name: an Edge Function
+    // loads this TypeScript directly and Deno resolves the path it is given.
+    // Nothing here emits, so the extension never has to be rewritten.
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    // TypeScript does not sweep node_modules/@types, and nothing else references
+    // bun-types, so without this the `bun:test` imports in `tests/` fail to resolve.
+    "types": ["bun"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}

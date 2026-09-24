@@ -1,0 +1,33 @@
+version: 2
+updates:
+  # Not `npm`: it leaves bun.lock stale, so every PR fails --frozen-lockfile.
+  - package-ecosystem: bun
+    directory: /web
+    schedule:
+      interval: monthly
+    groups:
+      web:
+        patterns: ["*"]
+
+  - package-ecosystem: bun
+    directory: /shared
+    schedule:
+      interval: monthly
+    groups:
+      shared:
+        patterns: ["*"]
+
+  # The workflows pin major tags, which follow patches and minors themselves, so
+  # only a major is news here.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor

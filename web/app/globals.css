@@ -1,0 +1,205 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* Every directory that holds a class name, listed one level at a time: a
+   double-star glob does not recurse in this build, and a utility never emitted
+   fails silently. `tests/styles.test.ts` fails on a directory with no line. */
+@source "../app/*.tsx";
+@source "../app/*/*.tsx";
+@source "../components/*.tsx";
+@source "../components/ui/*.tsx";
+
+/* The palette of `web/DESIGN-UI.md`.
+
+   `*-soft` and `*-tint` are two fills and both are needed: a thing's own screen
+   already carries its verdict as a background, so a rated attribute inside it
+   has to mark itself against a tinted page and takes the stronger `*-soft`,
+   while a rated row in the list sits on plain `surface` and takes `*-tint`.
+   Collapsing them makes one of the two unreadable. */
+@theme {
+  --color-bg: #e8eced;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f4f4;
+  /* The one token DESIGN-UI's table does not name: a row under a pointer,
+     which the comps (drawn for a phone) have no state for. */
+  --color-surface-hover: #e6ecec;
+  --color-text: #0e1417;
+  --color-muted: #55666d;
+  --color-faint: #92a1a7;
+  --color-border: #cad4d7;
+
+  --color-accent: #0f7e75;
+  /* Accent text and glyphs ON a soft or tinted fill, where the accent itself
+     is too light to read. */
+  --color-accent-ink: #0a5a53;
+  --color-accent-soft: #d6e8e5;
+  --color-accent-tint: #eaf4f2;
+  --color-accent-on: #ffffff;
+
+  --color-danger: #bf4f3b;
+  --color-danger-ink: #8e3524;
+  --color-danger-soft: #f3dcd6;
+  --color-danger-tint: #faeae5;
+
+  /* The bar. The track is outlined so the level is countable rather than
+     guessed against whatever the row's background happens to be. */
+  --color-track: #dde5e6;
+  --color-track-edge: #9aa8aa;
+
+  /* The reveal behind a swipe that clears a rating: neither yes nor no. */
+  --color-clear: #8d9b9d;
+
+  /* One corner radius, 4px, on everything. A scale was four decisions where one
+     would do, so the other steps are cleared rather than left to fall back on
+     Tailwind's own — `rounded-xs` is the exception DESIGN-UI allows, for parts
+     under about 8px tall, which in practice is the bar's segments. */
+  --radius-*: initial;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+
+  /* Rules, not depth. `shadow-card`/`panel` are the 1px border drawn around a
+     panel; `shadow-lift` is the one real shadow in the language, on a card
+     being swiped, so it reads as lifted off the reveal behind it. */
+  --shadow-card: 0 0 0 1px var(--color-border);
+  --shadow-panel: 0 0 0 1px var(--color-border);
+  --shadow-lift: 0 0 20px rgba(14, 20, 23, 0.16);
+
+  --font-sans:
+    var(--font-barlow), ui-sans-serif, system-ui, "Helvetica Neue", Arial,
+    sans-serif;
+  /* The wordmark, titles, buttons, chips and section headings: the condensed
+     face. */
+  --font-display:
+    var(--font-barlow-condensed), var(--font-barlow), ui-sans-serif, system-ui,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Dark under both guards and under two spellings of each. The media query is
+   what the first paint of a static export has to go on; the class is what
+   next-themes writes once it runs, so an explicit light choice has to win over
+   the system preference. `data-theme` is the attribute DESIGN-UI names and the
+   class is the one `app/layout.tsx` configures — both are honoured here so the
+   two cannot disagree.
+
+   Every value here is derived from its light counterpart and checked only by
+   arithmetic (DESIGN-UI "How far the dark column has been checked"). */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not([data-theme="light"]) {
+    --color-bg: #0e1417;
+    --color-surface: #151d21;
+    --color-surface-muted: #1c262b;
+    --color-surface-hover: #223037;
+    --color-text: #dee7ea;
+    --color-muted: #8b9aa1;
+    --color-faint: #5e6e75;
+    --color-border: #253136;
+
+    --color-accent: #3fb3a6;
+    --color-accent-ink: #6ecec1;
+    --color-accent-soft: #13312e;
+    --color-accent-tint: #102a28;
+    --color-accent-on: #0e1417;
+
+    --color-danger: #dd6b55;
+    --color-danger-ink: #ee8d79;
+    /* Not derived: the derived pair measured 1.11 and 1.02 against `surface`,
+       so a no-rated row was the same colour as an unrated one. */
+    --color-danger-soft: #412923;
+    --color-danger-tint: #39241f;
+
+    --color-track: #1f2a2e;
+    --color-track-edge: #4a5a61;
+
+    --color-clear: #5e6e75;
+  }
+}
+
+.dark,
+:root[data-theme="dark"] {
+  --color-bg: #0e1417;
+  --color-surface: #151d21;
+  --color-surface-muted: #1c262b;
+  --color-surface-hover: #223037;
+  --color-text: #dee7ea;
+  --color-muted: #8b9aa1;
+  --color-faint: #5e6e75;
+  --color-border: #253136;
+
+  --color-accent: #3fb3a6;
+  --color-accent-ink: #6ecec1;
+  --color-accent-soft: #13312e;
+  --color-accent-tint: #102a28;
+  --color-accent-on: #0e1417;
+
+  --color-danger: #dd6b55;
+  --color-danger-ink: #ee8d79;
+  --color-danger-soft: #412923;
+  --color-danger-tint: #39241f;
+
+  --color-track: #1f2a2e;
+  --color-track-edge: #4a5a61;
+
+  --color-clear: #5e6e75;
+}
+
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* In px, not on the root element: Tailwind's spacing scale is in rem, so
+   shrinking the root would shrink every gap and gutter with the type.
+
+   The side insets are the notch and the rounded corners of a phone held
+   sideways, which `viewport-fit=cover` lets the page reach under. The bottom
+   one is each screen's own bottom bar's to pad, since that bar's fill is what
+   should run under the home indicator; there is no top one to pad while the
+   installed app keeps the default status bar. */
+body {
+  font-size: 17px;
+  line-height: 1.5;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* A heading in this language is the condensed face with a little tracking, not
+   a heavier weight of the body face. */
+.font-heading {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* A section heading: condensed, tracked out, muted, on the canvas rather than
+   in a bar. */
+.label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Keyboard focus, on theme. The browser default is a blue that belongs to no
+   palette here. `:focus-visible` only, so a mouse click never draws it — the
+   ring is for people navigating by keyboard, and showing it on tap reads as an
+   error state.
+
+   In the base layer, not outside every layer: an unlayered rule beats every
+   Tailwind utility whatever its specificity, so `outline-none` on an input
+   would be a no-op and the ring would hug the typed text inside its box. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+}
