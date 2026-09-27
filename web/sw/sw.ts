@@ -108,7 +108,7 @@ worker.addEventListener("fetch", (event) => {
     // path also means an offline `/#/item/anything` finds it.
     //
     // Trailing slash forced to match `trailingSlash`: online a server redirects
-    // `/how` to `/how/` and offline nothing does, so the key written
+    // `/about` to `/about/` and offline nothing does, so the key written
     // on the way in would not be the one looked up on the way out.
     const path = url.pathname.endsWith("/") ? url.pathname : `${url.pathname}/`;
     const shell = new Request(`${url.origin}${path}`);

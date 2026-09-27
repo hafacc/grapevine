@@ -3,7 +3,6 @@ import { Fragment, type ReactElement } from "react";
 import { REPO_URL } from "../utils/contact";
 
 const PAGES = [
-  { href: "/how/", label: "how it works" },
   { href: "/about/", label: "about" },
   { href: "/privacy/", label: "privacy" },
   { href: "/help/", label: "help" },

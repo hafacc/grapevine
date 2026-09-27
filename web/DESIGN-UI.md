@@ -295,7 +295,7 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
   since a locked account has nothing under it to lay a sheet over; a written page's
   header sits over its own text column. Nothing else is designed; a second pane is a decision,
   not a layout tweak.
-- **The written pages** (`/how/`, `/about/`, `/privacy/`, `/help/`) keep `components/doc-page.tsx`:
+- **The written pages** (`/about/`, `/privacy/`, `/help/`) keep `components/doc-page.tsx`:
   text face at body size, display-face headings, bare canvas, cards only where they earn it.
 
 ## Tailwind: the `@source` rule
