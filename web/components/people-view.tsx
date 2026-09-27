@@ -28,6 +28,7 @@ import Avatar from "./avatar";
 import DeleteAccountLine from "./delete-account";
 import { useAction, useDialog } from "./dialog";
 import RenameSheet from "./rename-sheet";
+import ReportsLine from "./reports-sheet";
 import ThemeButton from "./theme-button";
 import Button from "./ui/button";
 import IconButton from "./ui/icon-button";
@@ -320,7 +321,7 @@ function InstallLine(): ReactElement | null {
 
 export default function PeopleView(): ReactElement {
   const [query, setQuery] = useState("");
-  const { friends, unfriend, back } = useGrapevine();
+  const { profile, friends, unfriend, back } = useGrapevine();
   const { confirm } = useDialog();
   const run = useAction();
 
@@ -333,8 +334,9 @@ export default function PeopleView(): ReactElement {
   );
 
   async function dropFriend(person: PersonRow): Promise<void> {
-    // The last connection locks the account (0010), which is said first.
-    const last = friends.length === 1;
+    // The last connection locks the account (0010), which is said first. An
+    // admin is never locked (0014).
+    const last = friends.length === 1 && !profile?.admin;
     const sure = await confirm({
       title: `remove ${person.displayName || "someone"} from your vine?`,
       body: last
@@ -372,6 +374,7 @@ export default function PeopleView(): ReactElement {
           <MeLine />
           <LinkRow />
           <InstallLine />
+          <ReportsLine />
 
           {matching.length > 0 ? (
             <>

@@ -32,14 +32,21 @@ export function toParty(row: PartyRow): Party {
 function toProfile(
   row: PartyRow & { created_at: string },
   locked: boolean,
+  admin: boolean,
 ): Profile {
-  return { ...toParty(row), createdAt: epoch(row.created_at), locked };
+  return { ...toParty(row), createdAt: epoch(row.created_at), locked, admin };
 }
 
 // Whether the caller has no connection (0010). Asked of the server rather than
 // read off the friend list, which loads separately and can lag a change.
 export async function fetchLocked(): Promise<boolean> {
   const { data, error } = await supabase().rpc("account_locked");
+  if (error) throw error;
+  return data === true;
+}
+
+async function fetchIsAdmin(): Promise<boolean> {
+  const { data, error } = await supabase().rpc("account_is_admin");
   if (error) throw error;
   return data === true;
 }
@@ -52,16 +59,17 @@ export async function fetchLocked(): Promise<boolean> {
  * rather than never written, and a REJECTED or failed read throws instead.
  */
 export async function fetchOwnProfile(uid: string): Promise<Profile | null> {
-  const [{ data, error }, locked] = await Promise.all([
+  const [{ data, error }, locked, admin] = await Promise.all([
     supabase()
       .from("profiles")
       .select(PROFILE_COLUMNS)
       .eq("id", uid)
       .maybeSingle(),
     fetchLocked(),
+    fetchIsAdmin(),
   ]);
   if (error) throw error;
-  return data ? toProfile(data, locked) : null;
+  return data ? toProfile(data, locked, admin) : null;
 }
 
 // One row, and the rename is done: a friend reads your profile itself, so there

@@ -9,6 +9,9 @@ export type Profile = {
   // True while the account has no connection (0010): the server refuses every
   // write it could make until it redeems a live link.
   readonly locked: boolean;
+  // A row in `private.admins` (0014): never locked, and shown the review queue
+  // for reported names.
+  readonly admin: boolean;
   // No `email` and no `phone`, deliberately — a contact detail exists on the
   // auth account only, in a schema the API does not serve.
 };

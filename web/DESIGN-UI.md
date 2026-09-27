@@ -276,7 +276,9 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
   different field:
   - **A thing**: back arrow, the thing's name, its bar, and the avatar
     (`components/avatar-button.tsx`, the same button the top bar uses). The whole bar is the
-    thing's rating row.
+    thing's rating row. The page ends in a quiet *report this name* line — `surface`, a top
+    rule, text 400 at 15 in `muted`, pushed to the bottom of the page — which reads *reported*,
+    disabled, once sent.
   - **People**: back arrow and *you and your vine*, and **no avatar** — this is where the
     avatar leads. Under it, in order: the viewer's own row, the link row, the install line,
     then *your vine*, then the delete line.

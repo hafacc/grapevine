@@ -85,7 +85,7 @@ export function errorCode(error: unknown): string {
 }
 
 // The database refuses a write past the account's daily budget with this code
-// (`private.count_write` in 0001). Thumbs, new items, links and
+// (`private.count_write` in 0001). Thumbs, new items, links, reports and
 // diagnostics all draw on it, so every write path reads the refusal the same way.
 export function isDailyLimit(error: unknown): boolean {
   return errorCode(error) === "PT429";

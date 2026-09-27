@@ -83,6 +83,10 @@ export default function PrivacyPage(): ReactElement {
           down, and the time you gave it.
         </li>
         <li>
+          Names you reported. Admins see how many reports a name has, never who
+          made them.
+        </li>
+        <li>
           <strong>Your feed</strong> — the recommendations built for you and the
           working numbers behind them, rebuilt in place rather than piled up.
         </li>
@@ -90,6 +94,9 @@ export default function PrivacyPage(): ReactElement {
           <strong>The catalog of things</strong> — a name and when it was added.
           Who added it is recorded in a column no user of the app can read, so
           that abuse can be traced; it is shown nowhere.
+        </li>
+        <li>
+          <strong>Names you reported</strong>, which no user of the app can see.
         </li>
         <li>
           <strong>Diagnostics</strong>, occasionally — see below.
@@ -199,23 +206,19 @@ export default function PrivacyPage(): ReactElement {
         stranger can ever be.
       </P>
 
-      <H2>the names of things are public, and permanent</H2>
+      <H2>the names of things are public</H2>
       <P>
         A thing's name is the one piece of user-written text that anyone signed
         in who searches for it can read, and it can never be changed, because
-        nothing in the catalog can be edited or removed by anyone — the name,
-        lower-cased, is the thing, so “Café Bleu” and “café bleu” are the same
-        one. So a name like “Blue Bottle (rated by 9 friends)”, or a real
-        person's name, is possible and permanent. Tags work the same way. This
-        version accepts that with two limits on the damage: names are drawn as
-        plain text and never as a link or as markup, and searching looks past
-        accents and punctuation, so a misleading spelling doesn't block anyone
-        else from the thing they meant. A way to report and hide one is planned
-        and not built; until it exists,{" "}
-        <a className={link} href={`mailto:${CONTACT_EMAIL}`}>
-          write to us
-        </a>
-        .
+        nothing in the catalog can be edited by anyone — the name, lower-cased,
+        is the thing, so “Café Bleu” and “café bleu” are the same one. So a name
+        like “Blue Bottle (rated by 9 friends)”, or a real person's name, is
+        possible. Tags work the same way. This version accepts that with two
+        limits on the damage: names are drawn as plain text and never as a link
+        or as markup, and searching looks past accents and punctuation, so a
+        misleading spelling doesn't block anyone else from the thing they meant.
+        Report a bad name at the bottom of its screen; a name that is removed is
+        removed for everyone.
       </P>
 
       <H2>live updates</H2>

@@ -4,7 +4,7 @@
 -- locked.
 
 begin;
-select plan(31);
+select plan(32);
 
 insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'owner@example.com',    now()),
@@ -37,6 +37,9 @@ select throws_ok(
 select throws_ok(
   $$insert into public.items (id, search_id) values ('new thing', 'new thing')$$,
   '42501', null, 'or name a thing');
+select throws_ok(
+  $$insert into public.reports (item_id) values ('café bleu')$$, '42501', null,
+  'or report one');
 select throws_ok($$select public.set_invite_link()$$, '42501', null,
   'or make a link');
 select throws_ok(

@@ -5,7 +5,9 @@ import {
   explainWriteFailure,
   isForbiddenCall,
   lockedAfterUnfriend,
+  NAME_REMOVED_MESSAGE,
 } from "../utils/refusal";
+import { reportFailed } from "../utils/reports";
 import { DAILY_LIMIT_MESSAGE } from "../utils/supabase";
 
 const FALLBACK = "couldn't save that just now. try again.";
@@ -27,13 +29,13 @@ describe("explainWriteFailure", () => {
     );
   });
 
-  it("says what it would have when the account is not locked", async () => {
+  it("reads a refusal from an unlocked account as a removed name", async () => {
     expect(
       await explainWriteFailure(REFUSED, FALLBACK, answers(false)),
-    ).toEqual({ kind: "message", text: FALLBACK });
+    ).toEqual({ kind: "message", text: NAME_REMOVED_MESSAGE });
   });
 
-  it("claims no lock when the lock cannot be checked", async () => {
+  it("claims neither when the lock cannot be checked", async () => {
     expect(await explainWriteFailure(REFUSED, FALLBACK, unreachable)).toEqual({
       kind: "message",
       text: FALLBACK,
@@ -67,14 +69,15 @@ describe("isForbiddenCall", () => {
 
 describe("lockedAfterUnfriend", () => {
   it("takes the server's answer", async () => {
-    expect(await lockedAfterUnfriend(answers(false), 0)).toBe(false);
-    expect(await lockedAfterUnfriend(answers(true), 3)).toBe(true);
+    expect(await lockedAfterUnfriend(answers(false), 0, false)).toBe(false);
+    expect(await lockedAfterUnfriend(answers(true), 3, false)).toBe(true);
   });
 
   // The friend is gone either way, so a failed read is not a failed removal.
   it("falls back to the friends left when the check fails", async () => {
-    expect(await lockedAfterUnfriend(unreachable, 0)).toBe(true);
-    expect(await lockedAfterUnfriend(unreachable, 1)).toBe(false);
+    expect(await lockedAfterUnfriend(unreachable, 0, false)).toBe(true);
+    expect(await lockedAfterUnfriend(unreachable, 1, false)).toBe(false);
+    expect(await lockedAfterUnfriend(unreachable, 0, true)).toBe(false);
   });
 });
 
@@ -105,6 +108,18 @@ describe("asksAboutLink", () => {
     expect(asksAboutLink("theirs", undefined, true, null)).toBe(false);
     expect(asksAboutLink("theirs", null, true, null)).toBe(false);
     expect(asksAboutLink(null, OWNER, true, null)).toBe(false);
+  });
+});
+
+describe("reportFailed", () => {
+  it("counts reporting a name twice as done", () => {
+    expect(reportFailed({ code: "23505" })).toBe(false);
+    expect(reportFailed(null)).toBe(false);
+  });
+
+  it("passes every other failure on", () => {
+    expect(reportFailed(REFUSED)).toBe(true);
+    expect(reportFailed({ code: "PT429" })).toBe(true);
   });
 });
 

@@ -230,7 +230,8 @@ reaches the project only through `supabase config push`).
   account. The client asks
   `account_locked()` with the profile and shows `components/locked-screen.tsx` (*your account is
   locked*) instead of the list, unless the device holds a live link. The people screen warns
-  before the last connection goes. **Anything new a client can
+  before the last connection goes. An admin (see "Admins") is never locked, which is how the
+  first account makes the first link. **Anything new a client can
   write must go through `count_write` or check `private.is_unlocked()`**, or a locked account
   can write it.
 - **The cost**: someone without a Google account, or unwilling to give Google a record of which
@@ -287,6 +288,10 @@ The rules below are the ones that are easy to break:
   `text_pattern_ops` indexes are needed: the collation is not `C`. `created_by` is readable by
   nobody and is the ONE person reference that does not cascade (`on delete set null`), or deleting
   an account would be impossible.
+- **`reports`**: a signed-in person reports a thing's name from its screen. INSERT of
+  `item_id` only (`user_id` defaults to the caller), one per person per name, one write spent,
+  no SELECT/UPDATE/DELETE for any client — see "Reports" for review and removal.
+- **`private.admins`**: one row per admin, no client grant, written by hand ("Admins").
 - **`ratings`**: key `(user_id, item_id, tag)`, owner-only; `tag = ''` is the thing itself.
   `rated_at` is read by nothing (see "What the list is drawn from") and is not the staleness probe
   — `max(rated_at)` cannot see a flip or a clear, which is what `private.ratings_changed` is for.
@@ -303,7 +308,7 @@ The rules below are the ones that are easy to break:
   DESIGN §2.10's priors via 0005.
 - **`private.params`**: the population priors, each field null until its own sample exists and
   merged field by field, so a missing row can only fail to move a number.
-- **`private.write_budget`**: every rating insert or update, item, link turned
+- **`private.write_budget`**: every rating insert or update, item, report, link turned
   on, replaced or redeemed (`private.spend_write` for the redeem) and debug event
   spends one of `private.daily_write_limit()` (the ONLY place the number is written) per account per
   UTC day, via `private.count_write` keyed on `auth.uid()`. Deletes are free; connections with no
@@ -481,6 +486,46 @@ filler, for a viewer who has rated no attributes.
 The pure half — folding, change detection, sanitizing, which boundary nodes a round takes — is
 `shared/src/entries.ts`, with its own test suite.
 
+## Reports
+
+No client reads `reports` except through the admins' review queue (0014): the *reports* line on
+the people screen, shown only to an admin, lists every reported name with its count, and removes
+or dismisses one. Three `security definer` functions in `public` are the whole of it, each
+checking `private.is_admin()` first: `reported_names()` answers anybody else nothing, and
+`remove_reported_name(text)` and `dismiss_reports(text)` refuse with `42501`.
+
+A name that is abuse, a private person's name or spam is **removed**, not hidden.
+`remove_reported_name` calls `private.remove_name`, which answers with the number of thumbs it
+deleted. It deletes every rating naming the id (as a thing or an attribute), its `items` row and
+its reports, strips it from every `user_recs.entries`, and adds it to `private.removed_names`,
+which restrictive insert policies on `items`, `ratings` and `reports` check, so it cannot be
+created or reported again.
+Irreversible, like any delete here: the thumbs are gone. **Dismissing** deletes the name's
+reports and keeps the name; anyone may report it again. Both still work from this checkout with
+no admin account:
+
+```sh
+supabase db query --linked "select private.remove_name('the exact id')"
+```
+
+The id must be exact (`normalizeId` of what is shown). Unblocking is `delete from
+private.removed_names where id = '…'`, which brings nothing back.
+
+## Admins
+
+Supabase has no application-level admin role for end users, so an admin is a row in
+`private.admins`, which no client can read or write; `private.is_admin()` checks the caller's
+own `auth.uid()`, and `account_is_admin()` tells the client whether to show the queue. An admin is
+never locked (0010), with or without a connection. Granting is one line, run by the owner against
+the project, with the account's Google address:
+
+```sh
+supabase db query --linked "insert into private.admins (user_id) select id from auth.users where email = 'someone@example.com'"
+```
+
+Revoking is `delete from private.admins where user_id = …`; an admin left with no connection is
+then locked and loses their link. No user id goes in the repository.
+
 ## Priors and the schedule
 
 **`κ` and `a₀(d)` are running tallies**: each recompute reports partial sums into `user_model`'s
@@ -650,11 +695,12 @@ one that drops or rewrites a column is reviewed as the irreversible thing it is,
 reset` belongs nowhere near the project.
 
 `ci.yml`'s `database` job fails a push or pull request that modifies, deletes or renames an
-existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0012` are not, and
-the next deploy applies all five. Two of them destroy data on the project, irreversibly:
+existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0014` are not, and
+the next deploy applies all seven. Two of them destroy data on the project, irreversibly:
 `0009_invite_links.sql` drops `username` and `searchable` (every claimed handle; none had been
 claimed when it was written), and `0011_remove_taste_search.sql` drops taste search's tables.
-`0010_invite_only.sql` locks every account with no connection and deletes its link.
+`0010_invite_only.sql` locks every account with no connection and deletes its link, so the owner's
+own account needs a connection or the admin row ("Admins") before it can make a link again.
 
 ### The domain (do once, by hand)
 

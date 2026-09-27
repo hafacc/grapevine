@@ -58,7 +58,7 @@ export default function HelpPage(): ReactElement {
         a bar of its own, rated by the same swipe, with the ones your network
         has least to say about first. The field at the bottom filters them and
         offers to add one; the eye hides the attributes you have already
-        answered.
+        answered. A bad name can be reported at the bottom of its screen.
       </P>
 
       <H2>people</H2>

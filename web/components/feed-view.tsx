@@ -171,8 +171,8 @@ function ItemRow({
   );
 }
 
-// Everyone arrives with somebody in their vine, so this is for a vine that has
-// rated nothing yet.
+// Everyone but an admin arrives with somebody in their vine, so this is for an
+// admin with no vine yet, or a vine that has rated nothing yet.
 function NothingYet(): ReactElement {
   const { navigate } = useGrapevine();
   return (

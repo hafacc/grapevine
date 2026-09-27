@@ -548,16 +548,16 @@ s_u(x) = E_u(x) / (κ_s + W_u(x)),   κ_s = 1`}</Formula>
           one-vote-of-doubt keep a lone stranger's sliver under the floor.
         </P>
         <P>
-          <strong>Names are public text, and permanent.</strong> A thing's name
-          is written by whoever created it, is visible to anyone signed in who
-          searches for it, and can never be changed — the name <em>is</em> the
-          thing, lower-cased and with runs of spaces squeezed to one, and there
-          is no second key underneath it to move. A misleading or unpleasant
-          name is therefore possible and permanent. Two limits on the damage:
-          names are drawn as plain text, never as a link or as markup, and
-          searching ignores accents and punctuation, so a bad spelling doesn't
-          block anyone else from the thing they meant. A way to report and hide
-          one is planned and not built.
+          <strong>Names are public text.</strong> A thing's name is written by
+          whoever created it, is visible to anyone signed in who searches for
+          it, and can never be changed — the name <em>is</em> the thing,
+          lower-cased and with runs of spaces squeezed to one, and there is no
+          second key underneath it to move. A misleading or unpleasant name is
+          therefore possible. Two limits on the damage: names are drawn as plain
+          text, never as a link or as markup, and searching ignores accents and
+          punctuation, so a bad spelling doesn't block anyone else from the
+          thing they meant. Anyone can report one at the bottom of its screen,
+          and a name that is removed is removed for everyone.
         </P>
         <P>
           <strong>Two names can look identical and be different.</strong> A

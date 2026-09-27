@@ -322,6 +322,14 @@ begin
          or (tag <> '' and not private.is_normalized_id(tag))
       limit 1;
   end if;
+  if offender is null then
+    select item_id into offender from public.reports
+      where not private.is_normalized_id(item_id) limit 1;
+  end if;
+  if offender is null then
+    select id into offender from private.removed_names
+      where not private.is_normalized_id(id) limit 1;
+  end if;
   if offender is not null then
     raise exception 'an existing id is no longer allowed: %', offender
       using hint = 'decide what happens to it before applying ${version}';
