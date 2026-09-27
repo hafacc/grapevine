@@ -1139,8 +1139,8 @@ Three things the schema says directly:
   there with a **NUL** (`\0`): `café bleu` for the thing, `café bleu\0coffee` for one of its
   attributes. Postgres text cannot contain a NUL at all — the server refuses the byte on input
   — so no name anybody can type can forge the join or smuggle a second separator into a half,
-  which matters because an id is arbitrary Unicode and no pattern could enumerate what a half
-  may contain. The join is the core's and the wasm boundary's; it is never stored, never queried
+  which matters because an id is any script's letters and punctuation and no pattern could
+  enumerate what a half may contain. The join is the core's and the wasm boundary's; it is never stored, never queried
   and never shown.
 - **A thumb carries its own clock.** `rated_at` is 8 bytes on a row the neighbourhood query does
   not select. It is written from the first day because history cannot be backfilled, it is the
@@ -1168,12 +1168,41 @@ copy:
 
 - **Empty.** After trimming, an id of zero length. Every caller refuses it rather than writing
   it.
-- **Control characters.** Nothing in Unicode category `Cc` or `Cf`, with `U+200C` and `U+200D`
-  (ZWNJ, ZWJ) the two exceptions, because Persian and several Indic scripts need them to spell
-  ordinary words and emoji sequences are built from them. The bidirectional overrides
-  (`U+202A`–`U+202E`, `U+2066`–`U+2069`) are refused by name: one of those in a name reverses
-  the rest of the row it is drawn in. Nothing in `Cs`, `Co` or `Cn` either. And no NUL, which
-  Postgres would refuse anyway and which the core's own join depends on never seeing.
+- **Anything off the allow-list** (migration `0008`). An id is ordinary letters, numbers and
+  punctuation, following Unicode's own guidance for identifiers (UTS #39 and #31):
+  - *Characters*: UTS #39's `Identifier_Status=Allowed` — the letters, combining marks and
+    digits of the scripts in everyday use, with the historic, liturgical and specialist ones
+    left out — plus the space, `! " # $ % & ( ) * + , / ; ? @`, `¡ ¿ « » – — ‘ “ ” „`, the CJK
+    comma, full stop and brackets, the Arabic comma, semicolon and question mark, the Indic
+    dandas, and `€ £ ¥` beside `$`. Nothing else: no emoji or pictograph, no other symbol,
+    nothing invisible or default-ignorable (zero-width space, soft hyphen, variation selectors,
+    tag characters), no control, format, private-use or unassigned code point. The
+    bidirectional overrides are among what this refuses: one of those in a name reverses the
+    rest of the row it is drawn in. And no NUL, which the core's own join depends on never
+    seeing.
+  - *Combining marks* sit on a letter or a digit, at most four on one (Burmese, the deepest
+    ordinary case, puts four on a consonant), and never the same mark twice in a row: stacked
+    marks draw over the rows above and below, and a doubled one looks like a single one.
+  - *ZWJ and ZWNJ* (`U+200D`, `U+200C`) only where RFC 5892 allows them: after a virama, and
+    ZWNJ also between two letters that would otherwise join. That is where Persian and the
+    Indic scripts need them to spell ordinary words; anywhere else they are invisible.
+  - *One script per word*, UTS #39's "moderately restrictive" level applied to each
+    space-separated word: a word is one script (with the digits, punctuation and marks every
+    script shares), or Latin plus one other script that is not Cyrillic or Greek, or Latin
+    with Han and the kana, Han and Bopomofo, or Han and Hangul. `café кафе` and `tokyo 東京` are
+    names; `cаfé` with a Cyrillic `а` is not, because Cyrillic and Greek are where Latin's
+    look-alikes are.
+
+  The list is generated from pinned Unicode data (15.1, the version Postgres 17's
+  normalization knows) by `scripts/generate-name-rules.ts`, which writes the tables the client
+  reads and the migration the database runs, and `shared/src/name-rules.ts` turns the same
+  tables into the same regular expressions for both engines. Neither uses Unicode property
+  classes: the client's follow its engine's Unicode version, and Postgres has none. Changing the
+  list is a new migration that, like `0008`, refuses to apply over an existing id it
+  would refuse, since Postgres does not re-check old rows and an id cannot be renamed.
+- **A word that starts with `!`, `#` or `@`** (also `0008`). Search reads each as an operator
+  (§1 "Search"), so a name with a word like that could not be found by typing it. Anywhere else
+  in a word they are punctuation: `yahoo!`, `c#`.
 - **Anything that is not NFKC-normal.** `id is nfkc normalized` is a Postgres predicate, so the
   `CHECK` states this directly rather than approximating it with a pattern. It is what makes
   the id canonical: there is one byte sequence per name.
@@ -1218,9 +1247,11 @@ the collation is not `C`. Inside the feed, which is where most searching happens
 done in memory and needs neither.
 
 **Unicode admits strings that look identical and are not.** Latin `a` (`U+0061`) and Cyrillic
-`а` (`U+0430`) survive NFKC as different characters, so `café bleu` and `cаfé bleu` are two
+`а` (`U+0430`) survive NFKC as different characters, so `café bleu` and `cаfé bleu` would be two
 items that no reader can tell apart. NFKC removes the compatibility cases (`ﬁ` is `fi`,
-full-width is half-width); the confusable cases it leaves. The mitigation is a **confusable
+full-width is half-width); the confusable cases it leaves. One script per word refuses the
+mixed spelling outright, but a word written wholly in Cyrillic can still imitate a Latin one
+(`рор` is three Cyrillic letters). The mitigation for what is left is a **confusable
 skeleton** (Unicode TR39: map each character to its representative, then compare) used for
 lookup and duplicate detection — the search that finds a near-match compares skeletons too, so
 someone who types the ordinary spelling sees the look-alike among the results and the person

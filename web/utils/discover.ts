@@ -1,4 +1,4 @@
-import { confusableSkeleton, normalizeId, searchFold } from "grapevine-shared";
+import { confusableSkeleton, foldId, searchFold } from "grapevine-shared";
 import type { Item, Ratings, RatingValue, RecsEntry } from "./types";
 
 /**
@@ -48,7 +48,8 @@ export function matchesText(foldedQuery: string, candidate: string): boolean {
   // not redundant: an id arrives lower-case already, but a display name on the
   // people screen does not.
   const target = foldQuery(candidate);
-  // By code point on both sides: an emoji is two UTF-16 units, and indexing
+  // By code point on both sides: a character past the BMP (much of Han, or an
+  // emoji typed into the query) is two UTF-16 units, and indexing
   // the query by unit compares half of one with the whole of another.
   const wanted = Array.from(foldedQuery);
   let at = 0;
@@ -279,10 +280,14 @@ export function hiddenByEye(
  *
  * Null when the typed name IS one of the ids: an add that collides is a find,
  * and there is nothing to warn about.
+ *
+ * The typed text is folded but not refused: a Latin word with a Cyrillic `а`
+ * in it could never be added, and is exactly what should point at the thing it
+ * imitates.
  */
 export function lookAlike(typed: string, ids: Iterable<string>): string | null {
-  const id = normalizeId(typed);
-  if (id === null) return null;
+  const id = foldId(typed);
+  if (id === "") return null;
   const known = [...ids];
   if (known.includes(id)) return null;
   const skeleton = confusableSkeleton(id);

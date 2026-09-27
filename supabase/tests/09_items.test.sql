@@ -58,8 +58,8 @@ select lives_ok(
   $$insert into public.items (id, search_id) values ('o''brien''s', 'obriens')$$,
   'punctuation, which only search_id drops');
 select lives_ok(
-  $$insert into public.items (id, search_id) values ('zero' || chr(8204) || 'width', 'zerowidth')$$,
-  'and ZWNJ, which several scripts need to spell an ordinary word');
+  $$insert into public.items (id, search_id) values ('می' || chr(8204) || 'خواهم', 'می' || chr(8204) || 'خواهم')$$,
+  'and ZWNJ where Persian needs it to spell an ordinary word');
 select lives_ok(
   $$insert into public.items (id, search_id) values (repeat('a', 128), repeat('a', 128))$$,
   'up to the length bound itself');
