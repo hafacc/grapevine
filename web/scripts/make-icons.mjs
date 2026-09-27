@@ -102,11 +102,11 @@ function enclosingCircle(points) {
 const { centreX, centreY, radius } = enclosingCircle(
   berries.flatMap(({ points }) => points),
 );
-const scale = SAFE_RADIUS / radius;
-const shiftX = BOX / 2 - scale * centreX;
-const shiftY = BOX / 2 - scale * centreY;
 
-function mark(colour) {
+function mark(colour, fitRadius = SAFE_RADIUS) {
+  const scale = fitRadius / radius;
+  const shiftX = BOX / 2 - scale * centreX;
+  const shiftY = BOX / 2 - scale * centreY;
   const painted = markBody.replaceAll(ACCENT, colour);
   if (painted === markBody && colour !== ACCENT) {
     throw new Error(`${MARK_FILE} is not drawn in ${ACCENT}`);
@@ -163,9 +163,7 @@ function solidMark() {
 }
 
 // The browser tab, and nothing else reads `app/icon.svg`: every install surface
-// takes one of the PNGs below. No disc behind it, unlike them: a disc that fits
-// in 16 px leaves the bunch 9 px wide and each berry a blot, where on its own it
-// takes 14. The tab strip is the background instead, so the accent follows the
+// takes one of the PNGs below. The tab strip is the background instead, so the accent follows the
 // theme the way it does in the app — the light theme's teal is 2.4:1 on Chrome's
 // dark tab strip.
 const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}" width="${BOX}" height="${BOX}">
@@ -174,15 +172,15 @@ const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${B
 </svg>
 `;
 
-// Flat fill: the palette has no gradients.
-const disc = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}" width="${BOX}" height="${BOX}">
-  <circle cx="32" cy="32" r="32" fill="${ACCENT}" />
-  ${mark(ON_ACCENT)}
+// Just the grapes, on nothing: wherever this icon is drawn uncropped, the
+// platform's own surface is the background.
+const bare = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}" width="${BOX}" height="${BOX}">
+  ${mark(ACCENT, BOX / 2)}
 </svg>
 `;
 
 // Full-bleed, because Android crops a maskable icon to whatever shape the
-// launcher uses and would take the edges off the disc. Apple's touch icon is
+// launcher uses. Apple's touch icon is
 // the same square: iOS rounds it itself, and composites a transparent one on
 // black.
 const square = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}" width="${BOX}" height="${BOX}">
@@ -192,8 +190,8 @@ const square = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BO
 `;
 
 const OUTPUTS = [
-  { source: disc, size: 192, path: "public/icon-192.png" },
-  { source: disc, size: 512, path: "public/icon-512.png" },
+  { source: bare, size: 192, path: "public/icon-192.png" },
+  { source: bare, size: 512, path: "public/icon-512.png" },
   { source: square, size: 512, path: "public/icon-maskable-512.png" },
   { source: square, size: 180, path: "public/apple-touch-icon.png" },
 ];
