@@ -44,8 +44,15 @@ and check it.
 - **Rating**: `(user, item, tag) -> +1 | -1`, with an empty `tag` meaning the thing itself.
   Private to the user who made it. Only the two server-side functions — the feed recompute
   (§3.4) and taste search (§5) — read other people's ratings.
-- **Friend edge**: mutual, by request and acceptance (same mechanism as kip: usernames,
-  connect requests, share links). Your friend list is visible only to you.
+- **Friend edge**: mutual. Made by a **link** one person hands another off the platform —
+  a message, a chat, in person — and the other opening it and saying yes (§1 item 6), or by a
+  connect request to somebody taste search suggested (§5) and its acceptance. There are no
+  handles and nobody is found by typing anything. Your friend list is visible only to you.
+- **Display name**: what a person is called, and the only thing that says who they are. It
+  defaults to the first name Google gives (`given_name`, else the first word of the full
+  name), is editable at any time, and may be anything up to 50 characters except a control
+  character or a bidirectional mark or override, which would reverse the line it is drawn in.
+  Nobody is found by it, so it needs to be neither unique nor stable.
 
 ### The one view
 
@@ -99,58 +106,99 @@ the avatar in the corner. Everything user-facing is lower case.
    reaches the server, so it vanishes when they leave the screen. An attribute that exists
    because one person typed it and walked away is not a thing anyone else can ever see.
 5. **People, behind the avatar.** One screen, under a title bar of its own — a back button and
-   *you and your friends*, no avatar, since this is where the avatar leads — in this order.
-   First the viewer's own row — photo, name, handle, the theme control and sign out on one
-   line. Beneath it, two
-   full-width lines that **are** switches, swiped like everything else, each one sentence
-   because each setting is one sentence:
-   - **Findable.** Shown once there is a handle; before that, a field and a *claim* button to
-     pick one stand in its place, and claiming turns findable on. On: green, *findable as @handle — anyone who
-     types it can ask to connect*. Off: grey, *swipe to be findable as @handle*. Off, typing the
-     handle finds nobody.
-   - **Suggestions.** Default **off**: grey, reading *swipe to show up in friend suggestions*.
-     On: green, reading *suggested to people with similar taste*. Reciprocal in both directions
-     (§5.1) — off means you are named to nobody and your own list is written empty. **Not a
-     switch until there is a handle**: before one is claimed the line reads *claim a handle
-     above to show up in friend suggestions*, does not swipe, and a tap on it puts the cursor in
-     the claim field. Being suggested means being askable, asking needs a handle, and the schema
-     refuses findable without one, so a swipe there could only ever end in an error.
+   *you and your vine*, no avatar, since this is where the avatar leads — in this order.
+   First the viewer's own row — photo, name, the theme control and sign out on one line. The
+   name is a button: a tap opens a sheet, *your name*, with the field, *what your vine
+   sees. anything you like.*, and *save*. Beneath the row:
+   - **The link row.** *your link is off* or *your link is on*, and nothing else: the link
+     itself is never drawn. It swipes like any row, with words behind it rather than thumbs,
+     since neither side is a rating: off, right is *turn on*; on, left is *turn off* and right
+     is *new link*. On, it carries *copy* and, where the device has a share sheet, *share*
+     (item 6).
+   - **Suggestions**, a full-width line that **is** a switch, swiped like everything else, one
+     sentence because the setting is one sentence. Default **off**: grey, reading *swipe to
+     show up in friend suggestions*. On: green, reading *suggested to people with similar
+     taste*. Reciprocal in both directions (§5.1) — off means you are named to nobody and your
+     own list is written empty.
 
-   The two are coupled, because a suggestion names someone the viewer can then ask, and nobody
-   can ask a person who is not findable: turning findable off turns suggestions off with it,
-   and turning suggestions on while unfindable turns findable on first. Then the install line
-   where the browser offers one, then pending asks, then friends, then *similar taste*.
-   A pending ask and a similar-taste row carry, beneath the handle, **the attributes you agree
-   on** (§5.1). That is the entire basis for deciding: no alignment level is shown, and there
+   Then the install line where the browser offers one, then pending asks, then friends under
+   *your vine*, then *similar taste*. A pending ask and a similar-taste row carry, beneath the
+   name, **the attributes you agree on** (§5.1). That is the entire basis for deciding: no alignment level is shown, and there
    is no person page.
-   **A friend's row swipes one way only**: left, revealing a *user-minus* glyph rather than a
-   thumb, because no is the only answer a friendship takes here. It asks first — *unfriend
-   &lt;name&gt;?*, *you'll drop out of each other's friends and feeds. to be friends again, one
-   of you has to ask.* — and on *unfriend* removes both rows. On desktop the row keeps only its
-   left button.
-6. **Finding a person is typing a handle.** The page's search field filters the people already
-   shown; a handle nobody there has offers *ask @handle to connect*, in the same place the add
-   button sits everywhere else. Handles are exact and there is no browsing for people, which
-   is the same rule the schema enforces. Asking someone hides them from suggestions
-   and from that list until they accept, so nobody can be asked twice. The cost: **a pending
-   ask is invisible to the asker** — they see neither the person nor the
+   **A friend's row swipes one way only**: left, revealing the word *remove* rather than a
+   thumb, because no is the only answer a friendship takes here. It asks first — *remove
+   &lt;name&gt; from your vine?*, *you'll no longer shape each other's lists. to undo it, one of you
+   has to send a link.* — and on *remove* removes both rows. On desktop the row keeps
+   only its left button.
+6. **Making a friend is sending a link.** Each person has **at most one link** —
+   `https://grapevine.hafa.cc/#/invite/<token>` — with no expiry and no limit on uses, managed
+   from the link row (item 5). The link can be copied again at any time, from any device the
+   owner signs in on. *new link*
+   asks first — *make a new link?*, *the one you have stops working. people it added
+   stay.* — and so does *turn off*. Neither unfriends anyone.
+
+   A link is a **bearer secret** and works for anyone who holds it, as many times as it is
+   opened, until its owner replaces it or turns it off. So one link can go to a group chat, and
+   **a leaked link costs its owner exactly the friends it makes before it is replaced** — each
+   one a direct friend, with everything §4 says a direct friend can learn, and either end can
+   unfriend the other afterwards.
+
+   Opening a link: the token lives in the fragment, which no browser sends to any server — not
+   to the host's logs, not in a `Referer` — and which the OAuth return leaves alone, since GoTrue
+   puts its `?code=` in the query. It is taken out of the address at once and kept in
+   `sessionStorage` for the tab (it is not a screen; the address becomes the list), so it
+   survives the trip to Google. Signed out, the welcome screen shows the owner's photo,
+   *sign in to add &lt;name&gt; to your vine*, the door as *continue with google*, and under it
+   the line *your vine is a collection of people you trust to recommend honestly.* — the link
+   is the authority to see its owner's name and photo, and nothing else. Once in, every
+   account — new, locked, or with a vine already — is asked on one full screen: the owner's
+   photo, *add &lt;name&gt; to your vine?*, *not now* or *add*, and under them the same line.
+   An account whose vine is empty also reads, above the buttons, *if you decline, your account
+   stays locked until you accept someone's link.* Saying yes is the consent, and
+   asking before writing is what lets someone who opened a forwarded link, or opened it signed
+   in to the wrong account, see whose it is and say no. A dead link — turned off, replaced,
+   mangled or never made, which are not told apart — shows **nothing about anybody**: no name,
+   no photo, since `invite_owner` answers nothing for it. It says *this link is invalid or
+   expired* on the welcome screen, before any trip to Google, and *that link is invalid or
+   expired* to somebody already signed in; either way it is then forgotten. A malformed token is
+   answered that way without asking the server. Your own link says so; an existing friend says
+   *&lt;name&gt; is already in your vine*.
+
+   The page's search field filters the names already shown and reaches nobody past them: there
+   is no browsing for people and no searching for them either. A similar-taste row's yes sends a
+   connect request, the only kind there is, and a request can go only to somebody suggested to
+   the sender (§5.1). Asking someone hides them from suggestions until they accept, so nobody
+   can be asked twice. The cost: **a pending ask is invisible to the asker** — they see neither the person nor the
    request they sent, only that the person is gone. The alternative is a state that can be
    re-sent, and re-sending is the thing worth preventing. It follows that **a sent ask cannot
    be withdrawn**: there is nothing on screen to withdraw it from. It ends when the other person
    accepts or declines.
-7. **Nothing to show yet.** An empty feed reads, exactly: *search for and tag things you like
-   or don't. swipe on anything to indicate your preferences.* — with an *add friends* button
-   and a *read more* button, and **nothing saying which direction means what**. That is
-   deliberate: `/how/` explains the swipe, and a first screen that teaches the gesture before
-   there is anything to use it on is teaching nothing. The cost is that a first swipe may be a
-   guess; the reveal names itself under the thumb, and the gesture is its own undo.
-   That screen is only for a list that is really empty. When the eye has hidden every row
-   there is, the list says *you've rated everything here. the eye shows it again.* instead —
-   somebody with a list of their own does not need telling to start one.
+
+   **A link is also the only way in** (§3.6). Signed out with no link, the welcome screen says
+   nothing about the vine, the door reads *sign in*, and the line under it *grapevine is
+   invite-only. ask someone for the link to their vine.*; the door stays, because people who
+   have joined sign in there. An account that trusts nobody is locked; the question above,
+   when it holds a live link, is how it unlocks. Otherwise, or on *not now*, it sees *your
+   account is locked* and *it unlocks when you add someone to your vine with their link. ask
+   someone for theirs.*, with *sign out*. Removing the last person
+   asks first: *they're the last person in your vine. your account will be locked until
+   someone sends you a link.*
+7. **The first list, and nothing to show.** Everyone arrives through a link, so their first
+   list is already their vine's ratings. Over it, once per viewer on a device, sits
+   one line: *this list comes from your vine. swipe right for yes, left for no.* (at desktop
+   width, only the first sentence: the thumbs on the buttons say the rest), with a close
+   button. Closing it or rating anything puts it away for good. It waits for a list with rows
+   in it, because a gesture taught before there is anything to use it on teaches nothing.
+   A list that is really empty — a vine that has rated nothing yet — reads *nothing here yet.
+   search to add something, or add people to your vine.* with an *add to your vine* button.
+   When the eye has hidden every row there is, the list says *you've rated everything here.
+   the eye shows it again.* instead.
 8. **Desktop keeps the mobile layout** and replaces the swipe with a button welded to each
    side of a row — no on the left, yes on the right — tinted the same soft green and red that
    a rated row gets, with the coloured glyph on top. The side matching the viewer's current
-   rating goes grey with a minus, because pressing it clears. Desktop is otherwise
+   rating goes grey with a minus, because pressing it clears. Thumbs are for rating only: on
+   the link row and a friend's row the buttons carry the word for what they do (*turn on*,
+   *turn off*, *new link*, *remove*). Desktop is otherwise
    **unpolished and deliberately deferred**: the column is centred and the rest is the phone —
    the whole phone, bars included, so a back button or the avatar sits at the column's edge and
    not the screen's.
@@ -1185,10 +1233,12 @@ a CPU ceiling, and the simulator runs thousands of synthetic worlds.
 Column names are `snake_case`; the client sees them through PostgREST under the same names.
 
 ```sql
-profiles          (id uuid pk -> auth.users, username text unique, display_name text,
-                   photo_url text, searchable bool, created_at timestamptz)
+profiles          (id uuid pk -> auth.users, display_name text, photo_url text,
+                   created_at timestamptz)
 friendships       (user_id, friend_id) pk, since timestamptz          -- both directions stored
 connect_requests  (from_id, to_id) pk, created_at
+invite_links      (owner_id uuid pk, token text unique, created_at)
+                  -- at most one link per person; the token is readable by its owner only
 items             (id text pk, search_id text not null, created_at, created_by uuid)
                   -- id IS the name; search_id is it with accents/punctuation stripped,
                   -- client-written from `searchFold`, its own text_pattern_ops index,
@@ -1217,7 +1267,16 @@ private.write_budget  (user_id, day) pk, writes                       -- trigger
 - **`friendships` is the adjacency**, a join is the read, and a deferred constraint trigger
   makes a one-sided friendship impossible at commit. The core's own reciprocity check stays as
   defence in depth against a later schema change; it is free and nearly always vacuous.
-- **A handle is unique by index.** Claiming one is one statement, and `unique` is the guarantee.
+- **One link per person, keyed by its owner.** `set_invite_link()` mints 32 random bytes as 43
+  characters of base64url and writes them over the owner's row, so the old token stops working
+  in the same statement; deleting the row turns the link off. The token is stored as itself,
+  not hashed, because the owner has to be able to copy it again at any time: the select policy
+  admits the owner's own row only, so a filter on `token` finds nothing that is not already the
+  caller's, and `owner_id` is in no select grant. What that gives up against a hash is that a
+  copy of the database is a copy of everyone's links — and whoever holds the database holds the
+  friendships a link would make anyway. `invite_owner(text)` and `redeem_invite(text)` take the
+  exact token and touch at most one row. There is no insert and no update grant: a token is made
+  on the server.
 - **A name is stored once.** No friend edge, connect request or suggestion carries a copy of
   anybody's name or photo: a friend, a pending asker and someone you are suggested to can each
   read your profile under RLS (§3.3), so a rename is a change to the only copy.
@@ -1416,7 +1475,7 @@ Five conventions:
   `created_at`, `created_by`, `since`, `rated_at`, `at` and `expires` unforgeable.
 - **Table privileges.** "No update verb and no delete verb, for anyone" is a `REVOKE`.
 - **A daily write budget, in the database.** Every rating insert or update, every item created,
-  every connect request sent and every diagnostics event draws on one allowance per account per
+  every connect request sent, every link turned on, replaced or redeemed and every diagnostics event draws on one allowance per account per
   UTC day, a number written once, in `private.daily_write_limit()`; deletes draw nothing. A
   `security definer` BEFORE trigger counts against `auth.uid()` in `private.write_budget` and
   refuses the write past the allowance with SQLSTATE `PT429`, which PostgREST serves as HTTP 429
@@ -1428,19 +1487,21 @@ Five conventions:
   is not counted, and a scheduled statement deletes past days.
 - **No policy reads another table directly.** Every cross-table predicate goes through a
   `security definer stable` helper in `private` — `is_friend`, `has_incoming_request_from`,
-  `has_open_outgoing_request_to`, `is_suggested_to_me`, `is_searchable`, `is_discoverable` — so
+  `has_open_outgoing_request_to`, `is_suggested_to_me`, `is_discoverable` — so
   RLS never nests and never recurses. Policies say `(select auth.uid())`, never bare
   `auth.uid()`, so the planner evaluates it once per statement instead of once per row.
 
 The policies themselves are short. A profile is readable by its owner, by a friend, by someone
-who has asked to be their friend, by someone still findable whom they have asked, and by anyone
-it is suggested to **while it stays discoverable** — `is_discoverable(p)` is `searchable` and
-`discoverable_by_taste` both on, and the `suggestions` read policy and `shared_attributes` check
-the same helper, so either switch going off withdraws the profile, the row and the chips at once
-rather than at each other viewer's next search (a row naming someone outlives their switching
-off, because only its owner's own search rewrites it). The two halves of a pending ask are
-separate clauses because they are separate permissions, and only the sender's expires when the
-target goes private. Friendships, connect requests, ratings and prefs are readable and writable
+who has asked to be their friend, by someone still discoverable whom they have asked, and by
+anyone it is suggested to **while it stays discoverable** — `is_discoverable(p)` is
+`discoverable_by_taste`, and the `suggestions` read policy and `shared_attributes` check the same
+helper, so the switch going off withdraws the profile, the row and the chips at once rather than
+at each other viewer's next search (a row naming someone outlives their switching off, because
+only its owner's own search rewrites it). The two halves of a pending ask are separate clauses
+because they are separate permissions, and only the sender's expires when the target switches
+off. A connect request may be inserted only to somebody suggested to the sender and still
+discoverable (`is_suggested_to_me`): knowing a uid is not a route to anyone. An invite link is
+readable and deletable by its owner alone (§3.2). Friendships, connect requests, ratings and prefs are readable and writable
 by the people they are about. `user_recs` and `suggestions` are readable by their owner and
 writable by nobody, since the Edge Functions write as `service_role`, which bypasses RLS — a
 planted suggestion row would be a stranger presented as vouched for by the algorithm, so there
@@ -1450,12 +1511,17 @@ and never a person's standing. Items are readable by every signed-in user and cr
 with no update and no delete for anyone.
 
 **The whole of what a client may call**, and it is short, because a stored procedure here is a
-transaction rather than a server: `claim_username(text)` (one statement over a unique index, after
-`has_credential()`), `accept_connect_request(uuid)` (`security invoker`, so every policy still
-applies to it — two friendship rows and the request's deletion in one transaction),
-`dismiss_suggestion(uuid)`, `find_by_username(text)` and `profile_by_id(uuid)` (below),
-`record_debug_event(text, text)`, which is the only write verb on a table in `private` and
-supplies none of the three columns it stamps, and `shared_attributes(uuid)`, which returns at
+transaction rather than a server: `set_invite_link()` (after `has_credential()`; mints a token
+over the caller's one link and returns it), `invite_owner(text)` (the name and photo behind one
+exact token, or nothing; the one call `anon` may make, since the link is the authority to see
+them), `redeem_invite(text)` (after `has_credential()`; spends one write
+whether or not the token matches, then writes both friendship rows and deletes any pending ask
+between the two — `security definer`, because it writes the owner's half of the edge, which the
+owner authorized by handing the link over, and the caller by saying yes), `accept_connect_request(uuid)` (`security invoker`, so
+every policy still applies to it — two friendship rows and the request's deletion in one
+transaction), `dismiss_suggestion(uuid)`, `record_debug_event(text, text)`, which is the only write verb on a table in `private` and
+supplies none of the three columns it stamps, `account_locked()` (§3.6; whether the caller has no connection), and
+`shared_attributes(uuid)`, which returns at
 most three attribute words for one exact other person and an empty array for anyone the caller is
 not entitled to ask about (§5.1).
 
@@ -1470,7 +1536,7 @@ PostgREST serves only the schemas `config.toml` names, and `private` is delibera
 them — so a function there is unreachable from a client *whatever* its grants, which is exactly
 why the tables live there and exactly why this one cannot. It is `security definer` with
 `set search_path = ''`, with `execute` **revoked from `public`** and granted to `authenticated`
-alone, the shape `find_by_username` has and the answer to the second hazard below. It takes an
+alone, the shape `redeem_invite` has and the answer to the second hazard below. It takes an
 exact key, returns no rating, no count, no item and no rank beyond list order, and answers a
 caller with no entitlement with an empty result rather than an error, because an error separates
 "nothing to say" from "not allowed to ask". It decides whom it will answer for with
@@ -1479,20 +1545,21 @@ caller with no entitlement with an empty result rather than an error, because an
 Two triggers complete the schema and neither is callable: `handle_new_user()` on `auth.users`
 creates the profile and prefs rows in the same transaction as the account, so "the profile is
 missing" cannot happen for a signed-in user; and `assert_symmetric()`, deferred to commit, is
-what makes a one-sided friendship impossible. The six policy helpers are the rest of schema
+what makes a one-sided friendship impossible. The five policy helpers are the rest of schema
 `private`, alongside `neighbourhood` and `load_nodes`.
 
 **Two hazards are permanent.**
 
 *Enumeration is the default.* A clause that authorizes reading a row authorizes reading every
-row it matches, so `or searchable` in the profile policy would also authorize `select * from
-profiles where searchable` — a dump of every findable account with their handles, which is a
-global aggregate this app does not otherwise have and which §4 says it will not have. So the
-`searchable` disjunct is *not* in the policy. It lives inside two `security definer` functions,
-`find_by_username(text)` and `profile_by_id(uuid)`, each taking an exact key, returning at most
-one row, and refusing a target who is not searchable. A pattern, a prefix or an unbounded limit
-in either body is the enumeration they exist to prevent, and the same care is owed anywhere a
-policy clause looks tempting.
+row it matches, so any clause on `profiles` that does not name a live relationship — a public
+flag, a "has a link" — would authorize `select * from profiles` for everybody it matches, a
+global aggregate this app does not otherwise have and which §4 says it will not have. So no such
+clause is in the policy. The two reads of somebody with no edge to the caller live inside
+`security definer` functions in `public` that take an exact key and return at most one answer:
+`invite_owner(text)`, keyed on a 244-bit token and answering with a name and a photo only, and `shared_attributes(uuid)`, which
+answers only for a relationship the other person made. A pattern, a prefix or an unbounded
+limit in either body is the enumeration they exist to prevent, and the same care is owed
+anywhere a policy clause looks tempting.
 
 *Postgres grants `EXECUTE` on a new function to `PUBLIC` by default.* `private.neighbourhood`
 returns the raw ratings of up to `N_max` people, so a `grant execute` on it, or moving it to a
@@ -1502,11 +1569,12 @@ mitigation; every migration is read with this in mind.
 
 **One check is kept although it is currently vacuous.** `has_credential()` — an account that is
 not anonymous and carries a confirmed email, a confirmed phone or a Google identity — gates
-exactly one thing, claiming a handle, because handles are permanent and never released. With
-Google as the only door every session passes it by construction. It stays because the thing it
-guards against is a dashboard toggle rather than a code path: enabling anonymous sessions or a
-second provider is a two-click change that ships no diff and passes no review, and it would
-silently reopen permanent-handle squatting to accounts nobody can prove ownership of. Every
+two things, making a link and redeeming one, because a link makes friendships in its owner's
+name and a redeemed one is a friendship nobody should hold from an account nobody can sign back
+into. With Google as the only door every session passes it by construction. It stays because
+the thing it guards against is a dashboard toggle rather than a code path: enabling anonymous
+sessions or a second provider is a two-click change that ships no diff and passes no review, and
+it would silently let accounts nobody can prove ownership of mint and answer links. Every
 other check in this design guards against a client; this one guards against us.
 
 ### 3.4 Computation: per viewer, on open
@@ -1704,8 +1772,8 @@ Three things follow:
 
 - **A profile arrives named.** A trigger on the auth user creates the profile row and the prefs
   row in the same transaction, taking `display_name` and `photo_url` from Google's identity
-  metadata. So "the profile is missing" cannot happen for a signed-in user, and the name gate
-  covers the one real case: a Google account that carries no name at all.
+  metadata. So "the profile is missing" cannot happen for a signed-in user, and a Google account
+  that carries no name at all is called *unknown* until its owner renames it.
 - **The OAuth flow must not eat the fragment.** Every screen has its URL in the fragment, and
   Supabase's implicit flow returns the session as `#access_token=…`. The two cannot both be
   right: the router would be handed a fragment it cannot parse and an access token would sit in
@@ -1728,6 +1796,62 @@ is bounded by the friend *edges* connecting a sybil set to the honest network, n
 of accounts, and §2.4's "adding accounts to `S` re-divides a fixed pie" says the same thing from
 the other side. What an attacker still has to buy is a friendship with a real person. A
 fresh-identity cost is not a sybil defence and must never be written up as one.
+
+**A link does not come with an anonymous account, deliberately.** The obvious way to let
+somebody holding a friend's link try grapevine before handing Google anything is an anonymous
+session (`signInAnonymously`) converted later by linking a Google identity to it
+(`linkIdentity`, which needs `enable_manual_linking`). Supabase supports both, and they are not
+built, for four reasons that none of them is about sybils:
+
+- **The write budget and the shared catalog lean on an account costing something to make.** The
+  budget is per account per day; an anonymous account is a click, so one person could multiply
+  it into as many catalog items as they have the patience to mint accounts for. Supabase's own
+  answer is a CAPTCHA on anonymous sign-in, which is a third-party script on the welcome screen,
+  and `/privacy/` says the site loads none.
+- **The conversion fails for exactly the person who opens a link on a new device.** `linkIdentity`
+  refuses a Google identity that already belongs to a grapevine account, so someone who already
+  has one and opens a friend's link on a phone that is signed out would be left with an orphan
+  anonymous account holding the new friendship, and nothing merges two accounts.
+- **An account nobody converts is a friend nobody can sign back into.** It stays on the link
+  owner's list for good, and nothing deletes it.
+- **It reopens what one door keeps shut**: an account with no confirmed anything that can call
+  `updateUser({ email })`, and a `has_credential()` that is no longer vacuous and has to be right
+  on every path it guards.
+
+So a link asks for Google first and survives the trip (§1 item 6). If an anonymous door is ever
+added, it needs all four answered: a budget that does not multiply by accounts, a merge, a
+sweep, and `has_credential()` on everything a link can do.
+
+**Invite-only: an account that trusts nobody is locked** (migration `0010`). The soundest place
+to refuse a sign-up with no link would be before the account exists, and that place cannot see
+the link. Supabase's *before user created* auth hook is called with the user record GoTrue is
+about to write and the request's metadata; the OAuth round trip carries nothing of ours through
+Google into either, and the token lives in the browser's `sessionStorage`, where GoTrue never
+looks. So every Google sign-in creates an account, and the gate is on what the account can do:
+
+- **Locked means no connection.** Nothing stores the lock: `private.is_unlocked()` reads
+  `friendships`, so an account that never joined and one that removed its last connection
+  are locked by one rule. `private.count_write`,
+  the trigger every counted write already goes through — a rating, an item, a request, a link, a
+  diagnostic — refuses a locked caller before it spends anything, and a second trigger
+  refuses the two client writes it does not see, a name update and clearing a thumb, with the
+  same error rather than by matching no row.
+  `refresh-recs` answers a locked caller `403` before it reads a neighbourhood. Reads are not
+  stopped: a locked account's reach is its own rows and the catalog.
+- **Unlocked by a link.** `redeem_invite` writes the friendship, and the friendship is the
+  unlock — the same call, the same consent, the same budget spend as before.
+- **No link while locked.** Losing the last connection deletes the account's link (a trigger on
+  `friendships`), and a locked account cannot make one (the link's insert goes through the
+  trigger), so a link's owner is never locked.
+- **Nothing is deleted.** A locked account keeps its ratings, and can sign out and answer a
+  link. Every account with no connection when `0010` applies is locked like any
+  other.
+- **A Google account with no name is called *unknown***, rather than asked: there is no name
+  screen, and the name is changed on the people screen like any other.
+
+What this does not change: an account is still a Google sign-in away, and it can still spend a
+write guessing a token. What it removes is an account that can rate, name things or make a link
+without anyone having vouched for it.
 
 ### 3.7 Nothing runs on a schedule except three statements in the database
 
@@ -1832,11 +1956,16 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   never individual ratings.
 - Friend lists are private: each connection is visible to the two people at its ends and
   nobody else. Either end can unfriend, which removes both rows in one statement, and with them
-  the profile read and the reach that being friends gave. Nothing is public to signed-out
-  visitors except the app shell.
-- Being findable and being suggested are both switchable, and switching either off takes effect
-  at once for everybody. Findable off means typing your handle finds nobody and turns
-  suggestions off with it (§1 item 5). Suggestions off — or findable off — means every existing
+  the profile read and the reach that being friends gave; an end left with no connection is
+  locked (§3.6). Nothing is public to signed-out
+  visitors except the app shell and, to whoever holds your link, your name and photo.
+- Nobody can be found by typing anything: there are no handles and no search for people. A
+  stranger reaches you in exactly two ways, both of them your own act. **Your link**, which
+  anyone holding it can use to see your name and photo and to become your friend, until you
+  make a new one or turn it off; either stops new friends and keeps the ones it made (§1 item
+  6). A link that leaks costs you the friends it makes before you replace it, and each of them
+  can be unfriended. And **suggestions**, which
+  are off until you switch them on. Suggestions off means every existing
   suggestion row naming you stops being readable, and with it your profile and your chips
   through that row (§3.3's `is_discoverable`); it does not wait for each other viewer's next
   search. A pending ask you sent cannot be withdrawn (§1 item 6), and one sent to you stays
@@ -1891,16 +2020,14 @@ nothing about a suggestion changes any score until the viewer accepts.
 ### 5.1 Mechanism
 
 - Users opt in to being discoverable by taste (`user_prefs.discoverable_by_taste`; default
-  **off**, one swipe on — the full-width line under the findable line on the people screen,
-  which together with it is the whole of the settings (§1). Discoverability is reciprocal:
-  off means you are named to nobody and your own list is empty. Being *named* in someone's
-  list also requires being findable by username (`searchable`), because a connect request
-  can only be sent to a findable person and a Connect button that always failed would be
-  worse than no suggestion. So the two lines are coupled on the client: findable off takes
-  this off too, and this on while unfindable turns findable on first — which takes a handle,
-  so before one is claimed the line is not a switch at all (§1 item 5). **Named to nobody holds
-  from the moment either goes off**: other viewers' rows naming you are not rewritten until
-  their own next search, but `private.is_discoverable` — both switches on — is in the read
+  **off**, one swipe on — the full-width line under the link line on the people screen, which
+  is the whole of the settings (§1). Discoverability is reciprocal: off means you are named to
+  nobody and your own list is empty. It is also the whole of being askable: a connect request
+  may be sent only to somebody suggested to the sender and still discoverable
+  (`is_suggested_to_me` in the insert policy), so every suggestion's yes side can succeed and
+  nobody else can be asked at all. **Named to nobody holds from the moment it goes off**: other
+  viewers' rows naming you are not rewritten until their own next search, but
+  `private.is_discoverable` is in the read
   policy on those rows and in every read that goes through them, so they stop being readable at
   once (§3.3). Non-discoverable users still carry mass through the walk; they are just never
   suggested.
@@ -1976,7 +2103,7 @@ nothing about a suggestion changes any score until the viewer accepts.
   probeable — rate something, ask again, watch whether a chip moves, and you have learned one of
   their ratings. It is not, because **you do not choose whose chips you see.** They are shown for
   exactly two kinds of person: one who **sent you a request**, and one who **is suggested to
-  you**, which requires them to have `discoverable_by_taste` and `searchable` on, now and not
+  you**, which requires them to have `discoverable_by_taste` on, now and not
   merely when the suggestion was made. Both are explicit acts by the other person. Your own
   outgoing requests are shown to nobody and produce no chips for you (§1), so sending a request
   at a chosen target reveals nothing about them at all. An attacker can therefore only probe
@@ -2025,13 +2152,14 @@ nothing about a suggestion changes any score until the viewer accepts.
     means guessing the item *and* the attribute first, since neither is displayed.
   - **The floors, and the one place they do not hold.** For a **suggestion**: twenty units of
     informative overlap and `ℓ ≥ 1` before `v` is a candidate at all. For a **pending ask**
-    neither applies — anyone findable may send you a request — so the chips under a request rest
+    neither applies — anyone you were suggested to may send you a request — so the chips under a request rest
     on the pair floor alone. That floor does hold on both paths: `W_u(i,t) ≥ W_min` before a
     pair has a grain to depart from, so a pair nobody else in reach has an opinion about is
     silently skipped and a chip never rests on a single other person's thumb. What a pending ask
     buys an attacker over a suggestion is therefore chips from somebody with *less* in common
     with the viewer, from a relationship the viewer did not ask for — bounded by the fact that
-    the request is visible, refusable, and sendable only to a findable account.
+    the request is visible, refusable, and sendable only by somebody you were suggested to,
+    which takes your discoverability switch being on.
 
   What is *not* claimed: that `v`'s ratings are unrecoverable. They are recoverable the way
   everything here is — deliberately, with a guess about which item is involved, by somebody who

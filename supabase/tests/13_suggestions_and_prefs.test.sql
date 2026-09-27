@@ -8,14 +8,16 @@
 -- (DESIGN §5.1).
 
 begin;
-select plan(30);
+select plan(28);
 
 insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'viewer@example.com',   now()),
   ('22222222-2222-2222-2222-222222222222', 'stranger@example.com', now()),
   ('33333333-3333-3333-3333-333333333333', 'far@example.com',      now());
+create or replace function private.is_unlocked(p_user uuid) returns boolean
+  language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
-update public.profiles set display_name = 'Far One', username = 'far_one', searchable = true
+update public.profiles set display_name = 'Far One'
   where id = '33333333-3333-3333-3333-333333333333';
 update public.user_prefs set discoverable_by_taste = true
   where user_id = '33333333-3333-3333-3333-333333333333';
@@ -130,7 +132,7 @@ select ok(
 
 
 -- Only the viewer's own search rewrites their list, so a row naming somebody
--- who has since turned either switch off is still there. Every read it grants
+-- who has since turned the switch off is still there. Every read it grants
 -- ends anyway: the row, the profile and the chips — the last of which would
 -- otherwise let the viewer probe that person's ratings by changing their own.
 set local request.jwt.claims = '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
@@ -154,17 +156,12 @@ select is(
   public.shared_attributes('33333333-3333-3333-3333-333333333333'),
   '{coffee,bread,tea}'::text[], 'chips included');
 
-set local request.jwt.claims = '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
-update public.profiles set searchable = false where id = (select auth.uid());
-set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
-select is((select count(*)::int from public.suggestions), 0,
-  'turning findability off ends it the same way');
+-- Taste discovery is the one switch now: there is no second one (findability
+-- went with handles) whose going off could end a suggestion some other way.
 select is(
-  (select count(*)::int from public.profiles where id = '33333333-3333-3333-3333-333333333333'),
-  0, 'profile included');
-select is(
-  public.shared_attributes('33333333-3333-3333-3333-333333333333'),
-  '{}'::text[], 'and chips');
+  (select count(*)::int from information_schema.columns
+   where table_schema = 'public' and table_name = 'profiles' and column_name = 'searchable'),
+  0, 'there is no findability switch left to AND with it');
 
 
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';

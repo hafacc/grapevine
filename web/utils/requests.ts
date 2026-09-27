@@ -2,7 +2,7 @@
 
 import { PARTY_COLUMNS, type PartyRow, toParty } from "./friends";
 import { supabase } from "./supabase";
-import type { ConnectRequest, Party } from "./types";
+import type { ConnectRequest } from "./types";
 
 export type RequestRow = {
   from_id: string;
@@ -16,9 +16,9 @@ export type RequestRow = {
  * name.
  *
  * A null embed is not a reason to drop the row. `profiles_select`
- * (`0003_policies.sql`) narrows the sender's read of the target to while the
- * target is still `searchable`, so a target turning findable off empties the
- * join on an ask that is still pending — and the ask is still there, still
+ * (`0003_policies.sql`, `0009_invite_links.sql`) narrows the sender's read of
+ * the target to while the target is still discoverable, so a target turning
+ * suggestions off empties the join on an ask that is still pending — and the ask is still there, still
  * addressed by uid, and still what hides its target from the sender's sections.
  *
  * What the gate took away is the NAME, so that is the only thing missing from
@@ -35,7 +35,7 @@ export function toRequests(
     createdAt: Date.parse(row.created_at) || 0,
     other: row.other
       ? toParty(row.other)
-      : { uid: row[theirs], username: "", displayName: "", photoURL: null },
+      : { uid: row[theirs], displayName: "", photoURL: null },
   }));
 }
 
@@ -68,13 +68,14 @@ export function fetchOutgoingRequests(uid: string): Promise<ConnectRequest[]> {
   return fetchRequests(uid, "from_id", "to_id");
 }
 
-// Ask someone found by their handle to be friends. Asking twice is the same
-// pending ask, not a second one — `(from_id, to_id)` is the primary key — so a
-// duplicate is ignored rather than refused.
-export async function sendRequest(me: Party, target: Party): Promise<void> {
+// Ask someone taste search suggested to be friends — the only person a request
+// may go to (0009). Asking twice is the same pending ask, not a second one —
+// `(from_id, to_id)` is the primary key — so a duplicate is ignored rather than
+// refused.
+export async function sendRequest(from: string, to: string): Promise<void> {
   const { error } = await supabase()
     .from("connect_requests")
-    .upsert({ from_id: me.uid, to_id: target.uid }, { ignoreDuplicates: true });
+    .upsert({ from_id: from, to_id: to }, { ignoreDuplicates: true });
   if (error) throw error;
 }
 

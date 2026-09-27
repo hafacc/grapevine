@@ -72,9 +72,11 @@ enable_signup = true
 
 # DELIBERATE, and the one setting `private.has_credential()` exists to guard
 # (DESIGN §3.3). An anonymous account cannot prove it owns anything, and a
-# handle is permanent and never released. Turning this on is two clicks in a
-# dashboard and ships no diff — which is why the check in `claim_username`
-# stays although Google-only makes it vacuous today.
+# friending link makes friendships in its owner's name. Turning this on is two
+# clicks in a dashboard and ships no diff — which is why the check in
+# `set_invite_link` and `redeem_invite` stays although Google-only makes it
+# vacuous today. DESIGN §3.6 says why a link does not come with an anonymous
+# account either.
 enable_anonymous_sign_ins = false
 
 [auth.email]

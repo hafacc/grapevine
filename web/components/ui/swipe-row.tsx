@@ -30,6 +30,14 @@ const GLYPHS = {
   minus: LuMinus,
 } as const satisfies Record<string, IconType>;
 
+// A word and its icon, for a side that is not a rating: a thumb there would
+// read as a verdict.
+export type SwipeLabel = { readonly word: string; readonly icon: IconType };
+export type SwipeLabels = {
+  readonly no?: SwipeLabel;
+  readonly yes?: SwipeLabel;
+};
+
 const REVEALS = {
   yes: "bg-accent",
   no: "bg-danger",
@@ -52,7 +60,7 @@ export default function SwipeRow({
   onRate,
   travel = TRAVEL,
   sides = "both",
-  noGlyph = LuThumbsDown,
+  labels,
   className = "",
   children,
 }: {
@@ -62,7 +70,9 @@ export default function SwipeRow({
   // "no" moves only leftwards, for a row with nothing to say yes to; "yes"
   // only rightwards, for a switch that is off and has nothing to say no to.
   sides?: "both" | "no" | "yes";
-  noGlyph?: IconType;
+  // Words in place of the thumbs, for a row where a side is not a rating: the
+  // reveal says what letting go will do.
+  labels?: SwipeLabels;
   // The row's own look, fill included. It goes on a layer inside the moving
   // card rather than on the card, whose `surface` is what stops the reveal
   // showing through: two background utilities on one element leave which of
@@ -76,9 +86,12 @@ export default function SwipeRow({
   const latest = useRef(0);
   const [dragging, setDragging] = useState(false);
   const start = useRef<{ x: number; y: number; engaged: boolean } | null>(null);
+  // A swipe that ends over a button inside the row must not also press it.
+  const swiped = useRef(false);
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>): void {
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    swiped.current = false;
     start.current = { x: event.clientX, y: event.clientY, engaged: false };
   }
 
@@ -109,6 +122,7 @@ export default function SwipeRow({
   function onPointerEnd(): void {
     const engaged = start.current?.engaged ?? false;
     start.current = null;
+    swiped.current = engaged;
     setDragging(false);
     const released = latest.current;
     latest.current = 0;
@@ -121,22 +135,37 @@ export default function SwipeRow({
 
   const direction: SwipeDirection = offset >= 0 ? "right" : "left";
   const outcome = swipeOutcome(value, direction);
-  const Glyph = outcome.glyph === "down" ? noGlyph : GLYPHS[outcome.glyph];
+  const label = direction === "right" ? labels?.yes : labels?.no;
+  const Glyph = GLYPHS[outcome.glyph];
   return (
     <div className={`relative ${REVEALS[outcome.reveal]}`}>
       <div
         aria-hidden="true"
-        className={`absolute inset-0 flex items-center px-[30px] text-white ${
+        className={`absolute inset-0 flex items-center text-white ${label ? "px-4" : "px-[30px]"} ${
           glyphSide(direction) === "left" ? "justify-start" : "justify-end"
         }`}
       >
-        <Glyph size={26} />
+        {label ? (
+          // Stacked: side by side, the pair is wider than the travel reveals.
+          <span className="font-display flex flex-col items-center gap-1 text-[17px] leading-none font-semibold">
+            <label.icon size={20} />
+            {label.word}
+          </span>
+        ) : (
+          <Glyph size={26} />
+        )}
       </div>
       <div
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
         onPointerCancel={onPointerEnd}
+        onClickCapture={(event) => {
+          if (!swiped.current) return;
+          swiped.current = false;
+          event.stopPropagation();
+          event.preventDefault();
+        }}
         style={{
           transform: `translateX(${offset}px)`,
           // Vertical panning stays the scroller's; horizontal is claimed above.

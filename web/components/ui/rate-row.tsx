@@ -1,11 +1,10 @@
 "use client";
 
 import type { ReactElement, ReactNode } from "react";
-import type { IconType } from "react-icons";
 import { useIsDesktop } from "../../utils/media";
 import type { RatingValue } from "../../utils/types";
 import SideButton from "./side-buttons";
-import SwipeRow from "./swipe-row";
+import SwipeRow, { type SwipeLabels } from "./swipe-row";
 
 /**
  * Anything that can be rated in place: swiped at phone width, and at desktop
@@ -21,7 +20,7 @@ export default function RateRow({
   onRate,
   travel,
   sides = "both",
-  noGlyph,
+  labels,
   frameClassName = "",
   contentClassName = "",
   children,
@@ -35,9 +34,8 @@ export default function RateRow({
   // "no" is a row with only the one answer: a swipe left, or at desktop width
   // the left button alone. "yes" is the mirror of it.
   sides?: "both" | "no" | "yes";
-  // What the no side draws in place of the thumb, for a row where no is not a
-  // rating.
-  noGlyph?: IconType;
+  // Words in place of the thumbs, for a row where a side is not a rating.
+  labels?: SwipeLabels;
   // The whole row, side buttons included: its rule and, where the row carries
   // the viewer's own answer as a colour, its fill.
   frameClassName?: string;
@@ -56,7 +54,7 @@ export default function RateRow({
             subject={subject}
             value={value}
             onRate={onRate}
-            noGlyph={noGlyph}
+            label={labels?.no}
           />
         )}
         <div className={`min-w-0 flex-grow ${contentClassName}`}>
@@ -68,6 +66,7 @@ export default function RateRow({
             subject={subject}
             value={value}
             onRate={onRate}
+            label={labels?.yes}
           />
         )}
       </div>
@@ -80,7 +79,7 @@ export default function RateRow({
           onRate={onRate}
           travel={travel}
           sides={sides}
-          noGlyph={noGlyph}
+          labels={labels}
           className={`${frameClassName} ${contentClassName}`}
         >
           {children}

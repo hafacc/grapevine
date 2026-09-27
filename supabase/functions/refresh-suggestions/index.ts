@@ -199,13 +199,11 @@ async function loadSnapshot(viewer: string): Promise<{
 }
 
 /**
- * Everyone in reach who may be NAMED to this caller.
- *
- * Two switches and not one. `discoverable_by_taste` is the one DESIGN §5.1
- * names; `searchable` is there because the `connect_requests` insert policy
- * refuses a request to someone who is not findable, so naming them would put a
- * Connect button on the screen that fails every time it is pressed. Everyone
- * else still carries mass through the walk; they are just never named.
+ * Everyone in reach who may be NAMED to this caller: whoever has
+ * `discoverable_by_taste` on (DESIGN §5.1), the same switch the
+ * `connect_requests` insert policy checks through `is_suggested_to_me`, so a
+ * person named here can be asked. Everyone else still carries mass through the
+ * walk; they are just never named.
  */
 async function discoverableAmong(
   loaded: readonly string[],
@@ -214,12 +212,10 @@ async function discoverableAmong(
   if (loaded.length === 0) return [];
   const rows = await asServiceRole(
     (tx) => tx`
-      select p.id
-      from public.profiles p
-      join public.user_prefs f on f.user_id = p.id
-      where p.id = any(${[...loaded]}::uuid[])
-        and p.id <> ${viewer}::uuid
-        and p.searchable
+      select f.user_id as id
+      from public.user_prefs f
+      where f.user_id = any(${[...loaded]}::uuid[])
+        and f.user_id <> ${viewer}::uuid
         and f.discoverable_by_taste`,
   );
   return rows.map((row) => String(row.id));

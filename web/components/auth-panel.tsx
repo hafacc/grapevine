@@ -18,18 +18,21 @@ function shownMessage(caught: unknown): string {
     : mapped;
 }
 
-// The door — the whole of it, and there is only one. Nothing here says sign in
-// or sign up: the same tap works whether or not we have met this account, so
-// there is no question to answer and no wrong door to pick.
+// The door — the whole of it, and there is only one. Its label is the
+// caller's: without a link it only lets back in someone who already has an
+// account, so it says *sign in*; with one it also makes an account, so it says
+// *continue with google*.
 //
 // It owns the CARD as well as the button, so that the standing notice under the
 // card and the error that replaces it are one node rather than the same string
 // synchronised into two components. `notice` is what that line says when
 // nothing is wrong.
 export default function AuthPanel({
-  notice,
+  label,
+  notice = "",
 }: {
-  notice: string;
+  label: string;
+  notice?: string;
 }): ReactElement {
   const { configured, signIn, signInError } = useGrapevine();
   const { alert } = useDialog();
@@ -68,9 +71,9 @@ export default function AuthPanel({
 
   return (
     <>
-      {/* No heading and no label. A single Continue button is self-evidently
-          the way in, and "no sign-up, no password" is said by the absence of a
-          toggle and a password field rather than by a line claiming it. */}
+      {/* No heading and no label. A single button is self-evidently the way
+          in, and "no sign-up, no password" is said by the absence of a toggle
+          and a password field rather than by a line claiming it. */}
       <div className="w-full max-w-sm rounded-sm bg-surface p-6 text-left shadow-panel">
         <Button
           type="button"
@@ -84,7 +87,7 @@ export default function AuthPanel({
           ) : (
             <>
               <FaGoogle />
-              continue with google
+              {label}
             </>
           )}
         </Button>

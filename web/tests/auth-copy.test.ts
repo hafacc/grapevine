@@ -14,7 +14,7 @@ import { describe, expect, it } from "bun:test";
 const BUDGET = 42;
 
 // One door means one shared slot: `authErrorMessage` is what the welcome card
-// and the name sheet both render, so its lines are the ones that have to fit.
+// renders, so its lines are the ones that have to fit.
 //
 // Read rather than imported: it lives in a "use client" module that pulls in
 // supabase-js, and a copy-length check should not need a browser to run. Scanning

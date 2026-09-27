@@ -83,6 +83,16 @@ export function rememberFragmentForSignIn(fragment: string): void {
   }
 }
 
+// On sign-out, so the screen somebody had open before signing in does not
+// follow the next person at this device through their own sign-in.
+export function forgetSignInReturn(): void {
+  try {
+    window.sessionStorage.removeItem(FRAGMENT_KEY);
+  } catch {
+    // Nothing was kept, so there is nothing to forget.
+  }
+}
+
 let taken: SignInReturn | null = null;
 
 /**

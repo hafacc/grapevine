@@ -13,6 +13,8 @@ select plan(17);
 
 insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'owner@example.com', now());
+create or replace function private.is_unlocked(p_user uuid) returns boolean
+  language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
 insert into private.params (id, kappa, a0_d1, a0_d2, a0_d3plus)
   values (true, 11.2, 0.64, 0.58, 0.51);

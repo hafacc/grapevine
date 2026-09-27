@@ -20,7 +20,7 @@ export default function AvatarButton({
   return (
     <button
       type="button"
-      aria-label="you and your friends"
+      aria-label="you and your vine"
       onClick={() => navigate({ kind: "people" })}
       className="flex h-[44px] w-[44px] shrink-0 items-center justify-center focus-visible:outline-offset-[-2px]"
     >

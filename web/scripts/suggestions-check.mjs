@@ -118,7 +118,7 @@ expect(
 );
 
 const stored = await sql`
-  select s.user_id, s.rank, s.suggested_id, p.username, p.display_name
+  select s.user_id, s.rank, s.suggested_id, p.display_name
     from public.suggestions s
     join public.profiles p on p.id = s.suggested_id
    order by s.user_id, s.rank`;
@@ -127,7 +127,6 @@ for (const row of stored) {
   const list = rows.get(row.user_id) ?? [];
   list.push({
     uid: row.suggested_id,
-    username: row.username ?? "",
     displayName: row.display_name ?? "",
   });
   rows.set(row.user_id, list);
@@ -152,7 +151,7 @@ if (!longest) {
 const [VIEWER, suggested] = longest;
 const VIEWER_EMAIL = `${lists.get(VIEWER)?.worldUid ?? "u0"}@example.com`;
 console.log(
-  `  ${VIEWER} was given ${suggested.map((item) => item.username).join(", ")}`,
+  `  ${VIEWER} was given ${suggested.map((item) => item.displayName).join(", ")}`,
 );
 
 // A stranger nobody suggested and who sent nothing is not askable about: an
@@ -221,19 +220,18 @@ expect("it offers at most five", wanted.length <= 5, `${wanted.length}`);
 
 for (const item of suggested) {
   const text = await page.evaluate(rowText(item.uid));
-  // The whole row: an avatar's initial, a name, a handle, the attributes the two
+  // The whole row: an avatar's initial, a name, the attributes the two
   // of you went against the grain on, and one button. Nothing counted, nothing
   // ranked, no number anywhere. (The two sides are welded outside the row, so
   // neither is in its text.) A person with a great deal in common in the
   // ordinary way shows no
   // attribute at all, and the row is drawn without them rather than with filler.
   const name = item.displayName;
-  const expected = [
-    `${name[0]} ${name} @${item.username}`,
-    ...(chips.get(item.uid) ?? []),
-  ].join(" ");
+  const expected = [`${name[0]} ${name}`, ...(chips.get(item.uid) ?? [])].join(
+    " ",
+  );
   expect(
-    `${item.username}'s row carries a name, a handle, the shared attributes and nothing else`,
+    `${name}'s row carries a name, the shared attributes and nothing else`,
     text === expected,
     `${text} vs ${expected}`,
   );

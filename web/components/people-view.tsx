@@ -1,27 +1,37 @@
 "use client";
 
-import { type ReactElement, type ReactNode, useMemo, useState } from "react";
-import { LuChevronLeft, LuLoaderCircle, LuUserMinus } from "react-icons/lu";
-import { useInstall } from "../utils/install";
-import { useIsDesktop } from "../utils/media";
 import {
-  matchesPerson,
-  type PersonRow,
-  unknownHandle,
-  usePeople,
-} from "../utils/people";
+  type ReactElement,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  LuCheck,
+  LuChevronLeft,
+  LuCopy,
+  LuLink,
+  LuLoaderCircle,
+  LuPencil,
+  LuRefreshCw,
+  LuShare2,
+  LuUnlink,
+  LuUserMinus,
+} from "react-icons/lu";
+import { useInstall } from "../utils/install";
+import { inviteUrl } from "../utils/invites";
+import { useIsDesktop } from "../utils/media";
+import { matchesPerson, type PersonRow, usePeople } from "../utils/people";
 import { useGrapevine } from "../utils/store";
-import { errorCode } from "../utils/supabase";
 import { switchAfter, switchSides } from "../utils/switches";
-import { validateUsername } from "../utils/username";
 import Avatar from "./avatar";
 import { useAction, useDialog } from "./dialog";
+import RenameSheet from "./rename-sheet";
 import ThemeButton from "./theme-button";
-import AddButton from "./ui/add-button";
 import Button from "./ui/button";
 import Chip from "./ui/chip";
-import FieldNote from "./ui/field-note";
-import Input from "./ui/input";
+import IconButton from "./ui/icon-button";
 import RateRow from "./ui/rate-row";
 import SearchField from "./ui/search-field";
 import SwipeRow from "./ui/swipe-row";
@@ -32,7 +42,7 @@ function Heading({ children }: { children: ReactNode }): ReactElement {
   );
 }
 
-// A row of the people list: avatar, name over handle, and beneath them the
+// A row of the people list: avatar, name, and beneath it the
 // attributes the two of you agree on against the grain — at most three, in the
 // order the server gave them. No bar: a person does not have a score.
 function PersonLine({ person }: { person: PersonRow }): ReactElement {
@@ -48,11 +58,6 @@ function PersonLine({ person }: { person: PersonRow }): ReactElement {
         <span className="truncate text-[16px] font-medium">
           {person.displayName || "someone"}
         </span>
-        {person.username ? (
-          <span className="truncate text-[14px] text-muted">
-            @{person.username}
-          </span>
-        ) : null}
         {person.attributes.length > 0 ? (
           <span className="mt-1.5 flex flex-wrap gap-1.5">
             {person.attributes.map((attribute) => (
@@ -65,11 +70,13 @@ function PersonLine({ person }: { person: PersonRow }): ReactElement {
   );
 }
 
-// Photo, name, handle and sign out on one line, with the theme control beside
-// them: there is no settings screen, so those two live here.
+// Photo, name and sign out on one line, with the theme control beside them:
+// there is no settings screen, so those two live here. The name is the one
+// thing about the account a person may change, and a tap on it is how.
 function MeLine(): ReactElement | null {
   const { profile, signOut } = useGrapevine();
   const { confirm, alert } = useDialog();
+  const [renaming, setRenaming] = useState(false);
 
   async function leave(): Promise<void> {
     const sure = await confirm({
@@ -100,16 +107,22 @@ function MeLine(): ReactElement | null {
       />
       {/* Wrapped rather than cut: the two buttons beside it take most of a
           phone's width, and a name cut to a few letters is nobody's. */}
-      <span className="flex min-w-0 flex-grow flex-wrap items-baseline gap-x-2">
+      <button
+        type="button"
+        aria-label={`change your name, ${profile.displayName || "you"}`}
+        onClick={() => setRenaming(true)}
+        className="flex min-h-[44px] min-w-0 flex-grow items-center gap-2 rounded-sm text-left"
+      >
         <span className="min-w-0 text-[19px] leading-snug font-medium [overflow-wrap:anywhere]">
           {profile.displayName || "you"}
         </span>
-        {profile.username ? (
-          <span className="min-w-0 text-[15px] text-muted [overflow-wrap:anywhere]">
-            @{profile.username}
-          </span>
-        ) : null}
-      </span>
+        <LuPencil
+          size={16}
+          aria-hidden="true"
+          className="shrink-0 text-muted"
+        />
+      </button>
+      {renaming ? <RenameSheet onClose={() => setRenaming(false)} /> : null}
       <ThemeButton />
       <button
         type="button"
@@ -122,81 +135,172 @@ function MeLine(): ReactElement | null {
   );
 }
 
-const CLAIM_FIELD = "claim-handle";
-
-// The handle, and the only control that ever sets one: 0002 grants no UPDATE on
-// the column, so there is nothing to edit afterwards and this line goes away for
-// good once it has been used. It is above the switch because a handle is what
-// `find_by_username` matches on, and an account without one can be asked to
-// connect by nobody at all.
-function ClaimHandleLine(): ReactElement | null {
-  const { profile, claimUsername } = useGrapevine();
-  const [handle, setHandle] = useState("");
+// The one way to make a friend: a link, handed over somewhere else. One per
+// person, with no expiry and no limit on uses. The link itself is never drawn:
+// it is a bearer secret, and copying or sharing is all anybody does with it.
+// The row swipes like any other, with words and icons rather than thumbs,
+// since neither side is a rating: off, right turns it on; on, left turns it
+// off and right replaces it, each asking first.
+function LinkRow(): ReactElement {
+  const { myLink, setInviteLink, turnOffLink } = useGrapevine();
+  const { confirm, alert } = useDialog();
+  const run = useAction();
   const [busy, setBusy] = useState(false);
-  const [refused, setRefused] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [canShare, setCanShare] = useState(false);
+  const desktop = useIsDesktop();
 
-  if (!profile || profile.username) return null;
+  // Feature-tested rather than sniffed: a phone's share sheet is how a link
+  // gets to one person, and a desktop mostly has none. After mount, so the
+  // prerendered HTML and the first client render agree.
+  useEffect(() => {
+    setCanShare(typeof navigator.share === "function");
+  }, []);
 
-  const invalid = handle ? validateUsername(handle) : null;
-  const problem = invalid ?? refused;
-
-  async function claim(): Promise<void> {
-    if (validateUsername(handle)) return;
+  function make(): void {
     setBusy(true);
-    setRefused(null);
-    try {
-      await claimUsername(handle);
-    } catch (caught) {
-      console.error(caught);
-      // The store re-reads the profile before it raises, so a unique violation
-      // arriving here is somebody else's handle rather than this account's own
-      // second claim — the two share the code and nothing else could tell them
-      // apart.
-      setRefused(
-        errorCode(caught) === "23505"
-          ? "somebody already goes by that."
-          : "couldn't claim that. check your connection.",
-      );
-    }
-    setBusy(false);
+    setCopied(false);
+    run(async () => {
+      try {
+        await setInviteLink();
+      } finally {
+        setBusy(false);
+      }
+    }, "couldn't make a link. check your connection and try again.");
   }
 
-  return (
-    <form
-      className="flex flex-col gap-2 border-t border-border bg-surface px-4 py-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void claim();
-      }}
-    >
-      <span className="flex items-center gap-2">
-        <span className="min-w-0 flex-grow">
-          <Input
-            id={CLAIM_FIELD}
-            prefix="@"
-            autoComplete="username"
-            autoCapitalize="none"
-            spellCheck={false}
-            aria-describedby="claim-handle-note"
-            invalid={Boolean(invalid)}
-            value={handle}
-            onChange={(event) => setHandle(event.target.value)}
-            placeholder="pick a handle"
-          />
-        </span>
-        <Button
-          type="submit"
-          className="shrink-0"
-          disabled={busy || handle.length === 0 || Boolean(invalid)}
+  async function replace(): Promise<void> {
+    const sure = await confirm({
+      title: "make a new link?",
+      body: "the one you have stops working. people it added stay.",
+      confirmLabel: "new link",
+      tone: "danger",
+    });
+    if (sure) make();
+  }
+
+  async function turnOff(): Promise<void> {
+    const sure = await confirm({
+      title: "turn your link off?",
+      body: "it stops working for anyone who has it. people it added stay.",
+      confirmLabel: "turn off",
+      tone: "danger",
+    });
+    if (!sure) return;
+    setCopied(false);
+    run(
+      () => turnOffLink(),
+      "that didn't work. check your connection and try again.",
+    );
+  }
+
+  function url(): string {
+    return inviteUrl(window.location.origin, myLink ?? "");
+  }
+
+  async function copy(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(url());
+      setCopied(true);
+    } catch (error) {
+      // Refused: an insecure origin or a denied permission. There is no field
+      // to select by hand, so it is said.
+      console.error(error);
+      await alert({
+        title: "couldn't copy your link",
+        body: "try another browser.",
+      });
+    }
+  }
+
+  async function share(): Promise<void> {
+    try {
+      await navigator.share({ url: url() });
+    } catch (error) {
+      // Closing the share sheet rejects too, and is not a failure.
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        console.error(error);
+      }
+    }
+  }
+
+  if (myLink === undefined) {
+    return (
+      <p className="border-t border-border bg-surface px-4 py-3 text-[16px] text-muted">
+        loading…
+      </p>
+    );
+  } else {
+    const on = myLink !== null;
+    return (
+      <div className="border-y border-border">
+        <RateRow
+          subject="your link"
+          value={null}
+          sides={on ? "both" : "yes"}
+          labels={
+            on
+              ? {
+                  no: { word: "turn off", icon: LuUnlink },
+                  yes: { word: "new link", icon: LuRefreshCw },
+                }
+              : { yes: { word: "turn on", icon: LuLink } }
+          }
+          onRate={(next) => {
+            if (busy) return;
+            else if (!on) make();
+            else if (next === 1) void replace();
+            else void turnOff();
+          }}
+          contentClassName="bg-surface"
         >
-          {busy ? <LuLoaderCircle className="animate-spin" /> : "claim"}
-        </Button>
-      </span>
-      <FieldNote id="claim-handle-note" tone={problem ? "danger" : "muted"}>
-        {problem ?? "a handle is how a friend asks for you, and is permanent."}
-      </FieldNote>
-    </form>
-  );
+          <div
+            data-link={on ? "on" : "off"}
+            className="flex min-h-[64px] items-center gap-2 px-4 py-2.5"
+          >
+            <div className="min-w-0 flex-grow">
+              <p className="text-[16px]">
+                {busy ? (
+                  <LuLoaderCircle className="animate-spin text-muted" />
+                ) : on ? (
+                  "your link is on"
+                ) : (
+                  <span className="text-muted">your link is off</span>
+                )}
+              </p>
+              {/* The one swipe on a phone nothing else explains; at desktop
+                  width the side buttons say it. */}
+              {desktop ? null : (
+                <p className="text-[15px] text-muted">
+                  {on
+                    ? "swipe to turn off or make a new one"
+                    : "swipe to turn on"}
+                </p>
+              )}
+            </div>
+            {on && canShare ? (
+              <IconButton label="share your link" onClick={() => void share()}>
+                <LuShare2 size={20} aria-hidden="true" />
+              </IconButton>
+            ) : null}
+            {on ? (
+              <IconButton
+                label={copied ? "copied" : "copy your link"}
+                onClick={() => void copy()}
+                className={copied ? "text-accent-ink" : ""}
+              >
+                {copied ? (
+                  <LuCheck size={20} aria-hidden="true" />
+                ) : (
+                  <LuCopy size={20} aria-hidden="true" />
+                )}
+              </IconButton>
+            ) : null}
+          </div>
+        </RateRow>
+      </div>
+    );
+  }
 }
 
 // Offered, never raised: Chrome's own banner is held in `install.ts` so that
@@ -284,65 +388,16 @@ function SwitchLine({
   }
 }
 
-// Only once there is a handle to be found by; before that the claim line stands
-// here instead. Claiming turns it on, and this is the one way back off.
-function FindableLine(): ReactElement | null {
-  const { profile, setSearchable } = useGrapevine();
-  const run = useAction();
-
-  if (!profile?.username) return null;
-
-  const findable = profile.searchable;
-  const handle = `@${profile.username}`;
-  return (
-    <SwitchLine
-      subject={`being findable as ${handle}`}
-      on={findable}
-      rule="border-t"
-      onChange={(next) =>
-        run(
-          () => setSearchable(next),
-          "that didn't save. check your connection and try again.",
-        )
-      }
-    >
-      {findable
-        ? `findable as ${handle} — anyone who types it can ask to connect`
-        : `swipe to be findable as ${handle}`}
-    </SwitchLine>
-  );
-}
-
 // One line, one sentence, because the setting is one sentence: off means you are
 // named to nobody and your own list is written empty (DESIGN §5.1). Nothing may
 // draw it as a state before the row has answered — the default reads "off",
 // which is a claim about a privacy switch.
 function DiscoverabilityLine(): ReactElement {
-  const {
-    profile,
-    prefs,
-    prefsReady,
-    prefsUnreachable,
-    setDiscoverableByTaste,
-  } = useGrapevine();
+  const { prefs, prefsReady, prefsUnreachable, setDiscoverableByTaste } =
+    useGrapevine();
   const run = useAction();
 
-  if (!profile?.username) {
-    // Not a switch yet: a suggestion is only worth making about someone who can
-    // be asked, asking takes a handle, and the database refuses findable
-    // without one. So the line says what it waits for, and a tap on it goes
-    // there — a swipe that ends in "that didn't save" is the only other thing it
-    // could do.
-    return (
-      <button
-        type="button"
-        onClick={() => document.getElementById(CLAIM_FIELD)?.focus()}
-        className="block w-full border-y border-border bg-surface-muted px-4 py-3 text-left text-[16px] text-muted focus-visible:outline-offset-[-2px]"
-      >
-        claim a handle above to show up in friend suggestions
-      </button>
-    );
-  } else if (!prefsReady) {
+  if (!prefsReady) {
     return (
       <p className="border-y border-border bg-surface-muted px-4 py-3 text-[16px] text-muted">
         {prefsUnreachable
@@ -399,41 +454,18 @@ export default function PeopleView(): ReactElement {
     };
   }, [asks, friends, suggested, query]);
 
-  const shown = useMemo(
-    () => [...matching.asks, ...matching.friends, ...matching.suggested],
-    [matching],
-  );
-  const handle = unknownHandle(query, shown);
-
-  // The one place a request is sent, from either the suggestion rows or the
-  // handle nobody on screen has: both are the same ask, and the answers a
-  // handle can come back with are the same either way.
-  async function ask(username: string): Promise<void> {
-    const outcome = await sendFriendRequest(username);
-    switch (outcome) {
-      case "sent":
-        setQuery("");
-        return;
-      case "not-found":
-        await alert({
-          title: "nobody goes by that handle",
-          body: "handles are exact — there is no browsing for people.",
-        });
-        return;
-      case "already-friends":
-        await alert({ title: "you two are already friends" });
-        return;
-      case "self":
-        await alert({ title: "that one is you" });
-        return;
-    }
-  }
+  const shown =
+    matching.asks.length + matching.friends.length + matching.suggested.length;
 
   async function dropFriend(person: PersonRow): Promise<void> {
+    // The last connection locks the account (0010), which is said first.
+    const last = friends.length === 1;
     const sure = await confirm({
-      title: `unfriend ${person.displayName || "someone"}?`,
-      body: "you'll drop out of each other's friends and feeds. to be friends again, one of you has to ask.",
-      confirmLabel: "unfriend",
+      title: `remove ${person.displayName || "someone"} from your vine?`,
+      body: last
+        ? "they're the last person in your vine. your account will be locked until someone sends you a link."
+        : "you'll no longer shape each other's lists. to undo it, one of you has to send a link.",
+      confirmLabel: "remove",
       tone: "danger",
     });
     if (!sure) return;
@@ -467,7 +499,7 @@ export default function PeopleView(): ReactElement {
           <LuChevronLeft size={20} aria-hidden="true" />
         </button>
         <h1 className="font-display min-w-0 flex-grow truncate text-[22px] font-semibold text-text">
-          you and your friends
+          you and your vine
         </h1>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -475,8 +507,7 @@ export default function PeopleView(): ReactElement {
             and the rows bring their own surface. */}
         <div>
           <MeLine />
-          <ClaimHandleLine />
-          <FindableLine />
+          <LinkRow />
           <DiscoverabilityLine />
           <InstallLine />
 
@@ -513,16 +544,16 @@ export default function PeopleView(): ReactElement {
 
           {matching.friends.length > 0 ? (
             <>
-              <Heading>friends</Heading>
+              <Heading>your vine</Heading>
               {matching.friends.map((person) => (
                 <div key={person.uid} className="border-b border-border">
                   {/* No is the only answer a friend row takes: there is nothing
-                    to say yes to, and the glyph says what no does here. */}
+                    to say yes to, and the word says what no does here. */}
                   <RateRow
-                    subject={`being friends with ${person.displayName || "someone"}`}
+                    subject={person.displayName || "someone"}
                     value={null}
                     sides="no"
-                    noGlyph={LuUserMinus}
+                    labels={{ no: { word: "remove", icon: LuUserMinus } }}
                     onRate={() => void dropFriend(person)}
                     contentClassName="bg-surface"
                   >
@@ -538,9 +569,10 @@ export default function PeopleView(): ReactElement {
               <Heading>similar taste</Heading>
               {matching.suggested.map((person) => (
                 <div key={person.uid} className="border-b border-border">
-                  {/* Yes sends the ordinary connect request, which hides this
-                    person until they accept; no is the dismissal, which is a
-                    preference and is never re-shown. */}
+                  {/* Yes sends a connect request — a suggestion is the only
+                    person one may go to — which hides this person until they
+                    accept; no is the dismissal, which is a preference and is
+                    never re-shown. */}
                   <RateRow
                     subject={`connecting with ${person.displayName || "someone"}`}
                     value={null}
@@ -548,7 +580,7 @@ export default function PeopleView(): ReactElement {
                       run(
                         () =>
                           next === 1
-                            ? ask(person.username)
+                            ? sendFriendRequest(person.uid)
                             : dismissSuggestion(person.uid),
                         "that didn't work. check your connection and try again.",
                       )
@@ -567,10 +599,9 @@ export default function PeopleView(): ReactElement {
             </>
           ) : null}
 
-          {query.length > 0 && shown.length === 0 ? (
+          {query.length > 0 && shown === 0 ? (
             <p className="px-4 py-4 text-[16px] text-muted">
-              nobody here goes by that handle. handles are exact — there is no
-              browsing for people.
+              nobody here by that name. to add someone, send them a link.
             </p>
           ) : null}
         </div>
@@ -578,21 +609,10 @@ export default function PeopleView(): ReactElement {
 
       <div className="shrink-0 border-t border-border bg-surface px-4 pt-2.5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
         <div className="flex flex-col gap-2.5">
-          {handle ? (
-            <AddButton
-              label={`ask @${handle} to connect`}
-              onTap={() =>
-                run(
-                  () => ask(handle),
-                  "that didn't send. check your connection and try again.",
-                )
-              }
-            />
-          ) : null}
           <SearchField
             value={query}
             onChange={setQuery}
-            placeholder="filter, or type a handle"
+            placeholder="filter by name"
           />
         </div>
       </div>

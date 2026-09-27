@@ -11,11 +11,14 @@ insert into auth.users (id, email, email_confirmed_at) values
   ('22222222-2222-2222-2222-222222222222', 'f2@example.com',       now()),
   ('33333333-3333-3333-3333-333333333333', 'f3@example.com',       now()),
   ('44444444-4444-4444-4444-444444444444', 'stranger@example.com', now());
+create or replace function private.is_unlocked(p_user uuid) returns boolean
+  language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
-update public.profiles set searchable = true, username = 'f2_h'
-  where id = '22222222-2222-2222-2222-222222222222';
-update public.profiles set searchable = true, username = 'f3_h'
-  where id = '33333333-3333-3333-3333-333333333333';
+-- So that 1 may ask 3 below: a request travels only along a suggestion.
+update public.user_prefs set discoverable_by_taste = true
+  where user_id = '33333333-3333-3333-3333-333333333333';
+insert into public.suggestions (user_id, rank, suggested_id) values
+  ('11111111-1111-1111-1111-111111111111', 1, '33333333-3333-3333-3333-333333333333');
 
 insert into public.friendships (user_id, friend_id) values
   ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'),

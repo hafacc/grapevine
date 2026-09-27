@@ -38,7 +38,7 @@ function ownRating(
  *
  * The query is already folded (`foldQuery`); the candidate is folded here,
  * because a candidate is text held in memory rather than a column — an id, an
- * attribute, or a person's handle and name on the people screen.
+ * attribute, or a person's name on the people screen.
  */
 export function matchesText(foldedQuery: string, candidate: string): boolean {
   if (foldedQuery.length === 0) return true;

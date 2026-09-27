@@ -74,8 +74,9 @@ cd web && bun run check:pwa      # installability, offline, and each written pag
 # None is in CI. None brings a backend up: each seeds into the running stack and says so if it
 # is not there.
 cd web && bun run check:signin   # a minted session renders the app, none renders the welcome
-                                 # screen, and the claim line claims a handle. NOT the OAuth
-                                 # round trip (see "One door").
+                                 # screen, a tap on your name renames you, and a link made by
+                                 # one account names its owner signed out and is answered by
+                                 # another. NOT the OAuth round trip (see "One door").
 cd web && bun run check:feed     # the one list: ranking, filtering by name and attribute, the
                                  # add button, what a first rating writes, and every fill a
                                  # multiple of the step `user_recs.error` allows
@@ -193,8 +194,8 @@ Supabase Auth with **Google as the only provider**: no email link, no password, 
 session, no phone, no mail sender, and nothing configured outside `supabase/config.toml` (which
 reaches the project only through `supabase config push`).
 
-- **A profile arrives named**: a trigger on `auth.users` creates it from Google's metadata. The
-  name gate is for a Google account that carries no name.
+- **A profile arrives named**: a trigger on `auth.users` creates it from Google's metadata, and
+  calls a Google account that carries no name `unknown` (0010). Nothing asks for a name.
 - **PKCE, not implicit.** The implicit flow returns `#access_token=…`, and the fragment belongs to
   the router: the collision looks like a blank screen on first sign-in, i.e. a routing bug. PKCE
   returns `?code=…`, which `detectSessionInUrl` consumes and strips. The client must use
@@ -204,14 +205,38 @@ reaches the project only through `supabase config push`).
   return, because `redirectTo` cannot carry a fragment ahead of the `?code=` GoTrue appends. A
   refused or cancelled sign-in comes back as `?error=…&error_description=…`, which supabase-js only
   logs; it is read and stripped before the client is constructed and shown on the welcome screen
-  through `authErrorMessage`.
+  through `authErrorMessage`. A friending link's token (`#/invite/<token>`, `utils/invites.ts`)
+  is in the fragment because a fragment reaches no server (not the host's logs, not a `Referer`)
+  and the OAuth return writes only the query; it is taken out of the address on arrival and kept
+  in `sessionStorage` the same way, so it survives the trip and never sits in history.
 - **Email confirmations stay ON although there is no email door.** A Google session can call
   `updateUser({ email })`; with confirmations off that rewrites `auth.users.email` to an address
   the caller does not own, and the real owner's next Google sign-in links into that account.
   Sign-out is `scope: "local"`: the default revokes every session the account holds.
-- **`has_credential()` is vacuous today and stays.** It gates claiming a (permanent) handle, and
+- **`has_credential()` is vacuous today and stays.** It gates making a link and redeeming one, and
   guards against a dashboard toggle turning on anonymous sessions or a second provider, which ships
   no diff. Its body is general so a second door is correct the day it is enabled.
+- **No anonymous accounts, although a link would be the natural place for one** (DESIGN §3.6):
+  the per-account write budget multiplies by accounts that cost a click (and Supabase's remedy, a
+  CAPTCHA, is a third-party script `/privacy/` says the site does not load); `linkIdentity` fails
+  for a Google account that already has a grapevine account, stranding the anonymous one with the
+  new friendship; an unconverted account is a friend nobody can sign back into and nothing
+  deletes; and `has_credential()` would stop being vacuous. None of that is a sybil argument.
+- **Invite-only, enforced after the fact** (0010, DESIGN §3.6). Any Google sign-in creates an
+  account, because the OAuth round trip carries nothing of ours to GoTrue and a "before user
+  created" hook would have no token to check. So an account with **no connection is locked**,
+  whether it never joined or removed its last one: `private.is_unlocked()` reads `friendships`
+  (nothing stores the lock), `private.count_write` (the trigger every counted write goes through)
+  refuses a locked caller with `42501`, `private.refuse_if_locked` does the same for its name
+  update and clearing a thumb, and `refresh-recs` answers it `403`. Losing the last connection
+  deletes the account's link (a trigger on `friendships`), so a link's owner is never locked.
+  Redeeming a live link writes a friendship, which is the unlock. Nothing deletes a locked
+  account. The client asks
+  `account_locked()` with the profile and shows `components/locked-screen.tsx` (*your account is
+  locked*) instead of the list, unless the device holds a live link. The people screen warns
+  before the last connection goes. **Anything new a client can
+  write must go through `count_write` or check `private.is_unlocked()`**, or a locked account
+  can write it.
 - **The cost**: someone without a Google account, or unwilling to give Google a record of which
   apps they use, cannot sign in or be invited, and there is no door when Google's OAuth is down.
   An email door would need mail sent from an owned domain with mail authentication;
@@ -228,21 +253,31 @@ cannot be reached at all, because PostgREST does not serve it.
 The rules below are the ones that are easy to break:
 
 - **`profiles`**: readable by self, a friend, either party of a pending request (the sender only
-  while the target stays searchable), and anyone you are suggested to while you stay discoverable
-  (`private.is_discoverable`: `searchable` AND `discoverable_by_taste`, also used by the
-  `suggestions` policy and `shared_attributes`, so either switch going off hides you at once).
-  `searchable` is deliberately NOT a read clause: `or searchable` would authorize a dump of every
-  findable account. Handle lookup is `find_by_username(text)` and `profile_by_id(uuid)`: exact
-  key, one row. No email or phone column. `username` has no UPDATE (set once by
-  `claim_username`) and the table no INSERT (the `auth.users` trigger creates the row).
-  `web/utils/switches.ts` couples the two switches so findable is on whenever suggestions are,
-  because a request to someone not `searchable` is refused.
+  while the target stays discoverable), and anyone you are suggested to while you stay
+  discoverable (`private.is_discoverable`: `discoverable_by_taste`, also used by the
+  `suggestions` policy and `shared_attributes`, so the switch going off hides you at once). There
+  are no handles and no lookup of a stranger by anything: nothing on this table may become a read
+  clause that does not name a live relationship. No email or phone column. `display_name`
+  defaults to Google's first name, is the owner's to change, and a `CHECK` refuses control
+  characters and bidi marks; the table has no INSERT (the `auth.users` trigger creates the row).
 - **`friendships`**: both directions stored; a deferred constraint trigger makes a one-sided
   friendship impossible at commit, and the core still checks reciprocity. Insert your own edge, or
   the sender's as the accepter of a pending request; delete from either end.
 - **`connect_requests`**: the key is one pending ask per pair (`on conflict do nothing`). Sending
-  requires a `searchable` target and spends one write-budget unit, or an insert-delete loop would
+  requires the target to be suggested to the sender and still discoverable (`is_suggested_to_me`
+  — knowing a uid is not a route) and spends one write-budget unit, or an insert-delete loop would
   be a Realtime event at the target per round trip. The sender cannot withdraw an ask, by design.
+- **`invite_links`**: a person's friending link, at most one (`owner_id` is the key), with no
+  expiry and no limit on uses. The token is stored as itself so the owner can copy it again:
+  `token` and `created_at` are selectable, `owner_id` is not, and the select policy admits the
+  owner's own row only, so filtering on somebody else's token finds nothing. No insert or update
+  grant; DELETE is turning it off. `set_invite_link()` mints the token (32 bytes from two
+  `gen_random_uuid()`s, base64url) over the owner's row, so the old one stops working at once,
+  and spends a write. `invite_owner(text)` answers one exact token with a name and a photo and
+  no id, and is **the one thing `anon` may call**: the link is the authority to see them, and
+  the welcome screen shows them. `redeem_invite(text)` spends a write even on a miss, then writes
+  both friendship rows as `security definer` and deletes any pending ask between the two.
+  Replacing or turning off a link keeps the friendships it made.
 - **`items`**: the id is what somebody typed, normalized. The CLIENT writes `search_id` from
   `searchFold`, deliberately: a trigger would be a second implementation of the stripping, and a
   disagreement is a row nobody can find by its own name; `check:search-id` is what checks it. No
@@ -274,7 +309,8 @@ The rules below are the ones that are easy to break:
   from "not allowed to ask".
 - **`private.params`**: the population priors, each field null until its own sample exists and
   merged field by field, so a missing row can only fail to move a number.
-- **`private.write_budget`**: every rating insert or update, item, connect request and debug event
+- **`private.write_budget`**: every rating insert or update, item, connect request, link turned
+  on, replaced or redeemed (`private.spend_write` for the redeem) and debug event
   spends one of `private.daily_write_limit()` (the ONLY place the number is written) per account per
   UTC day, via `private.count_write` keyed on `auth.uid()`. Deletes are free; connections with no
   `auth.uid()` are not counted. Past it, SQLSTATE `PT429`, which `isDailyLimit` in
@@ -291,7 +327,7 @@ The rules below are the ones that are easy to break:
   returns under it.
 - **`security definer` means the function's own rights.** Anything in `private` runs as its owner
   and must take an exact key and return at most one row, or it is an enumeration surface with a
-  friendly name. That applies equally to `public.find_by_username` and
+  friendly name. That applies equally to `public.invite_owner`, `public.redeem_invite` and
   `public.shared_attributes`, and more so: `public` is served, so the exact key, the `revoke ...
   from public` and the caller check are the whole of the defence.
 
@@ -371,7 +407,11 @@ two people and two keyboards and does not pretend to stop a determined one.
 - **Three routes and no more**: `#/` (the list), `#/item/<id>` and `#/people`; the four written
   pages are static routes the router stays off. A pasted link to a thing gets the list seeded under
   it so Back goes somewhere. `web/tests/router.test.ts` asserts
-  that any other fragment names no screen.
+  that any other fragment names no screen. `#/invite/<token>` is not a route: the store takes the
+  token out of the address before the router reads it (`utils/invites.ts`). A live one is asked
+  on one full screen, `components/link-question.tsx`, in place of whatever screen is up and for
+  every account alike; `components/invite-gate.tsx` says the rest (dead, or your own) in a
+  dialog.
 
 ## UI design language
 
@@ -491,10 +531,10 @@ and its list is four on purpose: a page list that shrinks silently is how a page
 
 `/how/` is the explainer, and **nothing on it may claim more than DESIGN §2 does**. Each section
 has an inline SVG diagram (`components/how-diagrams.tsx`, palette tokens only) and a `<details>`
-quoting DESIGN's formulas unchanged; the prose above stands on its own. **It is the only place the
-swipe directions are explained** — the empty feed deliberately teaches no gesture — so if that
-sentence leaves `/how/`, it leaves the product. The priors are population estimates, so numbers on
-it are stated against the chosen `W_min`, `L` and `α`, never as ratios of prior-dependent ones.
+quoting DESIGN's formulas unchanged; the prose above stands on its own. It explains the swipe
+directions, and so does the list's one-time hint (DESIGN §1 item 7), which waits for a list with
+rows in it. The priors are population estimates, so numbers on it are stated against the chosen
+`W_min`, `L` and `α`, never as ratios of prior-dependent ones.
 
 `/privacy/` says the uncomfortable parts out loud because DESIGN §4 does: **with exactly one friend
 your feed is that friend's ratings** (word for word — it is the `check:pwa` needle); that friction,
@@ -636,8 +676,11 @@ one that drops or rewrites a column is reviewed as the irreversible thing it is,
 reset` belongs nowhere near the project.
 
 `ci.yml`'s `database` job fails a push or pull request that modifies, deletes or renames an
-existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008` is not, and the next
-deploy applies it.
+existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0010` are not, and
+the next deploy applies all three. One of them destroys data on the project, irreversibly:
+`0009_invite_links.sql` drops `username` and `searchable` (every claimed handle; none had been
+claimed when it was written). `0010_invite_only.sql` locks every account with no connection and
+deletes its link.
 
 ### The domain (do once, by hand)
 

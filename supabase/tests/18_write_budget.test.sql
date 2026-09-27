@@ -14,13 +14,16 @@ insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'busy@example.com',  now()),
   ('22222222-2222-2222-2222-222222222222', 'quiet@example.com', now()),
   ('33333333-3333-3333-3333-333333333333', 'other@example.com', now());
+create or replace function private.is_unlocked(p_user uuid) returns boolean
+  language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
--- Findable, so a request to either is allowed by policy and only the budget
--- can refuse it.
-update public.profiles set username = 'quiet', searchable = true
-  where id = '22222222-2222-2222-2222-222222222222';
-update public.profiles set username = 'other', searchable = true
-  where id = '33333333-3333-3333-3333-333333333333';
+-- Discoverable and suggested to the spender, so a request to either is
+-- allowed by policy and only the budget can refuse it.
+update public.user_prefs set discoverable_by_taste = true
+  where user_id in ('22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333');
+insert into public.suggestions (user_id, rank, suggested_id) values
+  ('11111111-1111-1111-1111-111111111111', 1, '22222222-2222-2222-2222-222222222222'),
+  ('11111111-1111-1111-1111-111111111111', 2, '33333333-3333-3333-3333-333333333333');
 
 set local role postgres;
 select set_config('budget.limit', private.daily_write_limit()::text, true);

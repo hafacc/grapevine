@@ -57,11 +57,6 @@ function argument(flag: string, fallback: string): string {
   return at >= 0 ? (process.argv[at + 1] ?? fallback) : fallback;
 }
 
-/** Handles have to match `profiles.username`'s CHECK: a letter, then 2–19 more. */
-export function handleOf(uid: string): string {
-  return `person${uid.replace(/\D/g, "")}`;
-}
-
 /**
  * The address on the seeded account's `auth.users` row.
  *
@@ -187,24 +182,20 @@ for (let start = 0; start < accounts.length; start += ROWS_PER_STATEMENT) {
 console.log(`  ${accounts.length} auth accounts`);
 
 // An UPDATE rather than an insert: the trigger has already created these rows,
-// named from the metadata above. What is added here is the handle — which
-// `claim_username` would otherwise be the only way to set, since there is no
-// UPDATE privilege on the column — and `searchable`, without which a seeded
-// person can be neither found by handle nor suggested to anybody.
+// from the metadata above — which names them by the first word, `Person`, as it
+// would a Google account. The whole name is put back so that a check can tell
+// one seeded person from another on screen.
 const profileIds: string[] = world.snapshot.users.map((uid) => uuidOf(uid));
-const handles: string[] = world.snapshot.users.map((uid) => handleOf(uid));
 const displayNames: string[] = world.snapshot.users.map(
   (uid) => `Person ${uid}`,
 );
 await sql`
   update public.profiles as p
-     set username = named.username,
-         display_name = named.display_name,
-         searchable = true
-    from unnest(${profileIds}::uuid[], ${handles}::text[], ${displayNames}::text[])
-           as named(id, username, display_name)
+     set display_name = named.display_name
+    from unnest(${profileIds}::uuid[], ${displayNames}::text[])
+           as named(id, display_name)
    where p.id = named.id`;
-console.log(`  ${profileIds.length} profiles and handles`);
+console.log(`  ${profileIds.length} profiles`);
 
 // Both directions, and in one transaction. `friendships_symmetric` is deferred
 // to commit, so a chunk boundary between the two halves of an edge would be a
