@@ -9,10 +9,10 @@ import type { ConnectRequest, Friend, Prefs, Suggestion } from "./types";
 
 export type { SuggestionsResult };
 
-// No photo. DESIGN §5.1 gives a suggestion a uid, a handle and a name; the face
-// of somebody you have no edge to is one more thing the list would hand out, so
-// it is not even read.
-const SUGGESTED_COLUMNS = "id,username,display_name";
+// No photo. DESIGN §5.1 gives a suggestion a uid and a name; the face of
+// somebody you have no edge to is one more thing the list would hand out, so it
+// is not even read.
+const SUGGESTED_COLUMNS = "id,display_name";
 
 const NO_SUGGESTIONS: readonly Suggestion[] = [];
 
@@ -21,7 +21,6 @@ const NO_ATTRIBUTES: readonly string[] = [];
 type SuggestionRow = {
   suggested: {
     id: string;
-    username: string | null;
     display_name: string | null;
   } | null;
 };
@@ -31,7 +30,7 @@ type SuggestionRow = {
  *
  * At most five rows, written by `refresh-suggestions` as the service role; there
  * is no client write verb at all, so nothing here has to reconcile a local edit
- * with what the server said. The name and handle are joined rather than stored —
+ * with what the server said. The name is joined rather than stored —
  * being in your own suggestions list is what lets you read that profile, and
  * reading it reveals strictly less than the suggestion already puts on screen.
  *
@@ -58,7 +57,6 @@ export async function fetchSuggestions(
       ? [
           {
             uid: row.suggested.id,
-            username: row.suggested.username ?? "",
             displayName: row.suggested.display_name ?? "",
           },
         ]

@@ -11,7 +11,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { DAILY_LIMIT_MESSAGE, isDailyLimit } from "../utils/supabase";
+import { useGrapevine } from "../utils/store";
 import Button from "./ui/button";
 import Sheet from "./ui/sheet";
 
@@ -52,22 +52,23 @@ export function useDialog(): DialogContextValue {
 // delete) so a policy refusing the write, or the network never answering,
 // surfaces as a dialog instead of an unhandled rejection + a button that
 // silently does nothing. Returns a void-returning handler suitable for onClick.
+// A refusal from a locked account says nothing here: the locked screen
+// replaces whatever the action was on.
 export function useAction(): (
   action: () => Promise<unknown>,
   message?: string,
 ) => void {
   const { alert } = useDialog();
+  const { explainFailure } = useGrapevine();
   return useCallback(
     (action, message = "something went wrong. please try again.") => {
-      action().catch((error: unknown) => {
+      action().catch(async (error: unknown) => {
         console.error(error);
-        void alert({
-          title: "that didn't work",
-          body: isDailyLimit(error) ? DAILY_LIMIT_MESSAGE : message,
-        });
+        const body = await explainFailure(error, message);
+        if (body !== null) void alert({ title: "that didn't work", body });
       });
     },
-    [alert],
+    [alert, explainFailure],
   );
 }
 

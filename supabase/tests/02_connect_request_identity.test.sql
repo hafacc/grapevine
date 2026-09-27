@@ -1,7 +1,7 @@
 -- A connect request cannot spoof an identity, because it carries no name.
 --
 -- A pending ask is itself a read clause on `profiles` — unconditionally for the
--- recipient, and for as long as the target is searchable for the sender — so
+-- recipient, and for as long as the target stays discoverable for the sender — so
 -- each party reads the other's real row and there is one copy of a name. The
 -- spoof is not refused, it is unspellable. These assert that a request has no
 -- name columns, that the read through the ask works, and that neither half of
@@ -13,11 +13,18 @@ select plan(14);
 insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'target@example.com', now()),
   ('22222222-2222-2222-2222-222222222222', 'sender@example.com', now());
+create or replace function private.is_unlocked(p_user uuid) returns boolean
+  language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
-update public.profiles set display_name = 'Target', username = 'u_one', searchable = true
+update public.profiles set display_name = 'Target'
   where id = '11111111-1111-1111-1111-111111111111';
-update public.profiles set display_name = 'Real Sender', username = 'real_sender', searchable = true
+update public.profiles set display_name = 'Real Sender'
   where id = '22222222-2222-2222-2222-222222222222';
+-- A request goes only to someone taste search named to the sender.
+update public.user_prefs set discoverable_by_taste = true
+  where user_id in ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222');
+insert into public.suggestions (user_id, rank, suggested_id) values
+  ('22222222-2222-2222-2222-222222222222', 1, '11111111-1111-1111-1111-111111111111');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
@@ -79,24 +86,25 @@ select lives_ok(
 
 
 -- The two reads above are not one permission. A single bidirectional request
--- probe that tested nothing about `searchable` would turn an unanswered ask into
+-- probe that tested nothing about discoverability would turn an unanswered ask into
 -- a standing subscription to a stranger's renames and photos for as long as the
 -- row sat there, which is why `has_open_outgoing_request_to` carries the join
 -- and `has_incoming_request_from` does not.
 
 set local role postgres;
-update public.profiles set searchable = false
-  where id = '11111111-1111-1111-1111-111111111111';
+update public.user_prefs set discoverable_by_taste = false
+  where user_id = '11111111-1111-1111-1111-111111111111';
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
 
 select is(
   (select count(*)::int from public.profiles where id = '11111111-1111-1111-1111-111111111111'),
-  0, 'the ask stops being a read the moment the target goes private');
-select is(
-  (select count(*)::int from public.profile_by_id('11111111-1111-1111-1111-111111111111')),
-  0, 'and the exact-key lookup refuses them too, so the switch leaves no route open');
+  0, 'the ask stops being a read the moment the target stops being discoverable');
+select throws_ok(
+  $$insert into public.connect_requests (from_id, to_id)
+    values ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111')$$,
+  '42501', null, 'and the suggestion stops being a route to ask again, so the switch leaves none open');
 
 -- What the sender keeps is the ask itself: `connect_requests_select` is either
 -- party, so a request can still be withdrawn by the person who made it. That is
@@ -106,22 +114,22 @@ select is(
     where from_id = (select auth.uid()) and to_id = '11111111-1111-1111-1111-111111111111'),
   1, 'while the ask itself stays the sender''s, to withdraw');
 
--- The other direction does not depend on `searchable` at all, and must not: a
--- sender needs a handle to be found BY, not to find, so a recipient deciding on
--- an ask can be looking at someone who is not findable by anyone.
+-- The other direction does not depend on the sender's switch at all, and must
+-- not: a recipient deciding on an ask has to see who is asking, whatever the
+-- sender has done with their own discoverability since.
 set local role postgres;
-update public.profiles set searchable = false
-  where id = '22222222-2222-2222-2222-222222222222';
+update public.user_prefs set discoverable_by_taste = false
+  where user_id = '22222222-2222-2222-2222-222222222222';
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
 select is(
   (select display_name from public.profiles where id = '22222222-2222-2222-2222-222222222222'),
-  'Real Sender', 'the recipient reads the sender''s row though the sender is findable by nobody');
+  'Real Sender', 'the recipient reads the sender''s row though the sender is discoverable by nobody');
 select is(
   (select count(*)::int from public.profiles where id = '11111111-1111-1111-1111-111111111111'),
-  1, 'and going private never closed anyone''s read of their own row');
+  1, 'and switching off never closed anyone''s read of their own row');
 
 select * from finish();
 rollback;

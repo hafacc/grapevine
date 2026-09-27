@@ -3,10 +3,13 @@
 import type { ReactElement } from "react";
 import EntityView from "../components/entity-view";
 import FeedView from "../components/feed-view";
+import LinkQuestion from "../components/link-question";
+import LockedScreen from "../components/locked-screen";
 import PeopleView from "../components/people-view";
 import Button from "../components/ui/button";
 import WelcomeScreen from "../components/welcome-screen";
 import { Mark } from "../components/wordmark";
+import { asksAboutLink } from "../utils/invites";
 import { useGrapevine } from "../utils/store";
 import type { Screen } from "../utils/types";
 
@@ -95,14 +98,29 @@ export default function Page(): ReactElement {
     authReady,
     listenersLost,
     user,
+    profile,
     profileReady,
     profileUnreachable,
     screen,
+    inviteToken,
+    inviteFrom,
+    myLink,
   } = useGrapevine();
 
   if (!authReady) return <Splash />;
   if (!user) return <WelcomeScreen />;
   if (!profileReady) return profileUnreachable ? <Unreachable /> : <Splash />;
+  const locked = Boolean(profile?.locked);
+  // A link to the viewer's own vine is not asked; `invite-gate` says so.
+  if (
+    inviteToken !== null &&
+    inviteFrom &&
+    asksAboutLink(inviteToken, inviteFrom, locked, myLink)
+  )
+    return (
+      <LinkQuestion token={inviteToken} owner={inviteFrom} locked={locked} />
+    );
+  if (locked) return <LockedScreen />;
 
   // The whole app is one 720 px column at desktop width, bars and all, with a
   // rule down each side and the bare canvas beyond it (DESIGN-UI, "Layout").

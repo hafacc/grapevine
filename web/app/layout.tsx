@@ -3,8 +3,8 @@ import { Barlow, Barlow_Semi_Condensed } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import type { ReactElement, ReactNode } from "react";
 import DialogProvider from "../components/dialog";
+import InviteGate from "../components/invite-gate";
 import LocalStackBadge from "../components/local-stack-badge";
-import NameGateProvider from "../components/name-gate";
 import Pwa from "../components/pwa";
 import ThemeColor from "../components/theme-color";
 import { iconHref } from "../utils/icon-href";
@@ -32,8 +32,7 @@ const barlowCondensed = Barlow_Semi_Condensed({
 
 export const metadata: Metadata = {
   title: "grapevine",
-  description:
-    "Recommendations through the grapevine, from the people you know.",
+  description: "what to eat, watch, read and more, from the people you trust",
   // Safari reads none of the manifest for Add to Home Screen; it wants these.
   appleWebApp: { capable: true, title: "grapevine", statusBarStyle: "default" },
   // Named rather than left to convention: an explicit icons.apple replaces the
@@ -122,10 +121,9 @@ export default function RootLayout({
           storageKey="grapevine-theme"
         >
           <DialogProvider>
-            {/* Inside GrapevineProvider: it reads the profile to know whether
-                a name is needed at all. */}
             <GrapevineProvider>
-              <NameGateProvider>{children}</NameGateProvider>
+              {children}
+              <InviteGate />
               <LocalStackBadge />
               <Pwa />
               <ThemeColor />

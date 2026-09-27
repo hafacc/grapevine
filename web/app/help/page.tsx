@@ -64,30 +64,35 @@ export default function HelpPage(): ReactElement {
       <H2>people</H2>
       <P>
         Behind your avatar: your own row, then anyone who has asked to connect,
-        then your friends, then people with similar taste. Find someone by
-        typing their handle exactly — there is no browsing for people — and ask;
-        connections are mutual and have to be accepted. Your friend list is
-        visible to you, and each connection on it to the friend at the other
-        end. Friends are what the recommendations are made of: with none, there
-        is nothing to recommend.
+        then your friends, then people with similar taste. There is no searching
+        for people: to add a friend, tap <strong>make a link</strong> and send
+        them the link however you like. You can copy it again any time from{" "}
+        <strong>your link</strong>. Whoever opens it signs in with Google and is
+        asked whether to be your friend. Your friend list is visible to you, and
+        each connection on it to the friend at the other end. Friends are what
+        the recommendations are made of: with none, there is nothing to
+        recommend.
       </P>
       <P>
-        Picking a handle makes you findable by it, and the line under your own
-        row switches that off and on again. Off, typing your handle finds
-        nobody, and you are taken out of friend suggestions too, since nobody
-        could send the request a suggestion offers.
+        Your link works for anyone who has it, as many times as it is opened. To
+        stop it, open <strong>your link</strong> and make a new one or turn it
+        off; friends it already brought in stay friends.
+      </P>
+      <P>
+        Your name is the first name on your Google account until you change it:
+        tap it on your own row. It can be anything; nobody finds you by it.
       </P>
       <P>
         To unfriend someone, swipe their row and confirm. It ends for both of
         you at once: you drop out of each other's friends and feeds, and being
-        friends again takes a new request from one of you.
+        friends again takes a new link from one of you.
       </P>
       <P>
         grapevine can also offer you people whose taste matches yours but who
         you don't know. That is off until you swipe the line about friend
         suggestions on, and it is the same switch both ways: off, nobody is
-        offered you and you are offered nobody. Switching it on makes you
-        findable by your handle again, if you had switched that off.
+        offered you and you are offered nobody. Saying yes to someone offered
+        there sends them a request, which they accept or decline.
       </P>
 
       <H2>tags</H2>

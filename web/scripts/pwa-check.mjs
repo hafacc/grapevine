@@ -283,7 +283,7 @@ await page.send("Network.emulateNetworkConditions", {
 await page.go(APP);
 await until(
   () => bodyText(page),
-  (text) => /from the people you already know/.test(text),
+  (text) => /from the people you trust/.test(text),
 );
 const screen = (await bodyText(page)).trim();
 expect(
@@ -291,7 +291,7 @@ expect(
   // The app's own words, not the absence of an error: a blank page and a
   // browser error page both pass a blacklist. Nothing has signed in, so what
   // renders is the welcome screen.
-  /from the people you already know/.test(screen),
+  /from the people you trust/.test(screen),
   screen.slice(0, 100),
 );
 

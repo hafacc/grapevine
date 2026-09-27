@@ -5,13 +5,11 @@ import type { ConnectRequest, Friend, Suggestion } from "../utils/types";
 
 const suggestion = (uid: string): Suggestion => ({
   uid,
-  username: `${uid}_h`,
   displayName: uid.toUpperCase(),
 });
 
 const friend = (uid: string): Friend => ({
   uid,
-  username: `${uid}_h`,
   displayName: uid.toUpperCase(),
   photoURL: null,
   since: 0,
@@ -23,7 +21,6 @@ const asked = (to: string): ConnectRequest => ({
   createdAt: 0,
   other: {
     uid: to,
-    username: `${to}_h`,
     displayName: to.toUpperCase(),
     photoURL: null,
   },

@@ -254,7 +254,8 @@ async function readStamps(uid: string) {
     (tx) => tx`
       select now() as now, m.computed_at, m.checked_at, m.truncation, m.settle_movement,
              m.boundary_residual, m.passes, m.settled, m.reach_hash, m.reach_reuses,
-             c.changed_at, f.feed_hash, f.error
+             c.changed_at, f.feed_hash, f.error,
+             private.is_unlocked(v.id) as unlocked
       from (select ${uid}::uuid as id) v
       left join public.user_model m on m.user_id = v.id
       left join public.user_recs f on f.user_id = v.id
@@ -278,6 +279,7 @@ async function readStamps(uid: string) {
     walk: storedWalk(row),
     reachHash: typeof row.reach_hash === "string" ? row.reach_hash : null,
     reachReuses: number(row.reach_reuses) ?? 0,
+    unlocked: row.unlocked === true,
   };
 }
 
@@ -586,8 +588,10 @@ async function keepPreviousFeed(uid: string, stamps: Stamps): Promise<RefreshRes
  * reload to be told nothing. `checked_at` moves either way, and that is what
  * buys the next staleness window.
  */
-async function refreshFeed(uid: string): Promise<RefreshResult> {
+async function refreshFeed(uid: string): Promise<RefreshResult | null> {
   const stamps = await readStamps(uid);
+  // A locked account (0010) writes nothing, this function's rows included.
+  if (!stamps.unlocked) return null;
   if (!needsRecompute(stamps, stamps.now.getTime(), STALE_AFTER_MS)) {
     return {
       computedAt: stamps.computedAt,
@@ -746,7 +750,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
   if (!uid) return json(401, { error: "sign in to refresh your feed" });
 
   try {
-    return json(200, await refreshFeed(uid));
+    const result = await refreshFeed(uid);
+    if (result === null) return json(403, { error: "accept a link first" });
+    return json(200, result);
   } catch (error) {
     // The viewer is told nothing but that it failed: what went wrong is a
     // database error or a walk that did not resolve, and neither is theirs to

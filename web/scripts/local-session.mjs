@@ -173,8 +173,8 @@ export function uuidOf(worldUid) {
 /**
  * One `auth.users` row, in the shape GoTrue reads its own back in.
  *
- * `email_confirmed_at` is what `private.has_credential()` asks for, and claiming
- * a handle needs it — it is not a door: there is no email provider, nothing
+ * `email_confirmed_at` is what `private.has_credential()` asks for, and making
+ * or answering a link needs it — it is not a door: there is no email provider, nothing
  * sends mail, and the empty `encrypted_password` can match no bcrypt comparison.
  * The empty token columns are there because GoTrue scans this row into
  * non-nullable Go strings when it answers `/auth/v1/user`, which is the call

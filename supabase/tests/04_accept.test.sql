@@ -9,13 +9,19 @@ insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'owner@example.com',    now()),
   ('22222222-2222-2222-2222-222222222222', 'stranger@example.com', now()),
   ('33333333-3333-3333-3333-333333333333', 'third@example.com',    now());
+create or replace function private.is_unlocked(p_user uuid) returns boolean
+  language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
-update public.profiles set display_name = 'Owner', username = 'owner_h', searchable = true
-  where id = '11111111-1111-1111-1111-111111111111';
-update public.profiles set display_name = 'Stranger', username = 'stranger_h', searchable = true
-  where id = '22222222-2222-2222-2222-222222222222';
-update public.profiles set display_name = 'Third', username = 'third_h', searchable = true
-  where id = '33333333-3333-3333-3333-333333333333';
+update public.profiles set display_name = 'Owner'    where id = '11111111-1111-1111-1111-111111111111';
+update public.profiles set display_name = 'Stranger' where id = '22222222-2222-2222-2222-222222222222';
+update public.profiles set display_name = 'Third'    where id = '33333333-3333-3333-3333-333333333333';
+
+-- So that the third party below may ask the stranger: a request travels only
+-- along a suggestion.
+update public.user_prefs set discoverable_by_taste = true
+  where user_id = '22222222-2222-2222-2222-222222222222';
+insert into public.suggestions (user_id, rank, suggested_id) values
+  ('33333333-3333-3333-3333-333333333333', 1, '22222222-2222-2222-2222-222222222222');
 
 -- The stranger asked the owner.
 insert into public.connect_requests (from_id, to_id) values

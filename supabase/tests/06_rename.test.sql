@@ -10,8 +10,10 @@ insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'me@example.com',       now()),
   ('22222222-2222-2222-2222-222222222222', 'them@example.com',     now()),
   ('33333333-3333-3333-3333-333333333333', 'impostor@example.com', now());
+create or replace function private.is_unlocked(p_user uuid) returns boolean
+  language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
-update public.profiles set display_name = 'Old Name', username = 'me_h', searchable = true
+update public.profiles set display_name = 'Old Name'
   where id = '11111111-1111-1111-1111-111111111111';
 update public.profiles set display_name = 'Them' where id = '22222222-2222-2222-2222-222222222222';
 
@@ -34,8 +36,8 @@ select is(
 select is(
   (select count(*)::int from information_schema.columns
    where table_schema = 'public' and table_name = 'friendships'
-     and column_name in ('display_name', 'username', 'photo_url')),
-  0, 'an edge carries no name, handle or photo to heal');
+     and column_name in ('display_name', 'photo_url')),
+  0, 'an edge carries no name or photo to heal');
 
 select is(
   (select count(*)::int from information_schema.column_privileges

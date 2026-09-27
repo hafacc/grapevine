@@ -65,14 +65,19 @@ export default function PrivacyPage(): ReactElement {
       <H2>what grapevine stores</H2>
       <List>
         <li>
-          <strong>Your profile</strong> — a display name, an optional photo
-          address, a username if you claim one, and whether you can be found by
-          it. A username is claimed once and for good: nothing in grapevine can
-          change one or give it back.
+          <strong>Your profile</strong> — a display name and an optional photo
+          address. The name starts as the first name on your Google account and
+          is yours to change whenever you like, by tapping it on the people
+          screen. There is no username, and nobody can find you by typing
+          anything.
         </li>
         <li>
           <strong>Your friendships and pending requests</strong> — who you are
           connected to, and who has asked whom.
+        </li>
+        <li>
+          <strong>Your friend link</strong> — if you have made one, the link and
+          when you made it, so you can copy it again.
         </li>
         <li>
           <strong>Your ratings</strong> — one row per thumb: which thing, up or
@@ -83,10 +88,8 @@ export default function PrivacyPage(): ReactElement {
           working numbers behind them, rebuilt in place rather than piled up.
         </li>
         <li>
-          <strong>Your settings</strong> — whether you are findable by username,
-          which is on once you pick one and yours to switch off, whether you
-          take part in friend suggestions, and the suggestions you have waved
-          away.
+          <strong>Your settings</strong> — whether you take part in friend
+          suggestions, and the suggestions you have waved away.
         </li>
         <li>
           <strong>The catalog of things</strong> — a name and when it was added.
@@ -119,11 +122,19 @@ export default function PrivacyPage(): ReactElement {
         <li>
           <strong>Your profile</strong> is readable by you, your friends, anyone
           you have a pending request with, and anyone you are currently
-          suggested to, while you stay findable and in suggestions. If you are
-          findable by username, someone who types your handle exactly also gets
-          it — one account for one exact handle. There is no way to list
+          suggested to, while you stay in suggestions. Whoever holds your link
+          also sees your name and photo, even before signing in, and is asked
+          whether to be your friend. There is no way to list or search for
           accounts. Unfriending someone takes away the access being friends gave
           them.
+        </li>
+        <li>
+          <strong>A friend link works for whoever has it.</strong> Anyone who
+          opens your link can become your friend, with everything a friend can
+          learn from their feed, until you make a new one or turn it off. Send
+          it only where you mean it to go. Replacing or turning off your link
+          stops anyone new using it; it does not unfriend the people it already
+          brought in.
         </li>
         <li>
           <strong>
@@ -209,8 +220,8 @@ export default function PrivacyPage(): ReactElement {
       </P>
       <List>
         <li>
-          A suggestion carries a name, a username and at most three attributes
-          the two of you agree about where the rest of your network doesn't —{" "}
+          A suggestion carries a name and at most three attributes the two of
+          you agree about where the rest of your network doesn't —{" "}
           <code>coffee</code>, <code>cycling</code>. Never a number, never how
           much you have in common, and never which things those ratings were on.
           Having nothing to show there is ordinary, and the person is offered
@@ -218,10 +229,9 @@ export default function PrivacyPage(): ReactElement {
         </li>
         <li>
           It takes at least twenty things' worth of informative overlap, the
-          list holds at most five people, and you are offered to others only
-          while you are also findable by username. Switching either off takes
-          you out of everyone's suggestions at once, and switching off being
-          findable switches off suggestions with it.
+          list holds at most five people. Switching suggestions off takes you
+          out of everyone's suggestions at once, and a friend request can only
+          come from someone you were suggested to.
         </li>
         <li>
           Waving one away is permanent. Accepting one is an ordinary friend
@@ -266,9 +276,9 @@ export default function PrivacyPage(): ReactElement {
         third-party scripts of any kind — even the fonts are part of the
         download rather than fetched from somewhere else as you read. What
         grapevine keeps in your browser is for you rather than about you: your
-        session, your light or dark choice, a copy of the feed you were last
-        shown, and a copy of the app itself so it opens without waiting for the
-        network.
+        session, your light or dark choice, whether you closed the list's hint,
+        a copy of the feed you were last shown, and a copy of the app itself so
+        it opens without waiting for the network.
       </P>
       <P>
         Two things it does not control. A profile photo is fetched from Google's

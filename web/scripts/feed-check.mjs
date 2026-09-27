@@ -187,6 +187,19 @@ expect(
   screen.slice(0, 200),
 );
 
+console.log("\nthe first-run hint");
+expect(
+  "a first list says where it comes from",
+  /this list comes from your vine/i.test(screen),
+  screen.slice(0, 200),
+);
+expect("and closes", await page.evaluate(tap('button[aria-label="got it"]')));
+await settle(300);
+expect(
+  "and is gone once closed",
+  !/this list comes from your vine/i.test(await bodyText(page)),
+);
+
 console.log("\nthe fill is a multiple of the error this feed reported");
 // `q = ε · L / 2` as `utils/bar.ts` computes it: the error already carries `L`
 // and is on the score's own scale, so half of it is the step.
@@ -333,6 +346,10 @@ expect(
 console.log("\nhiding things already rated");
 await page.go(`${ORIGIN}/#/`, 8000);
 await settle(1500);
+expect(
+  "the hint stays gone on the next open",
+  !/this list comes from your vine/i.test(await bodyText(page)),
+);
 const unrated = ranked.filter((itemId) => ratings[itemId]?.[""] === undefined);
 expect(
   "the viewer has rated some of what is on screen",

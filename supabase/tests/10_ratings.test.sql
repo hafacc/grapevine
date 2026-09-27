@@ -10,6 +10,8 @@ insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'owner@example.com', now()),
   ('22222222-2222-2222-2222-222222222222', 'other@example.com', now()),
   ('33333333-3333-3333-3333-333333333333', 'pal@example.com',   now());
+create or replace function private.is_unlocked(p_user uuid) returns boolean
+  language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
 insert into public.friendships (user_id, friend_id) values
   ('11111111-1111-1111-1111-111111111111', '33333333-3333-3333-3333-333333333333'),

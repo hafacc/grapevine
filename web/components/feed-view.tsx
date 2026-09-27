@@ -2,7 +2,6 @@
 
 import { normalizeId } from "grapevine-shared";
 import { parseQuery, relationFrom } from "grapevine-shared/search";
-import Link from "next/link";
 import {
   type ReactElement,
   type PointerEvent as ReactPointerEvent,
@@ -12,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { LuX } from "react-icons/lu";
 import {
   type Attribute,
   type FeedRow,
@@ -19,11 +19,13 @@ import {
   lookAlike,
   searchFeed,
 } from "../utils/discover";
+import { hintSeen, markHintSeen } from "../utils/first-run";
 import { searchItems, validateItemId } from "../utils/items";
+import { useIsDesktop } from "../utils/media";
 import { clearRating, setRating, useMyRatings } from "../utils/ratings";
 import { refreshMyRecs, useMyRecs } from "../utils/recs";
+import { isForbiddenCall } from "../utils/refusal";
 import { historyScroll, rememberScroll, useGrapevine } from "../utils/store";
-import { DAILY_LIMIT_MESSAGE, isDailyLimit } from "../utils/supabase";
 import type { Item, RatingValue } from "../utils/types";
 import AvatarButton from "./avatar-button";
 import LoadFailure from "./load-failure";
@@ -33,6 +35,7 @@ import Button from "./ui/button";
 import Chip, { type ChipTone } from "./ui/chip";
 import EyeToggle from "./ui/eye-toggle";
 import FieldNote from "./ui/field-note";
+import IconButton from "./ui/icon-button";
 import RateRow from "./ui/rate-row";
 import SearchField from "./ui/search-field";
 import Wordmark, { Mark } from "./wordmark";
@@ -41,7 +44,7 @@ import Wordmark, { Mark } from "./wordmark";
 // the catalog has usually landed by the time the fingers stop.
 const SEARCH_DEBOUNCE_MS = 200;
 
-// As many as the comps draw. A thing with thirty attributes would otherwise be
+// A row's worth. A thing with thirty attributes would otherwise be
 // a row three lines deep, and the ones left out are the ones the viewer's own
 // feed is surest about — `attributesOf` puts the uncertain ones first.
 const CHIPS_PER_ROW = 3;
@@ -168,32 +171,41 @@ function ItemRow({
   );
 }
 
-// Nothing here says which way means what, deliberately: `/how/` teaches the
-// swipe, and a first screen that teaches a gesture before there is anything to
-// use it on teaches nothing (DESIGN §1.7).
+// Everyone arrives with somebody in their vine, so this is for a vine that has
+// rated nothing yet.
 function NothingYet(): ReactElement {
   const { navigate } = useGrapevine();
   return (
     <div className="flex flex-grow flex-col items-center justify-center gap-5 px-8 text-center">
       <Mark />
       <p className="text-[17px] leading-[1.55]">
-        search for and tag things you like or don’t. swipe on anything to
-        indicate your preferences.
+        nothing here yet. search to add something, or add people to your vine.
       </p>
-      <div className="flex w-full flex-col gap-3">
-        <Button
-          onClick={() => navigate({ kind: "people" })}
-          className="h-[44px] w-full text-[17px]"
-        >
-          add friends
-        </Button>
-        <Link
-          href="/how/"
-          className="font-display inline-flex h-[44px] w-full items-center justify-center rounded-sm border border-border bg-surface-muted text-[17px] font-semibold tracking-[0.02em]"
-        >
-          read more
-        </Link>
-      </div>
+      <Button
+        onClick={() => navigate({ kind: "people" })}
+        className="h-[44px] w-full text-[17px]"
+      >
+        add to your vine
+      </Button>
+    </div>
+  );
+}
+
+// Once per viewer, over the first list with something in it: a gesture taught
+// before there is anything to use it on teaches nothing. At desktop width the
+// thumbs on the buttons say it already.
+function FirstRunHint({ onDismiss }: { onDismiss: () => void }): ReactElement {
+  const desktop = useIsDesktop();
+  return (
+    <div className="flex items-center gap-2 border-b border-border py-1 pr-1.5 pl-4">
+      <p className="min-w-0 flex-grow text-[15px] text-muted">
+        {desktop
+          ? "this list comes from your vine."
+          : "this list comes from your vine. swipe right for yes, left for no."}
+      </p>
+      <IconButton label="got it" onClick={onDismiss}>
+        <LuX size={18} aria-hidden="true" />
+      </IconButton>
     </div>
   );
 }
@@ -207,7 +219,8 @@ function NothingYet(): ReactElement {
  * A row is the only way to a thing.
  */
 export default function FeedView(): ReactElement {
-  const { navigate, popped } = useGrapevine();
+  const { navigate, popped, profile, recheckLocked, explainFailure } =
+    useGrapevine();
   const {
     entries,
     computedAt,
@@ -224,6 +237,17 @@ export default function FeedView(): ReactElement {
   const [searching, setSearching] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const scroller = useRef<HTMLElement>(null);
+  // Read after mount: storage is not there during the static export.
+  const [hintShown, setHintShown] = useState(false);
+  const uid = profile?.uid ?? null;
+  useEffect(() => {
+    setHintShown(uid !== null && !hintSeen(uid));
+  }, [uid]);
+
+  function dismissHint(): void {
+    setHintShown(false);
+    if (uid !== null) markHintSeen(uid);
+  }
 
   // Only words: `!`, `@` and `#` steer a search over what the viewer already
   // holds, and nothing typed with one is a name that could be found or added.
@@ -271,11 +295,15 @@ export default function FeedView(): ReactElement {
   // On open, and nowhere else. `refresh-recs` decides whether that means
   // anything: a feed checked under ten minutes ago with no new thumb behind it
   // comes straight back, so this is not a recompute per visit.
+  // A 403 is the function refusing a locked caller, which this tab had not
+  // heard about yet.
   useEffect(() => {
     refreshMyRecs().catch((failure) => {
       console.error("refreshRecs", failure);
+      if (isForbiddenCall(failure))
+        void recheckLocked().catch((error) => console.error("locked", error));
     });
-  }, []);
+  }, [recheckLocked]);
 
   // From the viewer's own feed and nothing else, so it discloses nothing
   // (DESIGN §4); recomputed only when the feed changes.
@@ -375,15 +403,18 @@ export default function FeedView(): ReactElement {
 
   async function rate(itemId: string, next: RatingValue | null): Promise<void> {
     setProblem(null);
+    // A first swipe is the hint learned.
+    if (hintShown) dismissHint();
     try {
       if (next === null) await clearRating(itemId, "");
       else await setRating(itemId, "", next);
     } catch (failure) {
       console.error("rate", failure);
       setProblem(
-        isDailyLimit(failure)
-          ? DAILY_LIMIT_MESSAGE
-          : "couldn't save that just now. try again.",
+        await explainFailure(
+          failure,
+          "couldn't save that just now. try again.",
+        ),
       );
     }
   }
@@ -417,7 +448,7 @@ export default function FeedView(): ReactElement {
         ref={scroller}
         className="flex min-h-0 flex-grow flex-col overflow-y-auto"
       >
-        {/* The canvas shows under the rows on a phone, as the comps draw it;
+        {/* The canvas shows under the rows on a phone;
             at desktop width the column is filled, so it reads as one object
             against the canvas beside it. */}
         <div className="flex flex-grow flex-col md:bg-surface">
@@ -433,6 +464,9 @@ export default function FeedView(): ReactElement {
             <div className="px-4 pb-4">
               <LoadFailure subject="your ratings" />
             </div>
+          ) : null}
+          {hintShown && query.length === 0 && rows.length > 0 ? (
+            <FirstRunHint onDismiss={dismissHint} />
           ) : null}
           {rows.map((row) => (
             <ItemRow

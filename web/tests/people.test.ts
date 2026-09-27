@@ -1,10 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { matchesPerson, type PersonRow, unknownHandle } from "../utils/people";
+import { matchesPerson, type PersonRow } from "../utils/people";
 
-const person = (username: string, displayName: string): PersonRow => ({
+const person = (uid: string, displayName: string): PersonRow => ({
   kind: "suggestion",
-  uid: username,
-  username,
+  uid,
   displayName,
   photoURL: null,
   attributes: [],
@@ -14,12 +13,8 @@ const person = (username: string, displayName: string): PersonRow => ({
 const SHOWN = [person("ada", "Ada Lovelace"), person("emile", "Émile Zola")];
 
 describe("matchesPerson", () => {
-  it("matches a handle, with or without the @", () => {
-    expect(matchesPerson(SHOWN[0], "ada")).toBe(true);
-    expect(matchesPerson(SHOWN[0], "@ada")).toBe(true);
-  });
-
   it("matches a name, past its case and its accents", () => {
+    expect(matchesPerson(SHOWN[0], "ada")).toBe(true);
     expect(matchesPerson(SHOWN[1], "emile zola")).toBe(true);
     expect(matchesPerson(SHOWN[1], "ZOLA")).toBe(true);
   });
@@ -27,20 +22,9 @@ describe("matchesPerson", () => {
   it("says no to somebody else", () => {
     expect(matchesPerson(SHOWN[0], "zola")).toBe(false);
   });
-});
 
-describe("unknownHandle", () => {
-  // A handle is exact and there is no browsing for people, so the ask is
-  // offered for a name nobody on screen holds (DESIGN §1).
-  it("offers a handle nobody on screen has", () => {
-    expect(unknownHandle("@turing", SHOWN)).toBe("turing");
-  });
-
-  it("offers nothing for somebody already shown", () => {
-    expect(unknownHandle("ADA", SHOWN)).toBe(null);
-  });
-
-  it("offers nothing for an empty field", () => {
-    expect(unknownHandle("  ", SHOWN)).toBe(null);
+  // There is no handle to type: the field filters names and nothing else.
+  it("does not match on the uid", () => {
+    expect(matchesPerson(person("turing", "Alan"), "turing")).toBe(false);
   });
 });

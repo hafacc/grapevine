@@ -10,8 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "grapevine",
     short_name: "grapevine",
-    description:
-      "Recommendations from the people you know, weighted by whose taste has matched yours.",
+    description: "what to eat, watch, read and more, from the people you trust",
     start_url: "/",
     scope: "/",
     display: "standalone",

@@ -6,15 +6,18 @@
 -- review somebody skims.
 
 begin;
-select plan(34);
+select plan(41);
 
 insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'viewer@example.com', now());
+create or replace function private.is_unlocked(p_user uuid) returns boolean
+  language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
 set local role postgres;
 
--- `anon` holds nothing: with no anonymous sessions a first visit is signed out,
--- and signed out reads and writes nothing.
+-- `anon` holds nothing but one call: with no anonymous sessions a first visit
+-- is signed out, and signed out reads and writes nothing except whose friending
+-- link it is holding, by that link's exact token (0009's `invite_owner`).
 select is(
   (select coalesce(string_agg(distinct table_name || '/' || privilege_type, ', '), '')
    from information_schema.role_table_grants
@@ -24,7 +27,7 @@ select is(
   (select coalesce(string_agg(distinct routine_name, ', '), '')
    from information_schema.role_routine_grants
    where specific_schema in ('public', 'private') and grantee = 'anon'),
-  '', 'and no EXECUTE on anything either');
+  'invite_owner', 'and EXECUTE on the one lookup a link authorizes, and nothing else');
 
 select is(
   (select count(*)::int from information_schema.role_table_grants
@@ -96,10 +99,10 @@ select is(
 -- is_friend".
 select ok(
   has_function_privilege('authenticated', 'private.is_friend(uuid)', 'execute'),
-  'the six policy helpers DO carry EXECUTE for authenticated');
+  'the five policy helpers DO carry EXECUTE for authenticated');
 select ok(
-  has_function_privilege('authenticated', 'private.is_searchable(uuid)', 'execute'),
-  'all six of them');
+  has_function_privilege('authenticated', 'private.is_discoverable(uuid)', 'execute'),
+  'all five of them');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
@@ -128,8 +131,7 @@ select is(
      and (table_name, column_name) in (
        ('items', 'created_at'), ('items', 'created_by'),
        ('friendships', 'since'), ('ratings', 'rated_at'),
-       ('connect_requests', 'created_at'), ('profiles', 'created_at'),
-       ('profiles', 'username'))),
+       ('connect_requests', 'created_at'), ('profiles', 'created_at'))),
   '', 'no insert or update grant admits a column the server owns');
 
 -- A column absent from a select grant is in no response.
@@ -169,8 +171,9 @@ select is(
   (select count(*)::int from pg_tables
    where schemaname = 'public' and not rowsecurity
      and tablename in ('profiles', 'friendships', 'connect_requests', 'items', 'ratings',
-                       'user_prefs', 'user_recs', 'user_model', 'suggestions')),
-  0, 'row-level security is on for all nine tables in public');
+                       'user_prefs', 'user_recs', 'user_model', 'suggestions',
+                       'invite_links')),
+  0, 'row-level security is on for all ten tables in public');
 
 -- Postgres grants EXECUTE on a new function to PUBLIC by default, which is the
 -- hazard DESIGN §3.3 names: "no client verb" is not the default here, and has
@@ -212,41 +215,78 @@ select ok(
   not has_table_privilege('authenticated', 'public.default_privilege_probe', 'select'),
   'nor by authenticated, which is the half the platform grants by default');
 
--- A pattern, a prefix or an unbounded limit in either body is the enumeration
--- they exist to prevent, and that is not a detail to relax later.
+-- A link's token is a bearer secret its owner must be able to copy again, so
+-- it is readable, and by its owner alone: the policy, not the grant, is what
+-- narrows it (the enumeration probe below).
+select is(
+  (select coalesce(string_agg(column_name, ',' order by column_name), '')
+   from information_schema.column_privileges
+   where table_schema = 'public' and table_name = 'invite_links'
+     and grantee = 'authenticated' and privilege_type = 'SELECT'),
+  'created_at,token', 'a link is readable as its token and when it was made, and not by owner id');
+select is(
+  (select count(*)::int from information_schema.column_privileges
+   where table_schema = 'public' and table_name = 'invite_links'
+     and grantee in ('anon', 'authenticated') and privilege_type in ('INSERT', 'UPDATE')),
+  0, 'and no client may write one: the token is made on the server');
+select is(
+  (select coalesce(string_agg(distinct privilege_type, ',' order by privilege_type), '')
+   from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'invite_links' and grantee = 'authenticated'),
+  'DELETE', 'the one table verb is turning the link off');
+
+select ok(
+  has_function_privilege('authenticated', 'public.set_invite_link()', 'execute')
+  and has_function_privilege('authenticated', 'public.invite_owner(text)', 'execute')
+  and has_function_privilege('authenticated', 'public.redeem_invite(text)', 'execute'),
+  'the three link functions are callable when signed in');
+select ok(
+  not has_function_privilege('anon', 'public.set_invite_link()', 'execute')
+  and has_function_privilege('anon', 'public.invite_owner(text)', 'execute')
+  and not has_function_privilege('anon', 'public.redeem_invite(text)', 'execute'),
+  'and signed out, only whose link it is');
+select ok(
+  not has_function_privilege('authenticated', 'private.spend_write()', 'execute')
+  and not has_function_privilege('anon', 'private.spend_write()', 'execute'),
+  'the budget spender is callable by neither client role');
+
+-- The exact-key rule, for the two lookups that take a token.
 select is(
   (select count(*)::int from pg_proc
    where pronamespace = 'public'::regnamespace
-     and proname in ('find_by_username', 'profile_by_id')
-     and (prosrc ~* '(like|ilike|similar to|%)' or prosrc !~* 'limit 1')),
-  0, 'find_by_username and profile_by_id take an exact key and return one row');
+     and proname in ('invite_owner', 'redeem_invite', 'remove_reported_name', 'dismiss_reports')
+     and prosrc ~* '(like|ilike|similar to)'),
+  0, 'the token and name lookups carry no pattern operator');
 
-set local role authenticated;
 select is(
-  (select count(*)::int from public.find_by_username('nobody_at_all')),
-  0, 'and a handle nobody holds resolves to nothing');
+  (select count(*)::int from pg_proc
+   where pronamespace = 'public'::regnamespace
+     and proname in ('find_by_username', 'profile_by_id', 'claim_username')),
+  0, 'and the handle lookups are gone');
 
--- Enumeration is the default, so seed twenty searchable accounts who are
--- neither friends nor counterparties of the caller. The whole-table read still
--- returns exactly one row.
+-- Enumeration is the default, so seed twenty discoverable accounts, each with a
+-- link, who are neither friends nor counterparties of the caller. The
+-- whole-table reads still return the caller alone.
 set local role postgres;
 insert into auth.users (id)
   select ('aaaaaaaa-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 20) as n;
-update public.profiles
-   set username = 'seeded_' || right(id::text, 3), searchable = true
- where id::text like 'aaaaaaaa-%';
--- Findable themselves, so the second read below is one row rather than none and
--- cannot pass by the caller simply being invisible.
-update public.profiles set username = 'viewer_h', searchable = true
- where id = '11111111-1111-1111-1111-111111111111';
+update public.user_prefs set discoverable_by_taste = true
+ where user_id::text like 'aaaaaaaa-%' or user_id = '11111111-1111-1111-1111-111111111111';
+insert into public.invite_links (owner_id, token)
+  select id, left(replace(id::text || id::text, '-', ''), 43) from public.profiles;
 
 set local role authenticated;
 select is(
   (select count(*)::int from public.profiles),
-  1, 'twenty searchable strangers later, the table read is still one row');
+  1, 'twenty discoverable strangers later, the profile read is still one row');
 select is(
-  (select count(*)::int from public.profiles where searchable),
-  1, 'and asking for the searchable ones by name does not widen it');
+  (select count(*)::int from public.invite_links),
+  1, 'and the link read is the caller''s own link');
+select is(
+  (select count(*)::int from public.invite_links
+    where token = left(replace('aaaaaaaa-0000-0000-0000-000000000001' ||
+                               'aaaaaaaa-0000-0000-0000-000000000001', '-', ''), 43)),
+  0, 'and filtering on somebody else''s token finds nothing');
 
 -- There is no column for an email address or a phone number: a contact detail
 -- exists in exactly one place, the auth account, in a schema the API does not

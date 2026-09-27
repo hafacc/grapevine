@@ -10,7 +10,6 @@ import {
   visibleSuggestions,
 } from "./suggestions";
 import type { ConnectRequest, Suggestion } from "./types";
-import { normalizeUsername } from "./username";
 
 const NO_ATTRIBUTES: readonly string[] = [];
 
@@ -23,7 +22,6 @@ export type PersonKind = "ask" | "friend" | "suggestion";
 export type PersonRow = {
   readonly kind: PersonKind;
   readonly uid: string;
-  readonly username: string;
   readonly displayName: string;
   readonly photoURL: string | null;
   // The attributes the two of you agree on against the grain, at most three
@@ -39,40 +37,18 @@ export type PersonRow = {
 /**
  * Does this person match what is typed in the people screen's field?
  *
- * The handle and the name, over the same subsequence match the list uses, and
- * nothing else — there is no browsing for people and no search that reaches
- * past the three sections already on screen (DESIGN §1). A leading `@` is
- * dropped, because typing one is how a person says they mean a handle.
+ * The name, over the same subsequence match the list uses, and nothing else —
+ * the field filters the three sections already on screen and reaches nobody
+ * past them: a friend is made by a link, not found by typing (DESIGN §1).
  */
 export function matchesPerson(person: PersonRow, query: string): boolean {
-  const folded = foldQuery(query.replace(/^@+/, ""));
-  return (
-    matchesText(folded, person.username) ||
-    matchesText(folded, person.displayName)
-  );
-}
-
-/**
- * The handle to offer *ask … to connect* for, or null.
- *
- * Only when what is typed could BE a handle and nobody on screen has it: a
- * handle is exact, and the ask goes to a person the viewer has named rather
- * than to one they picked out of a list.
- */
-export function unknownHandle(
-  query: string,
-  shown: readonly PersonRow[],
-): string | null {
-  const handle = normalizeUsername(query);
-  if (handle.length === 0) return null;
-  return shown.some((person) => person.username === handle) ? null : handle;
+  return matchesText(foldQuery(query), person.displayName);
 }
 
 function toRow(
   kind: PersonKind,
   person: {
     uid: string;
-    username: string;
     displayName: string;
     photoURL?: string | null;
   },
@@ -82,7 +58,6 @@ function toRow(
   return {
     kind,
     uid: person.uid,
-    username: person.username,
     displayName: person.displayName,
     photoURL: person.photoURL ?? null,
     attributes,
@@ -155,7 +130,7 @@ export function usePeople(): {
     try {
       const result = await refreshMySuggestions();
       // The call answers with uids and nothing else, so a list that moved is
-      // read back for the handles and names its rows are drawn with.
+      // read back for the names its rows are drawn with.
       const found =
         result.suggested === null ? null : await fetchSuggestions(uid);
       if (mine !== latest.current) return;

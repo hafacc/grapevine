@@ -65,8 +65,9 @@ export default function AboutPage(): ReactElement {
         list.
       </P>
       <P>
-        <strong>People.</strong> Connections are mutual and by invitation — find
-        someone by username and ask. Your friend list is visible only to you.
+        <strong>People.</strong> Connections are mutual and by invitation — send
+        someone a link, and they say yes. Your friend list is visible only to
+        you.
       </P>
 
       <H2>who makes it</H2>

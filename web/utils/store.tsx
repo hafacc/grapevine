@@ -12,14 +12,25 @@ import {
 } from "react";
 import { googleSignIn } from "./auth";
 import { clientState, recordDebugEvent } from "./debug";
+import { forgetHintsSeen } from "./first-run";
 import {
   fetchFriends,
+  fetchLocked,
   fetchOwnProfile,
-  findUserByUsername,
-  setSearchable as pgSetSearchable,
   unfriend as pgUnfriend,
   updateProfileIdentity,
 } from "./friends";
+import {
+  fetchMyLink,
+  forgetInvite,
+  type InviteOwner,
+  isInviteToken,
+  inviteOwner as pgInviteOwner,
+  redeemInvite as pgRedeemInvite,
+  setInviteLink as pgSetInviteLink,
+  turnOffLink as pgTurnOffLink,
+  takeInvite,
+} from "./invites";
 import {
   DEFAULT_PREFS,
   fetchPrefs,
@@ -32,6 +43,7 @@ import {
   onChannelLoss,
 } from "./reattach";
 import { forgetCachedFeeds } from "./recs";
+import { explainWriteFailure, lockedAfterUnfriend } from "./refusal";
 import {
   fetchIncomingRequests,
   fetchOutgoingRequests,
@@ -42,6 +54,7 @@ import {
 import { nextSessionUser, type SessionUser } from "./session-user";
 import {
   exchangeFailure,
+  forgetSignInReturn,
   SIGN_IN_TIMED_OUT,
   takeSignInReturn,
   withoutCode,
@@ -57,7 +70,6 @@ import {
   supabaseConfigured,
   whenSocketOpen,
 } from "./supabase";
-import { type Switches, type SwitchWrite, switchWrites } from "./switches";
 import type {
   ConnectRequest,
   Friend,
@@ -66,7 +78,6 @@ import type {
   Screen,
   Suggestion,
 } from "./types";
-import { claimUsername as pgClaimUsername } from "./username";
 
 export type { SessionUser };
 
@@ -125,6 +136,18 @@ type ContextShape = {
   // People the viewer's last taste search found (DESIGN §5), strongest first.
   // `visibleSuggestions` is what a screen renders — this is what was stored.
   suggestions: readonly Suggestion[];
+  // A friending link this device was handed and has not answered yet: taken out
+  // of the address on arrival and kept across the trip to Google (`invites.ts`).
+  inviteToken: string | null;
+  // Whose that link is, read signed out as well as in: undefined until the
+  // lookup answers, null when the link no longer works.
+  inviteFrom: InviteOwner | null | undefined;
+  // The lookup behind `inviteFrom` failed, so undefined will not change by
+  // itself; `retryInviteLookup` asks again.
+  inviteLookupFailed: boolean;
+  retryInviteLookup: () => void;
+  // The viewer's own link: undefined until read, null while it is off.
+  myLink: string | null | undefined;
   screen: Screen;
   // Bumped on every history pop, so a screen can tell one from the next even
   // when the screen itself is unchanged.
@@ -134,18 +157,27 @@ type ContextShape = {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
-  claimUsername: (username: string) => Promise<void>;
-  // The two switches, each of which may move the other (`switchWrites`).
-  setSearchable: (searchable: boolean) => Promise<void>;
   setDiscoverableByTaste: (discoverable: boolean) => Promise<void>;
   dismissSuggestion: (suggestedUid: string) => Promise<void>;
-  sendFriendRequest: (
-    username: string,
-  ) => Promise<"sent" | "not-found" | "already-friends" | "self">;
+  // To somebody taste search suggested, the only person a request may go to.
+  sendFriendRequest: (suggestedUid: string) => Promise<void>;
+  // The owner's id, or null when the link stopped working. Once the server has
+  // answered, either way, the waiting token is spent.
+  redeemInvite: (token: string) => Promise<string | null>;
+  // Said no to, or found to be dead: forgotten without writing anything.
+  dismissInvite: () => void;
+  // Turns the viewer's link on, or replaces it; the old one stops working.
+  setInviteLink: () => Promise<string>;
+  turnOffLink: () => Promise<void>;
   // "gone" when the ask was withdrawn or declined elsewhere before this landed.
   acceptRequest: (request: ConnectRequest) => Promise<"accepted" | "gone">;
   declineRequest: (request: ConnectRequest) => Promise<void>;
   unfriend: (friendUid: string) => Promise<void>;
+  // Asks the server whether the account is locked and shows the answer.
+  recheckLocked: () => Promise<boolean>;
+  // What to say about a failed write, or null when the answer is that the
+  // account is locked, which the locked screen then says instead.
+  explainFailure: (error: unknown, fallback: string) => Promise<string | null>;
 };
 
 const Ctx = createContext<ContextShape | null>(null);
@@ -286,13 +318,22 @@ export function signOutFailed(error: unknown, sessionLeft: boolean): boolean {
 }
 
 // What this device keeps about the account that was signed in. The session is
-// the SDK's to remove; the feed cache is ours.
+// the SDK's to remove; the feed cache and the hints seen are ours.
 function forgetDevice(): void {
   try {
     forgetCachedFeeds(window.localStorage);
+    forgetHintsSeen(window.localStorage);
   } catch {
     // Storage refused: there was nothing written to it to forget.
   }
+}
+
+// Only on a sign-out somebody asked for, not on every `SIGNED_OUT`: a stale
+// session refused on load signs out too, and would take with it the link that
+// was just opened.
+function forgetTab(): void {
+  forgetInvite();
+  forgetSignInReturn();
 }
 
 export function GrapevineProvider({ children }: { children: ReactNode }) {
@@ -332,6 +373,13 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
   const [prefsUnreachable, setPrefsUnreachable] = useState(false);
   const [suggestions, setSuggestions] =
     useState<readonly Suggestion[]>(EMPTY_SUGGESTIONS);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteFrom, setInviteFrom] = useState<InviteOwner | null | undefined>(
+    undefined,
+  );
+  const [inviteLookupFailed, setInviteLookupFailed] = useState(false);
+  const [inviteLookups, setInviteLookups] = useState(0);
+  const [myLink, setMyLink] = useState<string | null | undefined>(undefined);
 
   // The list is only the starting guess — the effect below reads the real stack
   // out of the URL, which can't happen here because this also runs at prerender.
@@ -363,8 +411,9 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // First, so a screen carried across the trip to Google is back in the
-    // fragment before anything below reads it.
+    // fragment before anything below reads it, and a link's token is out of it.
     takeSignInReturn();
+    setInviteToken(takeInvite());
     // The fragment wins when the two disagree, being the half a user can edit.
     const saved =
       (window.history.state as NavState | null)?.grapevineStack ?? [];
@@ -391,6 +440,10 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     // The browser has already pushed a blank entry by the time this fires, so we
     // adopt it in place — a second write is the double entry this scheme avoids.
     function onHashChange(): void {
+      // A link pasted into a tab that is already open. Taken out before the
+      // fragment is read, so what is left is the list.
+      const taken = takeInvite();
+      if (taken !== null) setInviteToken(taken);
       const current = (window.history.state as NavState | null)?.grapevineStack;
       const showing = current?.[current.length - 1];
       if (showing && screenHash(showing) === window.location.hash) return;
@@ -537,6 +590,40 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     };
   }, [configured]);
 
+  // Whose link is waiting, asked once per token and signed out or in: the
+  // welcome screen names it, and the question after sign-in shows the face.
+  // A dead link is forgotten from storage at once — the screen showing says so
+  // — so it does not come back from Google to be said a second time.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `inviteLookups` is unread on purpose — bumping it is how a failed lookup is asked again.
+  useEffect(() => {
+    setInviteFrom(undefined);
+    setInviteLookupFailed(false);
+    if (!configured || !inviteToken) return;
+    if (!isInviteToken(inviteToken)) {
+      forgetInvite();
+      setInviteFrom(null);
+      return;
+    }
+    let live = true;
+    void retryTransient(() => pgInviteOwner(inviteToken))
+      .then((owner) => {
+        if (!live) return;
+        if (owner === null) forgetInvite();
+        setInviteFrom(owner);
+      })
+      .catch((error) => {
+        console.error("invite owner", error);
+        if (live) setInviteLookupFailed(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, [configured, inviteToken, inviteLookups]);
+
+  const retryInviteLookup = useCallback(() => {
+    setInviteLookups((count) => count + 1);
+  }, []);
+
   // The two lists the inbox channel re-reads, and what an accept, a decline or a
   // withdrawal applies for itself rather than waiting to be told about.
   const refreshRequests = useCallback(async (): Promise<void> => {
@@ -588,6 +675,7 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
       setPrefsReady(false);
       setPrefsUnreachable(false);
       setSuggestions(EMPTY_SUGGESTIONS);
+      setMyLink(undefined);
       return;
     }
     const mine = uid;
@@ -598,15 +686,13 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     let reported = false;
 
     /**
-     * The profile, and the one distinction the whole onboarding path rests on.
+     * The profile, and whether the account is locked (0010).
      *
-     * A row that came back with an empty `display_name` is what opens the name
-     * sheet. A read that FAILED is not that and must never be mistaken for it:
-     * it leaves `profileReady` false and reports the session as unreachable, so
-     * a returning viewer with no network sees "can't reach us" rather than being
-     * asked their name again and writing over the one they already have. There
-     * is no "the profile is missing" case: the row is created by the same
-     * transaction that creates the account.
+     * A read that FAILED leaves `profileReady` false and reports the session as
+     * unreachable, so a returning viewer with no network sees "can't reach us"
+     * rather than a screen drawn from a guess. There is no "the profile is
+     * missing" case: the row is created by the same transaction that creates
+     * the account.
      */
     const loadProfile = async (): Promise<void> => {
       try {
@@ -653,13 +739,15 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     };
 
     const loadSocial = async (): Promise<void> => {
-      const [offered] = await Promise.all([
+      const [offered, link] = await Promise.all([
         fetchSuggestions(mine),
+        fetchMyLink(),
         refreshFriends(),
         refreshRequests(),
       ]);
       if (!live) return;
       setSuggestions(offered);
+      setMyLink(link);
     };
 
     const loadAll = (): void => {
@@ -778,79 +866,27 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     const { error } = await supabase().auth.signOut({ scope: "local" });
     const { data } = await supabase().auth.getSession();
-    if (!signOutFailed(error, data.session !== null)) forgetDevice();
-    else throw error;
+    if (!signOutFailed(error, data.session !== null)) {
+      forgetDevice();
+      forgetTab();
+      setInviteToken(null);
+    } else {
+      throw error;
+    }
   }, []);
-
-  // A handle somebody else holds raises the unique violation on the column,
-  // which is the whole of the uniqueness guarantee. `claim_username` turns
-  // searchability on with it, so the profile is re-read rather than patched.
-  //
-  // It raises the same 23505 for a claim that already landed, because the
-  // update is guarded on `username is null` and a second one matches no row. So
-  // a retry after a lost response is indistinguishable from a collision at the
-  // error, and reporting it as one leaves the form up, telling someone who now
-  // HAS a permanent handle that every handle is taken. Which of the two it was
-  // is a fact about this account's row, so the row is what answers it: the
-  // re-read happens either way, and a handle that is there is this account's.
-  const claimUsername = useCallback(
-    async (username: string) => {
-      if (!uid) throw new Error("not signed in");
-      let refused: unknown = null;
-      try {
-        await pgClaimUsername(username);
-      } catch (caught) {
-        refused = caught;
-      }
-      const claimed = await fetchOwnProfile(uid);
-      if (refused && !claimed?.username) throw refused;
-      setProfile(claimed);
-    },
-    [uid],
-  );
-
-  const writeSwitch = useCallback(
-    async ({ name, on }: SwitchWrite) => {
-      if (!uid) throw new Error("not signed in");
-      if (name === "findable") {
-        await pgSetSearchable(uid, on);
-        setProfile((current) =>
-          current ? { ...current, searchable: on } : current,
-        );
-      } else {
-        await pgSetDiscoverableByTaste(uid, on);
-        setPrefs((current) => ({ ...current, discoverableByTaste: on }));
-      }
-    },
-    [uid],
-  );
-
-  // One write after the other, never together: the order is what keeps a
-  // suggestable account findable at every moment in between.
-  const setSwitch = useCallback(
-    async (name: keyof Switches, on: boolean) => {
-      const current: Switches = {
-        claimed: Boolean(profileRef.current?.username),
-        findable: profileRef.current?.searchable ?? false,
-        discoverable: prefs.discoverableByTaste,
-      };
-      for (const write of switchWrites(current, name, on)) {
-        await writeSwitch(write);
-      }
-    },
-    [prefs.discoverableByTaste, writeSwitch],
-  );
-
-  const setSearchable = useCallback(
-    (searchable: boolean) => setSwitch("findable", searchable),
-    [setSwitch],
-  );
 
   // Neither this nor a dismissal touches the suggestions rows, which no client
   // may write — the viewer's next search reads the preference and honours it.
   const setDiscoverableByTaste = useCallback(
-    (discoverable: boolean) => setSwitch("discoverable", discoverable),
-    [setSwitch],
+    async (discoverable: boolean) => {
+      if (!uid) throw new Error("not signed in");
+      await pgSetDiscoverableByTaste(uid, discoverable);
+      setPrefs((current) => ({
+        ...current,
+        discoverableByTaste: discoverable,
+      }));
+    },
+    [uid],
   );
 
   const dismissSuggestion = useCallback(
@@ -891,24 +927,53 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     [uid],
   );
 
-  // Resolved here so the caller gets an outcome rather than an error to read.
+  // The request is re-read rather than patched in: it is what hides the person
+  // from the suggestions until they answer.
   const sendFriendRequest = useCallback(
-    async (username: string) => {
-      const me = profileRef.current;
-      if (!me) throw new Error("not signed in");
-      const target = await findUserByUsername(username);
-      // A private account reads exactly like one that was never there, which is
-      // the point of the discovery gate.
-      if (!target) return "not-found" as const;
-      if (target.uid === me.uid) return "self" as const;
-      if (friends.some((entry) => entry.uid === target.uid))
-        return "already-friends" as const;
-      await pgSendRequest(me, target);
+    async (suggestedUid: string) => {
+      if (!uid) throw new Error("not signed in");
+      await pgSendRequest(uid, suggestedUid);
       await refreshRequests();
-      return "sent" as const;
     },
-    [friends, refreshRequests],
+    [uid, refreshRequests],
   );
+
+  // Forgotten once the server has answered, whatever it said. A write that
+  // never answered keeps the token, so the next load asks again.
+  const redeemInvite = useCallback(
+    async (token: string) => {
+      const owner = await pgRedeemInvite(token);
+      forgetInvite();
+      setInviteToken(null);
+      if (owner !== null && owner !== uid) {
+        // The friendship `redeem_invite` just wrote is what unlocks (0010).
+        setProfile((current) =>
+          current ? { ...current, locked: false } : current,
+        );
+        await refreshFriends();
+      }
+      return owner;
+    },
+    [uid, refreshFriends],
+  );
+
+  const dismissInvite = useCallback(() => {
+    forgetInvite();
+    setInviteToken(null);
+  }, []);
+
+  const setInviteLink = useCallback(async () => {
+    const token = await pgSetInviteLink();
+    setMyLink(token);
+    return token;
+  }, []);
+
+  const turnOffLink = useCallback(async () => {
+    const token = myLink;
+    if (!token) return;
+    await pgTurnOffLink(token);
+    setMyLink(null);
+  }, [myLink]);
 
   const acceptRequest = useCallback(
     async (request: ConnectRequest) => {
@@ -939,15 +1004,38 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     [refreshRequests],
   );
 
+  // A locked account's link is revoked with the lock (0010).
+  const showLocked = useCallback((locked: boolean): void => {
+    if (locked) setMyLink(null);
+    setProfile((current) => (current ? { ...current, locked } : current));
+  }, []);
+
+  const recheckLocked = useCallback(async (): Promise<boolean> => {
+    const locked = await fetchLocked();
+    showLocked(locked);
+    return locked;
+  }, [showLocked]);
+
+  const explainFailure = useCallback(
+    async (error: unknown, fallback: string): Promise<string | null> => {
+      const failure = await explainWriteFailure(error, fallback, recheckLocked);
+      return failure.kind === "locked" ? null : failure.text;
+    },
+    [recheckLocked],
+  );
+
   const unfriend = useCallback(
     async (friendUid: string) => {
       if (!uid) throw new Error("not signed in");
       await pgUnfriend(uid, friendUid);
+      const left = friends.filter((entry) => entry.uid !== friendUid);
       setFriends((current) =>
         current.filter((entry) => entry.uid !== friendUid),
       );
+      // The last connection locks the account (0010).
+      showLocked(await lockedAfterUnfriend(fetchLocked, left.length));
     },
-    [uid],
+    [uid, friends, showLocked],
   );
 
   const value: ContextShape = {
@@ -967,6 +1055,11 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     prefsReady,
     prefsUnreachable,
     suggestions,
+    inviteToken,
+    inviteFrom,
+    inviteLookupFailed,
+    retryInviteLookup,
+    myLink,
     screen,
     popped,
     navigate,
@@ -974,14 +1067,18 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     updateDisplayName,
-    claimUsername,
-    setSearchable,
     setDiscoverableByTaste,
     dismissSuggestion,
     sendFriendRequest,
+    redeemInvite,
+    dismissInvite,
+    setInviteLink,
+    turnOffLink,
     acceptRequest,
     declineRequest,
     unfriend,
+    recheckLocked,
+    explainFailure,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

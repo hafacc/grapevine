@@ -21,7 +21,7 @@
   --color-surface: #ffffff;
   --color-surface-muted: #f1f4f4;
   /* The one token DESIGN-UI's table does not name: a row under a pointer,
-     which the comps (drawn for a phone) have no state for. */
+     which a phone has no state for. */
   --color-surface-hover: #e6ecec;
   --color-text: #0e1417;
   --color-muted: #55666d;

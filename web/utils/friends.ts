@@ -2,21 +2,18 @@
 
 import { supabase } from "./supabase";
 import type { Friend, Party, Profile } from "./types";
-import { normalizeUsername } from "./username";
 
 // The columns `authenticated` is granted on `profiles`. There is no email to
 // leave out: it is not a column of this table at all.
-const PROFILE_COLUMNS =
-  "id,username,display_name,photo_url,searchable,created_at";
+const PROFILE_COLUMNS = "id,display_name,photo_url,created_at";
 
-// What one person may know about another: a name, a handle and a face. The same
-// four whether they come from a friend edge, a pending request, a suggestion or
-// a handle search, so every one of those reads the same list.
-export const PARTY_COLUMNS = "id,username,display_name,photo_url";
+// What one person may know about another: a name and a face. The same three
+// whether they come from a friend edge, a pending request or a suggestion, so
+// every one of those reads the same list.
+export const PARTY_COLUMNS = "id,display_name,photo_url";
 
 export type PartyRow = {
   id: string;
-  username: string | null;
   display_name: string | null;
   photo_url: string | null;
 };
@@ -29,20 +26,24 @@ function epoch(value: unknown): number {
 export function toParty(row: PartyRow): Party {
   return {
     uid: row.id,
-    username: row.username ?? "",
     displayName: row.display_name ?? "",
     photoURL: row.photo_url ?? null,
   };
 }
 
 function toProfile(
-  row: PartyRow & { searchable: boolean; created_at: string },
+  row: PartyRow & { created_at: string },
+  locked: boolean,
 ): Profile {
-  return {
-    ...toParty(row),
-    searchable: row.searchable === true,
-    createdAt: epoch(row.created_at),
-  };
+  return { ...toParty(row), createdAt: epoch(row.created_at), locked };
+}
+
+// Whether the caller has no connection (0010). Asked of the server rather than
+// read off the friend list, which loads separately and can lag a change.
+export async function fetchLocked(): Promise<boolean> {
+  const { data, error } = await supabase().rpc("account_locked");
+  if (error) throw error;
+  return data === true;
 }
 
 /**
@@ -50,42 +51,19 @@ function toProfile(
  *
  * It cannot be missing: the trigger on `auth.users` creates it in the same
  * transaction that creates the account. So `null` here means the row is gone
- * rather than never written, and a REJECTED or failed read throws instead —
- * which is the distinction the onboarding sheet rests on.
+ * rather than never written, and a REJECTED or failed read throws instead.
  */
 export async function fetchOwnProfile(uid: string): Promise<Profile | null> {
-  const { data, error } = await supabase()
-    .from("profiles")
-    .select(PROFILE_COLUMNS)
-    .eq("id", uid)
-    .maybeSingle();
+  const [{ data, error }, locked] = await Promise.all([
+    supabase()
+      .from("profiles")
+      .select(PROFILE_COLUMNS)
+      .eq("id", uid)
+      .maybeSingle(),
+    fetchLocked(),
+  ]);
   if (error) throw error;
-  return data ? toProfile(data) : null;
-}
-
-// A function rather than a select: `searchable` is not a read clause on
-// `profiles`, so a lookup by handle has to be an exact-key call that refuses a
-// non-searchable target.
-export async function findUserByUsername(
-  username: string,
-): Promise<Party | null> {
-  const { data, error } = await supabase()
-    .rpc("find_by_username", { p_handle: normalizeUsername(username) })
-    .maybeSingle();
-  if (error) throw error;
-  return data ? toParty(data as PartyRow) : null;
-}
-
-// Freely reversible, because the handle stays claimed either way.
-export async function setSearchable(
-  uid: string,
-  searchable: boolean,
-): Promise<void> {
-  const { error } = await supabase()
-    .from("profiles")
-    .update({ searchable })
-    .eq("id", uid);
-  if (error) throw error;
+  return data ? toProfile(data, locked) : null;
 }
 
 // One row, and the rename is done: a friend reads your profile itself, so there

@@ -1,13 +1,14 @@
 export type Profile = {
   readonly uid: string;
-  // Optional and permanent; exists only to power searchability, so an account
-  // that never wants to be found never needs one. Empty until claimed.
-  readonly username: string;
+  // Whatever its owner typed, first name from Google by default. It is the only
+  // thing that says who somebody is: there is no handle, because nobody is
+  // found by typing anything (DESIGN §1).
   readonly displayName: string;
   readonly photoURL: string | null;
-  // Off means unreadable by non-friends and no inbound requests, not just hidden.
-  readonly searchable: boolean;
   readonly createdAt: number;
+  // True while the account has no connection (0010): the server refuses every
+  // write it could make until it redeems a live link.
+  readonly locked: boolean;
   // No `email` and no `phone`, deliberately — a contact detail exists on the
   // auth account only, in a schema the API does not serve.
 };
@@ -17,7 +18,6 @@ export type Profile = {
 // a rename heals everywhere at once instead of being rewritten per edge.
 export type Friend = {
   readonly uid: string;
-  readonly username: string;
   readonly displayName: string;
   readonly photoURL: string | null;
   readonly since: number;
@@ -40,7 +40,6 @@ export type ConnectRequest = {
 // A public-safe identity, for wherever two people can't yet read each other.
 export type Party = {
   readonly uid: string;
-  readonly username: string;
   readonly displayName: string;
   readonly photoURL: string | null;
 };
@@ -92,14 +91,13 @@ export type RecsEntry = {
   readonly tags: Readonly<Record<string, number>>;
 };
 
-// Somebody taste search found. A uid and a rank and nothing else: the name and
-// handle are joined from the profile, which anyone in your own suggestions list
+// Somebody taste search found. A uid and a rank and nothing else: the name is
+// joined from the profile, which anyone in your own suggestions list
 // lets you read, and the words the row is drawn with are the attributes you
 // agree on against the grain — asked for by `sharedAttributes` and stored
 // nowhere (DESIGN §5.1).
 export type Suggestion = {
   readonly uid: string;
-  readonly username: string;
   readonly displayName: string;
 };
 
