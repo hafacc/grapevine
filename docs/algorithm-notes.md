@@ -1,140 +1,266 @@
 # Algorithm notes: what is derived, what is measured, what is chosen
 
-The evidence behind DESIGN §2's claims: which parts of the algorithm are forced, which are
-measured, and which are chosen. It is notes, not a specification: DESIGN is the source of truth
-for what is built.
+The evidence behind DESIGN §2's claims, measured on the **built** core. `docs/witness-model.md`
+holds the proofs and the prototype's measurements, which is where every design choice was made;
+this file is what the core in `rust/src/witness/` does on the same worlds, against the model before
+the relay and the relay, on the prototype's seeds, worlds, viewers and attack plans. It is notes,
+not a specification: DESIGN is the source of truth for what is built.
 
-Four runnable experiments back everything here:
+The prototype, the relay and the model before it, and the comparison harness that measured the
+built core in §1 and §3–§8, are code the repository does not keep; the numbers stay as
+measured. §8's recompute cost is still reproducible:
 
-    cargo run --release --example fixed-point -- --seed 7 --passes 8
-    cargo run --release --example spread -- --seed 7 --requests 3 --bots 10 --users 240
     cargo run --release --features serde --example recompute-cost -- --seed 7
-    cargo run --release --features serde --example suggest-cost -- --seed 7
 
-All four need nothing but a Rust toolchain, so every claim here can be re-checked after a
-change.
+## 1. The built core against the prototype
 
-## 1. Which parts are forced
+The prototype breaks a claim of DESIGN §2 in five places, which the property suites
+(`tests/witness_sybil.rs`, `tests/witness_properties.rs`) catch. The core departs from it in each,
+so no number below is the prototype's unless it says so:
+
+1. **Population statistics over everyone reached.** Read over every loaded person connected to the
+   viewer, base rates, which attributes a thing carries, `κ_a` and the fact reliability let a
+   swarm behind one connection move other regions' evidence, the links of chains and the heads'
+   own reliabilities, none of which the bound counts: two hundred accounts that copy the model's
+   feed and half invert it move one thing by 7.16 of log-odds behind one connection, against the
+   bound's 4.69. Counting each region as one voice in those statistics still moves it 4.86,
+   because the one voice reaches everyone else's base rates. The core reads them over the
+   **circle** (the viewer and the people they trust directly), which nothing behind an accepted
+   connection can be in; `κ_a`, and the base rate a thumb's evidence is judged against, add the
+   rater's own region and reach only it (`docs/witness-model.md` §1.4). Over all 720 attacks of
+   the sweep, every thing moves within the bound.
+2. **Per-attribute reliability capped only at the head** lets copies of the viewer on things
+   carrying an attribute raise a copier to the head through it (`+0.24` mean, `+0.58` worst, on
+   the promoted thing). The core takes both caps of the overall rule; the attack is §6's "copy the
+   viewer, tagging".
+3. **"A gatekeeper stays between their later thumbs discounted and counted in full"** is false by
+   `5 × 10⁻⁴`: the posterior mean is not monotone in exposure once two later thumbs are discounted
+   (`docs/witness-model.md` §1.4, step 3, with a worked counterexample). The claim, and its test,
+   is that exposure is the only way in: the gatekeeper's reliability equals, bit for bit, what the
+   same number of connections to accounts that rate nothing gives.
+4. **Sixteen grid points cannot hold a sharp prior**: at `κ_a = 1 024` the prior is a quarter of a
+   grid step wide. Under such a prior the posterior is integrated over a window at the prior's own
+   scale (`docs/witness-model.md` §1.8); the prior's mean is reproduced to `10⁻⁴`. Wherever the
+   posterior can be anywhere it is the measured 16-point grid.
+5. **`tanh` reaches exactly `±1`** (thirty agreeing voices near the clip). Scores are clamped to
+   `±(1 − 2⁻⁵²)`.
+
+Every sum runs in a fixed order, so a snapshot's result is bit-identical run to run.
+
+The prototype with per-attribute reliability on, against the core,
+over the fifteen worlds of §3, two category worlds and three attacked worlds, therefore showed the
+departures, not rounding: single scores differed by up to 1.9 on the `(−1, 1)` scale and certainties
+by up to 0.38, and the per-world AUCs by −0.052 to +0.026 (the prototype ahead on spread, the
+category worlds and the attacked ones; the core ahead on mixed and sparse).
+
+`κ_a` is chosen from `{1, 2, 4, …, 1024}`, eleven values; the prototype's grid has no 512.
+
+## 2. Which parts are forced
 
 | mechanism | status | why |
 |---|---|---|
-| log-odds weighting of a person's thumbs (§2.3) | **forced** | Under conditional independence and a uniform prior, the error-minimising aggregation of binary votes weights each voter by `log(p/(1−p))`; by Neyman–Pearson it *is* the log-likelihood ratio, so every other weighting is strictly dominated. Nitzan & Paroush, *Int. Econ. Rev.* 23(2), 1982. Same object as I. J. Good's weight of evidence. |
-| informativeness `ω = 4p(1−p)` (§2.2) | **forced up to an estimand choice** | This is Fisher information under the two-parameter item-response model, `a²·P(1−P)`, with every discrimination at 1. Birnbaum 1968; Lord 1980. **Open**: multiply by the variance if the estimand is a latent alignment parameter, *divide* by it — as GLS and Cohen's κ do — if it is a mean. Settleable by writing the likelihood down, not by argument. |
-| the `n/(n+1)` support factor | **chosen, and it stays chosen** | The exact Beta(1,1) posterior `p̂(1−p̂)·(n+2)/(n+3)` with `p̂ = (k+1)/(n+2)` would delete the invented constant, and is deliberately not used: it reads `≈ 4/n` on a unanimous item where this form reads exactly **zero**, and that zero is §2.1's whole defence against an account that copies consensus. A tidier closed form is not an improvement when the untidy form's discontinuity is the property being relied on. |
-| the affinity split (§2.4) | **forced given a constraint** | `split ∝ exp(β·alignment)` is the unique maximiser of `H(q) + β·E_q[alignment]` over the simplex — strictly concave, hence unique — so `β` is a multiplier on a constraint, not a tuned knob. Gibbs; axiomatically, Shore & Johnson, *IEEE IT* 26(1), 1980. Honest caveat: this relocates the arbitrariness into choosing the constraint level. |
-| mass conservation and the sybil bound (§2.4) | **forced, and the best available** | You cannot have *zero* sybil gain: strong transitive trust + independence of disconnected agents + anonymity + misreport-proofness together imply beneficial sybil attacks exist (Seuken & Parkes, AAMAS 2014). "Bounded, not prevented" is the theorem, not a hedge. The closest thing to a characterisation of which flow rules admit the bound is Levien's *bottleneck property* — "a trust metric must dilute the trust accorded to the successors of `t` as more successors are added" — which is mass conservation, and which he states plainly is a conjecture with no proof. |
-| `κ = 8` | **chosen, and load-bearing for a second reason** | §2.8 justifies it by how fast a stranger's alignment should rise. It is also what makes the whole computation settle — see §3. |
-| learned edge trust (§2.5) | **ad hoc — not built** | See §4. |
+| the witness channel and chance weighting (§2.2) | **derived** | the likelihood ratio of one thumb under "knows or guesses from the base rate" (`docs/witness-model.md` §1.1) |
+| a chain is the product of its links (§2.4) | **derived** | the channel composed; a chain is never more reliable than its weakest link (§1.2) |
+| the posterior mean of `λ` (§2.3) | **forced by the loss** | a weight is judged by squared error |
+| a region as one voice (§2.4) | **the one axiom** | the logarithmic pool is the exact posterior under full dependence (§1.3) |
+| exposure `1/(people v trusts)`, `1/(connections nearer the viewer)` | **chosen, measured** | structural; each alternative measured let one attack through (`docs/witness-model.md` §2.6) |
+| the caps on own history | **chosen, measured** | as above |
+| `κ`, `a₀` | **estimated** | moments of the population's `(1 + λ̂)/2`, chance taken out (§2.9); the table is the fallback |
+| `κ_a`, the share of linked pairs, the fact reliability | **learned per recompute** | type-II likelihood, empirical Bayes, the agreement rate |
+| population statistics over the circle; a region's own for its `κ_a` and its evidence's base rate | **forced by the bound** | the circle is the largest population no set of accounts behind an accepted connection can be in (`docs/witness-model.md` §1.4) |
+| `L = 2`, a 16-point grid | **chosen** | Huber's clip at `ε = 0.24`; 64 points measured no different; a sharp prior gets a window at its own scale |
 
-## 2. Two costs of the design, and what the literature says about them
+## 3. Accuracy — measured
 
-**The stronger sybil guarantee is for a different object.** Under personalized *hitting
-probability* — did the walk ever reach you — the optimal sybil strategy is provably *no sybils at
-all* (Hopcroft & Sheldon, WAW 2007). Grapevine measures accumulated visit mass, a resolvent,
-which counts revisits; for that family one sybil with a two-loop strictly pays (Liu, Parkes &
-Seuken, AAMAS 2016, Thm 1). **So DESIGN claims a bound, not immunity.** Non-backtracking
-removes the two-loop specifically — a bot cannot bounce straight back along the edge it arrived
-by — so the cheapest cycle attack becomes a triangle, two sybils instead of one, and no further.
-There is **no literature at all** at the intersection of non-backtracking walks and sybil
-resistance, so nothing here is borrowed.
+Held-out AUC of the score against the noiseless preference over the items the viewer did not rate
+(a missing score is zero); three seeds; every thirtieth viewer:
 
-**The incentive property we have is the one that is available.** Personalized PageRank fails
-strong incentive compatibility for *any* damping factor, and satisfies self-confidence only when
-the damping factor is strictly greater than ½ — ours is exactly ½ (Altman & Tennenholtz, IJCAI
-2007, Prop. 15). Their Cor. 21 is the reason not to chase it: self-confidence + transitivity +
-ranked IIA + strong incentive compatibility together collapse any personalized ranking system to
-*rank by hop distance and nothing else*, which is why §2.7 cites the impossibility rather than
-chasing the property.
-
-Non-backtracking's real job is that ordinary eigenvector centrality localizes onto hubs and
-non-backtracking does not, because it removes the hub↔neighbour reflection (Martin, Zhang & Newman, *PRE* 90, 052808). In a friend graph with one
-500-friend account that is the difference between a working feed and a feed about the hub.
-
-## 3. The circular definition settles — measured
-
-Flow decides who is in reach, reach decides what is contested, contested decides alignment,
-alignment decides flow. DESIGN resolves this by iterating to a fixed point, which assumes one
-exists and is reached.
-
-`fixed-point.rs` iterates the map and reports how far the score vector moves each pass.
-
-**It contracts, hard.** Measured on the node push with warm-started passes (below). Per-pass movement of the worst single score falls by a factor of 0.032–0.039 at the first step
-and 0.055–0.14 at the second, across seeds 1/3/7/11/23 and `p_same_cluster` from 0.05 to 0.6.
-Past that the movement is around 5e-5 and the ratio is noise — 0.2 to 1.4 between single passes
-— because each pass is a walk stopped at its own truncation and started from the one before, so
-a pass can land a rounding of that size further off than the last. Over two passes it always
-shrinks. Every viewer of every one of those worlds reaches the tolerance 1e-4: four passes the
-median, six the most any viewer took.
-
-**The dense worlds settle too.** At `p_same_cluster = 0.6` — 120 people, 72 friends each — every
-viewer settles in at most four passes, on 52 000 to 60 000 edge pushes each. The 200-bot mimic
-clique behind one of user 0's friends settles for all 320 viewers, eight passes the most any of
-them took; the bots hold 1.025 friend-units against the 1.114 their gatekeeper holds. A 500-bot
-clique behind one gatekeeper (`tests/sybil.rs`, the dense-clique test) resolves too: truncation 0.0041, five
-passes, settled, 1.75 million pushes against an `E_max` of ten million.
-
-**Two passes sits 0.006–0.012 from the fixed point** on the worst single ratable across the same
-worlds, inside §2.9's truncation bound of `ε·L/(1+W) ≤ 0.04`. DESIGN §1 quantizes the bar to
-`max(truncation·L, settle_movement)`: every viewer measured settles, but a loop the budget stops
-reports the movement it stopped at, and the bar has to draw that case too.
-
-**What a sweep costs, and why the push drains a node.** The system lives on directed edges — mass
-that arrived at `v` from `w` may not go back to `w`. Pushing one residual on `(w → v)` at a time
-deposits along every edge out of `v` but the one it arrived by, so a sweep costs
-`Σ_v deg(v)·(deg(v) − 1)`, about the mean degree times the edge count. Expanding a node instead,
-what leaves along `(v → x)` is `(1 − α)·aff(x)·Σ_{w ≠ x} r(w → v)/(S_v − aff(w))`, one sum over
-the arrivals less the one from `x`, so an expansion costs `deg(v)` and a sweep one push per
-directed edge. Both solve the same equation under the same stop rule and truncation bound, and
-agree to within the walk's own error — section 8 has both. Each settling pass after the first starts
-from the previous pass's masses, with residual `e + T·a₀ − a₀` under the new split. That residual
-can be negative, so the truncation is `Σ|r|·(1 − α)/α`, and the masses can sit on either side of
-the converged ones by at most that much in total. On the simulator's worlds the warm start cuts the loop's
-pushes by a quarter at ten friends and by half at fifty.
-
-**Do not trim the neighbourhood to fit a budget.** `Budget::for_snapshot` reserves, for the
-graph-only pass and each of `SETTLE_MAX_PASSES` more, one deposit per friend and one sweep more than a cold walk
-needs to shrink `F` friend-units below `ε_total`; on the 80-person world `tests/settling.rs`
-reads it off, every viewer's converged loop spends under a quarter of it. `E_max` is a CPU
-ceiling on top of that (section 8), which no measured neighbourhood reaches. Unloading the
-furthest nodes until a whole loop's reservation fits a flat `E_max` kept 72 to 104 of the nodes of
-every viewer on 120- and 300-person worlds at 9–14 friends, left a boundary residual of 0.5 to 4.8
-against an `ε_total` of 0.02, and so wrote no feed for anyone with a hundred people in reach.
-
-**Why it contracts, and what that says about `κ`.** Alignment is `(κ·a₀ + A)/(κ + A + D)`, so a
-change in the masses moves `A` and `D` and is divided by `κ + A + D`. A large `κ` means alignment
-barely responds to a change in flow, which is exactly what makes the composition a contraction.
-There is a theorem for the general case — a kernel whose transition probabilities depend on the
-law it produces has a unique invariant measure, reached geometrically, when its Lipschitz
-constant in the measure is below its Dobrushin coefficient (Butkovsky, *Theory Probab. Appl.*
-58(4), 2014, Thm 2.2) — and a walk with stop probability `α` supplies that coefficient for free
-on every graph. Two obstructions worth not skipping: Butkovsky's Example 2.1 is a **two-state**
-chain satisfying the Dobrushin condition alone that does *not* converge, so "the killing rate
-makes it contract" is false on its own; and multilinear PageRank is unique for `α < 1/2` and
-explicitly **non-unique for `α ≥ 1/2`** (Gleich, Lim & Yu, *SIMAX* 36(4), 2015). Ours is exactly
-`1/2`. Different model, close enough that sitting on the boundary should be a decision.
-
-**Concentration is bounded by this, not by taste.** Parameterising the split as
-`exp(β·alignment)`, where `β = 1` is §2.4 and the best:worst neighbour ratio is `e^{2β}`:
-
-| β | best : worst | contraction ratio | two-pass gap |
+| world | before the relay | relay | witness |
 |---|---|---|---|
-| 1 (shipped) | 7 : 1 | ~0.2 | 0.088 |
-| 2 | 55 : 1 | 0.45 | — |
-| 4 | 3 000 : 1 | 0.83 | — |
-| 12 | 2.6e10 : 1 | **1.008 — never settles** | 0.827 |
+| mixed: 80 people, 140 items, friends almost regardless of taste | 0.710 | 0.781 | **0.836** |
+| spread: 120 people, 240 items, 20 unanimous items | **0.827** | 0.826 | 0.819 |
+| sparse: 200 people, 600 items, 5% rated | 0.585 | 0.677 | **0.721** |
+| high-rank: taste in 30 dimensions | **0.528** | 0.526 | **0.528** |
+| realistic: 600 people grown with homophily and triadic closure, 1 500 items | 0.518 | 0.568 | **0.580** |
 
-So "put everything on one friend" is a ratio in the thousands, which is where the iteration needs
-tens of passes, and past that there is no answer to converge to. **The clamp `L = 2` is the
-stability limit**, and DESIGN justifies it only as "how much any one account's thumb can ever
-count". Concentration does *not* help an attacker — with 200 mimic bots the bots' share drifts
-slightly *down* as `β` rises (0.790 → 0.776 → 0.756 at β = 1, 2, 3) — so stability is the only
-thing being traded. **The shipped table keeps 7:1.**
+Against the prototype's 0.826 / 0.830 / 0.692 / 0.529 / 0.578: `+0.010`, `−0.011`, `+0.029`,
+`−0.001`, `+0.002`. The circle's base rates are a smaller sample than everyone reached's; the one world that
+loses is the spread world, where twenty things everyone likes are much of what a base rate has to
+say. With the
+circle alone for evidence as well, it is 0.843 / 0.791 / 0.731 / 0.528 / 0.582, at the attack cost
+§6 gives.
 
-## 4. Why there is no learned edge trust
+The model before the relay is scored on what it showed (its floor hid the rest); on the
+cold-start sample, every twentieth viewer, it was 0.701 / 0.848 / 0.569 / 0.533 / 0.517. People
+reached with a chain below 0.02: 44% / 3% / 29% / 33% / 8%.
+
+The **realistic** world stands in for a dump of the real graph, which does not exist yet: people
+join one at a time and befriend others mostly in their own of eight Zipf-sized taste groups, in
+proportion to how many friends those already have, then friends of those friends — mean 11
+friends, median 7, clustering 0.12; activity log-normal around 25 ratings (up to 400); items rated
+in proportion to a Zipf popularity. Its AUCs are low because most people rate few things from a
+long catalog.
+
+**Cold start** (every twentieth viewer; AUC, and the share of held-out things
+with a score): with no thumbs, 0.671 / 0.829 / 0.696 / 0.520 / 0.554, a score on every thing,
+against the relay's 0.673 / 0.814 / 0.658 / 0.520 / 0.548 with a score on 96 / 100 / 85 / 100 /
+78%, and the prototype's 0.636 / 0.813 / 0.664 / 0.517 / 0.547. With only thumbs on things no friend
+rated, 0.769 / 0.838 / 0.700 / 0.520 / 0.569 against the relay's 0.701 / 0.820 / 0.664 / 0.520 /
+0.560. With all thumbs on the same sample, 0.834 / 0.817 / 0.701 / 0.536 / 0.576.
+
+**Certainty**: the share of held-out things whose side of the middle
+is the viewer's, from the lowest populated fifth of `W/(1 + W)` to the highest: 71% → 93%
+(mixed), 64% → 78% (spread), 60% → 83% (sparse), 50% → 53% (high-rank), 53% → 66% (realistic).
+Expected calibration error of the score read as a chance: 0.090 / 0.021 / 0.014 / 0.098 / 0.105,
+against the prototype's 0.110 / 0.039 / 0.017 / 0.075 / 0.073: better where anything can be learned,
+bolder where little can.
+
+## 4. Kinds of thing — measured, and smaller than the prototype's
+
+A world where each person's taste in each of three categories is their home group's with
+probability `p`, with three category attributes and three quality attributes that carry no taste
+(three seeds, every fifth viewer). "One reliability" is the same model on
+the same world with every attribute thumb removed:
+
+| `p` | relay | witness, one reliability | witness, per attribute | `κ_a` chosen: categories / qualities |
+|---|---|---|---|---|
+| 1.0 | 0.826 | **0.846** | 0.843 | 30 / 39 |
+| 0.6 | 0.766 | 0.807 | **0.809** | 20 / 42 |
+| 0.3 | 0.725 | 0.781 | **0.783** | 21 / 45 |
+
+(`κ_a` is chosen per region; the last column is the geometric mean over regions.) The prototype
+measured per-attribute reliability at 0.858 / 0.844 / 0.822 — a gain of 0.014 to 0.039 over one
+reliability. **The built core gains −0.003 to +0.002.** Most of the prototype's gain came from
+letting people beyond a direct connection rise to the head on the strength of thumbs given after the
+viewer's, which is the variant DESIGN §2.4 rejected overall (§1, item 2). Choosing `κ_a` over the
+circle alone, the population no swarm can reach, costs accuracy on every world (−0.005 to −0.007); per
+region over the circle and the region, the gain is about nothing either way. It still tells
+categories from qualities, choosing `κ_a` about twice as large for the qualities.
+
+## 5. Attributes that go together — measured
+
+12 attributes along 3 hidden properties, 80 people, three seeds, every eighth viewer; and the same
+world with every attribute independent. A gap is a `(thing, attribute)`
+nobody the viewer's chains reach tagged (for the relay, nobody at all):
+
+| model | linked: gaps filled, right | independent: filled, right | pairs used per viewer | used pairs one added co-tag changes |
+|---|---|---|---|---|
+| relay | 660, 78.0% | 770, 51.4% | — | — |
+| witness | 372, 86.3% | 0 | 7.3 / 0 | 0.030 / 0 |
+
+Within a few gaps of the prototype's 364, 86.5%, 7.2, 0.023: the chains that weight the co-taggers
+learn against the circle's base rates. **A filled gap's certainty** barely tells right from wrong —
+`W/(1 + W)` averages 0.336 on the fills that were right and 0.308 on those that were wrong.
+
+## 6. Attacks — measured
+
+**Behind the viewer's own connections** (240 people in three taste
+groups, every 24th viewer with at least three connections, three seeds; twenty bots in a clique
+behind each of the first `k` connections, promoting one new thing; the thing's mean score for the
+viewer, worst in brackets):
+
+| the bots first | `k` = 1 | 2 | 3 |
+|---|---|---|---|
+| do nothing | +0.09 (0.23) / relay +0.06 | +0.17 (0.26) / +0.11 | +0.27 (0.40) / +0.16 |
+| copy the viewer | +0.09 (0.23) / +0.37 | +0.17 (0.26) / +0.55 | +0.27 (0.40) / +0.66 |
+| copy the viewer, tagging ¹ | +0.09 (0.21) / +0.37 | +0.18 (0.33) / +0.55 | +0.26 (0.40) / +0.66 |
+| copy the crowd | +0.09 (0.23) / +0.19 | +0.17 (0.26) / +0.30 | +0.27 (0.40) / +0.39 |
+| manufacture contested | +0.09 (0.23) / +0.17 | +0.17 (0.26) / +0.29 | +0.27 (0.40) / +0.37 |
+| copy their own feed | +0.09 (0.23) / +0.13 | +0.17 (0.26) / +0.23 | +0.27 (0.40) / +0.31 |
+
+¹ The bots also tag every other thing they copy, and the promoted thing, with the
+attribute most often tagged on the viewer's things, on the same world with 30% of thumbs tagged. It
+aims at per-attribute reliability, where there are fewer copies to match; under the prototype's cap
+it reaches `+0.24` (worst `+0.58`) behind one connection. The bots' tags decide nothing about what
+kind a thing is (the circle does), and their per-attribute reliability takes both caps.
+
+Every plan gives the witness model the same number: whatever the bots do first, they read at their
+chain and their thumbs on the promoted thing are judged against their own region's consensus. Against
+the prototype's `+0.07 / +0.14 / +0.21` (worst `0.39`) the built core concedes `+0.02` to `+0.06`,
+the price of a bound that holds. Judging the bots' thumbs against the circle alone, where nobody has rated the
+promoted thing, gives `+0.13 / +0.24 / +0.37` (worst `0.55`); against the circle and the thumb's own
+region, a swarm agreeing with itself is no surprise to itself. Chains and stars of bots move the
+witness numbers down by a few hundredths. The worst single viewer under any plan, shape and `k`:
+`+0.40`, against the relay's `+0.69`.
+
+**The paid promotion** (three people accept forty bots each; everyone by steps from whoever accepted, 9 / 96 / 423 / 192 people at 0 / 1 / 2 / 3+; how many see the thing
+lean past a tenth of the bar, and the mean score among them):
+
+| plan | before the relay | relay | witness |
+|---|---|---|---|
+| promote only | 9 · 0 · 0 · 0 | 9 · 1 · 0 · 0 | 9 · 51 (+0.13) · 27 (+0.12) · 1 |
+| copy the crowd | 9 · 10 (+0.37) · 0 · 0 | 9 · 93 (+0.20) · 1 · 0 | 9 · 51 (+0.13) · 27 (+0.12) · 1 |
+| manufacture contested | 9 · 7 (+0.41) · 0 · 0 | 9 · 87 (+0.19) · 4 · 0 | 9 · 51 (+0.13) · 27 (+0.12) · 1 |
+| tag spam | 9 · 0 · 0 · 0 | 9 · 1 · 0 · 0 | 9 · 51 (+0.13) · 27 (+0.12) · 1 |
+| copy the relay's feed | 9 · 45 (+0.42) · 0 · 0 | 9 · 74 (+0.20) · 2 · 0 | 9 · 51 (+0.13) · 27 (+0.12) · 1 |
+| copy the witness feed | 9 · 35 (+0.41) · 0 · 0 | 9 · 69 (+0.18) · 3 · 0 | 9 · 51 (+0.13) · 27 (+0.12) · 1 |
+| copy it, half invert | 9 · 48 (+0.18) · 0 · 0 | 7 · 0 · 0 · 0 | 9 · 51 (+0.13) · 27 (+0.12) · 1 |
+
+The prototype had 29 / 6 / 0 one and two steps out for most plans and 69 / 88 / 5 for the half-inverting
+bots; the built core is the same for every plan, more people one and two steps out for the plain
+ones and far fewer for the half-inverting ones, every lean faint.
+
+On the realistic graph (two seeds, 2 / 46 / 244 / 108 people), the witness
+model leans the thing for 37 of 46 one step out at `+0.14`, and for 2 of 244 two steps out, under
+every plan; the relay for 5–34 of 46 at `+0.11`–`+0.25` and up to 5 of 244.
+
+**The accepted copier** (one account a victim accepted, whose only connection is the victim, copies every one of the victim's thumbs — necessarily later — then
+promotes one item; thirty victims of the spread world, 322 of their friends):
+
+| model | the victim's score for the item | the victim's friends it leans for |
+|---|---|---|
+| before the relay | +0.67 | 0 of 322 |
+| relay | +0.51 | 4 of 322 |
+| witness | **+0.41** | **181 of 322** |
+
+For the victim the copies teach nothing (exposure one), so the copier is a connection at the prior
+and its lone thumb scores what a fresh friend's does. For the victim's friends it is a lone rater
+two steps out at the victim's reliability times a link at its prior, alone in the victim's region
+on the thing, so it speaks for that region — the "one bot" case of `docs/witness-model.md` §2.9,
+faint (past `+0.1` for 181 people, against 139 with base rates over everyone reached) and inside
+the bound. It is the price of not diluting a lone
+rater by the size of their region.
+
+## 7. Incentives — measured
+
+DESIGN §2.7's average case (60 targets of the mixed world): held-out AUC
+when the target reports honestly / withholds half / randomizes half / inverts a quarter, and for
+how many targets any misreport did better than the truth:
+
+| model | honest | withheld | randomized | inverted | a lie won for |
+|---|---|---|---|---|---|
+| before the relay | 0.737 | 0.721 | 0.656 | 0.653 | 21 |
+| relay | 0.789 | 0.761 | 0.725 | 0.730 | 9 |
+| witness | **0.828** | 0.799 | 0.776 | 0.772 | 14 |
+
+Honesty is best on average under every model. Per target, a misreport beat the truth for 14 of 60
+under the witness model against 9 under the relay: on average and not per state, which is all
+§2.7 claims.
+
+## 8. What one recompute costs — measured
+
+Milliseconds per viewer over a whole 2 000-person neighbourhood, 40 viewers of each world, median
+(worst); natively, and the same binary built for `wasm32-wasip1` and run under Node 22:
+
+| world | before the relay | relay | witness | witness, prototype | witness in wasm | relay in wasm |
+|---|---|---|---|---|---|---|
+| ~13 friends, 300 items, 15% rated | 16 (20) | 46 (57) | **28 (31)** | 30 (32) | **35 (49)** | 69 (142) |
+| ~13 friends, 2 000 items, 5% rated | 44 (57) | 50 (57) | **43 (77)** | 48 (53) | **51 (56)** | 71 (82) |
+| ~50 friends, 2 000 items, 5% rated | 63 (99) | 52 (61) | **109 (112)** | 116 (121) | **134 (138)** | 75 (89) |
+| realistic, 3 000 items | 16 (24) | 24 (87) | **18 (24)** | 22 (26) | **23 (30)** | 35 (138) |
+
+The prototype's wasm medians were 39 / 59 / 141 / 28. At or under the prototype at the median
+everywhere (one viewer of the second world took 77 ms natively), and, at the four calls a recompute may make (the loader's three extra rounds), well inside a free
+invocation's roughly two seconds. The cost is the chain links — one posterior per trust
+connection explored — so it grows with friends per person. `recompute-cost` over its default
+spread-out world (150 people, 500 items, 45% rated): 6.1–6.3 ms at the median
+over three seeds, 6.7–8.8 at the worst.
+
+## 9. Why there is no learned edge trust, and what the order bit is instead
 
 A learned per-edge trust `θ`, fitted by descent on a loss over the viewer's own thumbs, is the
-obvious extension and is deliberately not built (DESIGN §2.5). Its loss `L(θ)` is convex in the
-scores, but the scores are a resolvent of `θ`, so **convexity in `θ` is
+obvious extension and is deliberately not built. Its loss `L(θ)` is convex in the
+scores, but the scores are a nonlinear function of `θ` through every chain, so **convexity in `θ` is
 unestablished**. Two hundred descent steps find a stationary point with no uniqueness claim, and
 a starved budget finds wherever it stopped. The sharp counterpoint from the literature: spectral
 initialisation plus *one* EM step is minimax optimal for the analogous rater-reliability problem
@@ -148,9 +274,10 @@ not the act of optimising. It is that *this* objective is non-convex in its para
 is unmotivated, and its regularisation weight, tolerance and step cap are three more chosen
 constants in a section whose job is to remove chosen constants.
 
-**What it would carry.** §2.1 requirement 3 — blame the edge into the bot, not the friend — and
-nothing else supplies it. Alignment cannot: alignment rewards agreement and a mimic maximises
-agreement. The requirement is dropped on the evidence in §5 below. If it ever
+**What it would carry.** Blaming the edge into a bot rather than the friend who accepted it. The
+witness model does that without a fitted weight: the link into a swarm is learned from the swarm's
+thumbs against its gatekeeper's, at exposure one, where a copy teaches nothing, so the link stays
+at its prior and everything behind it is capped at the head. If it ever
 comes back, the shape is Resnick & Sami's **influence limiter** (RecSys 2007): each source carries
 a reputation starting near zero, moves the prediction only in proportion to it, and gains or
 loses when the viewer later rates the thing themselves. Six lines. Total damage from `n` sybils
@@ -163,63 +290,21 @@ lack and grapevine has by construction — the viewer eventually rating the same
 explicitly exclude one who misleads other raters into amplifying her effect and later corrects.
 Learned per-edge weights are the machinery that moves a system into that excluded case.
 
-## 5. What the attack that scales actually achieves — measured
+**What the order bit does that edge trust was for.** Resnick & Sami's limiter rewards a source
+for predicting a thumb the viewer gave *later*. DESIGN §2.3 uses exactly that asymmetry without a
+learned per-edge parameter: a thumb given before the viewer's is a prediction and counts in full;
+one given after is, with probability equal to the source's exposure, a reaction that says nothing;
+and only predictions may raise a person past their own chain (§2.4).
 
-`spread.rs` runs the attack that pays for itself: a business wants one item in front of as many
-people as possible. Each person who accepts a bot's friend request gets their own group of bots,
-which read their own feeds to copy that person's taste and then promote a single item.
-
-The headline result is in DESIGN §2.9a. The supporting sweeps:
-
-- **Bots are free and worthless.** 30, 120 and 480 bots behind three accepted requests swayed the
-  same **17** people out of 120 — identical — and the item's mean score fell slightly as the
-  swarm grew.
-- **Sway is linear in accepted requests**: 1 → 7 people, 3 → 17, 6 → 38, 12 → 66, out of 120.
-  About six people per person duped.
-- **Variety protects.** Three accepted requests, same botnet: a population with one taste group
-  loses 35 people (29%), three groups 17 (14%), eight groups 11 (9%).
-- **Effort scales with the target.** With friend counts held at nine: three requests reach 17 of
-  120 people, 13 of 240, 11 of 480. Absolute reach per accepted request is roughly fixed, so
-  holding a constant *share* of a growing network costs proportionally more real people saying
-  yes.
-- **Copying is the whole of the reach past the first person.** Same bots promoting without copying
-  anyone: **zero** people beyond the ones who accepted, at every distance.
-- **The ring table is seven seeds**, 240 people each: everyone who accepted is taken (100%, mean
-  `+0.98`), 54% of their friends see it at `+0.49`, and then it falls off a cliff — 1.2% of the
-  next ring and 0.2% beyond. An earlier single-seed run put the first ring at a quarter rather
-  than a half; the seven-seed figure is the one to quote.
-
-A correction worth keeping, because the clever version was wrong: the leak is stopped by
-*dilution*, not by backfire. The mechanism where a thumbs-up from someone you reliably disagree
-with reads as a warning does exist, but it fired for at most one person in 120 across every run.
-What actually happens is that the item simply never reaches people outside the copied group.
-
-## 6. On formalizing this
-
-**Not in Lean.** Mathlib has Banach with explicit rates (`ContractingWith`,
-`apriori_dist_iterate_fixedPoint_le`) and the exact truncation identity
-(`NormedRing.inverse_one_sub_nth_order'`), which is most of what mass conservation and the error
-bound need. It does **not** have Perron–Frobenius (mathlib's own registry marks it unformalized),
-finite Markov chains, non-backtracking anything, or an ℓ1 induced matrix norm — and the mass
-bound is a max-*column* sum while the available matrix norm is max-*row* sum. Calibration: the
-first Perron–Frobenius in Lean 4 took three authors about 15 000 lines. The dominant cost would be
-a definitional layer — edge space, the non-backtracking constraint — at one to three weeks before
-anything is provable, and it would not touch the actual risk, which is the Rust implementing a
-different operator than the prose describes.
-
-**Exhaustive enumeration instead**: `rust/tests/enumeration.rs` takes every reciprocal graph up
-to six nodes (156 unlabelled) and checks mass conservation, the error bound against the exact
-resolvent solve, and every relabelling — which at that size is a proof and not a sample. It runs
-in seconds.
-
-## 7. Two things the practice literature says that are not in DESIGN
+## 10. Two things the practice literature says that are not in DESIGN
 
 **Every bound must be stated over pre-attack reach.** Ruderman's critique of Advogato: Levien's
 proof bounded trust by the *final* capacities of the confused nodes, which let an attacker gain
-trust proportional to the **square** of the attack's cost. "Everything beyond one friend weighs at
-most as much as that friend" has exactly that shape and must mean *that friend's reach before the
-attack*. If the bots' presence raises the gatekeeper's own mass, the bound is circular. Checkable
-in the simulator; not currently checked.
+trust proportional to the **square** of the attack's cost. The relay's bound has that shape — a
+gatekeeper's visit mass includes what a region's loops send back to it. DESIGN §2.5's
+bound does not: a head's reliability is learned from the head's own thumbs against the viewer's,
+which nothing in the region rates as, and `tests/witness_sybil.rs` checks the bound under every
+plan.
 
 **The staleness window is load-bearing for privacy, not just for cost.** Passively diffing a
 system's aggregates over time recovers individual contributions, and smaller datasets are
@@ -234,100 +319,12 @@ a node of degree `α·log n` (Machanavajjhala, Korolova & Das Sarma, VLDB 2011),
 at three friends. §4's "friction, not secrecy" is the only available framing, which is what it
 already says.
 
-## 8. What one recompute costs — measured
+## 11. Not built: one joint model over every ratable
 
-The tool is `rust/examples/recompute-cost.rs`:
-
-    cargo run --release --features serde --example recompute-cost -- --seed 7
-
-The world is the one the taste-search checks seed — 150 users, 500 items, 45% of the catalog rated,
-`--p-same-cluster 0.035` — and every one of the 150 viewers is computed.
-
-| seed | snapshot as json | ms, median / p90 / max | edge pushes, median / p90 / max |
-|---|---|---|---|
-| 7 | 320 450 B | 7.0 / 8.2 / 11.5 | 5 288 / 5 943 / 6 385 |
-| 11 | 321 574 B | 7.1 / 8.2 / 9.6 | 5 251 / 5 797 / 6 428 |
-| 23 | 320 270 B | 7.1 / 8.1 / 9.5 | 5 140 / 5 706 / 6 741 |
-
-The **bytes** are the whole world, which at 150 users *is* the neighbourhood — a real
-neighbourhood is capped at `N_max`, and this is the stand-in for what `private.neighbourhood`
-returns. The **time** is one viewer on a quiet laptop, against an Edge Function metered on the
-order of two seconds, and at 150 people scoring the settling passes is most of it: the walk is
-the small part. The settling loop takes four passes on this world.
-
-With a learned edge-trust fit (§4), on the edge-at-a-time push, the same command measured 36–41 ms at the median and 77–99 ms
-at the worst, on 159 000–192 000 pushes at the median: its twenty to forty forward-and-reverse
-walks were most of the cost.
-
-**Where the node push matters is 2 000 people**, the `N_max` a neighbourhood is loaded to. The
-edge-at-a-time push against the node push of section 3 on the same worlds (stochastic block
-worlds, 300 items, 15% rated; one viewer per row for the edge push at 2 000 × 50, which takes a
-minute), natively, per viewer:
-
-| world | edge push, loop | node push, loop | edge push, walk | node push, walk | masses, max diff | scores, max diff |
-|---|---|---|---|---|---|---|
-| 300 × 10 friends | 35–97 ms | 3.2–6.6 ms | 8–17 ms | 0.2–0.3 ms | 2.9e-4 | 9.0e-4 |
-| 1 000 × 10 | 192–249 ms | 8–12 ms | 37–50 ms | 0.7–0.9 ms | 7.6e-5 | 6.2e-4 |
-| 1 000 × 20, ring lattice | 619–672 ms | 12 ms | 117–143 ms | 1.0–1.3 ms | 1.7e-4 | 7.3e-4 |
-| 2 000 × 12 | 505–1 018 ms | 17–24 ms | 173–251 ms | 1.6–2.4 ms | 1.0e-4 | 6.2e-4 |
-| 2 000 × 15 | 822–1 345 ms | 18–23 ms | 201–301 ms | 1.9–2.4 ms | 9.7e-5 | 6.1e-4 |
-| 2 000 × 50 | 56 188 ms | 27 ms | 12 354 ms | 6.9 ms | 2.7e-5 | 1.1e-4 |
-
-"Walk" is one cold walk at uniform affinity; "loop" is the whole computation. The masses and
-scores agree to within what either walk leaves unresolved, and both settle in the same four or
-five passes.
-
-**`E_max` is a CPU ceiling, and this is how it is sized.** In WebAssembly under Node, the whole
-`computeUser` — the snapshot crossing the boundary included — takes 71–84 ms at 2 000 × 12–15 and
-112–136 ms at 2 000 × 50, deep budget included, of which 48–83 ms is the crossing and one pass of
-scoring. The marginal cost of a push, from the same viewers at `ε_total` of 0.02 and 1e-6, is
-7.7 ns natively and 11 ns in WebAssembly at 50 friends; at 12 friends a cold walk costs 18 ns a
-push natively, per-node overhead included, and about 1.5 times that in WebAssembly. At 30 ns a
-push, 0.3 s of CPU — what one of the up to four `computeUser` calls a feed refresh makes can
-spend inside a two-second invocation — is ten million pushes, and `E_max` is 10 000 000 for both
-tables. The worst converged loop measured spends 2.5 million (2 000 × 50, deep).
-
-## 9. Whether one viewer's taste search fits on demand — measured
-
-Taste search has since been removed from the product; its code, `suggest-cost.rs` included,
-is in version-control history. The measurements are kept.
-
-DESIGN §3.7 runs taste search on demand on the strength of this measurement. The tool is
-`rust/examples/suggest-cost.rs`, over the same world as section 8:
-
-    cargo run --release --features serde --example suggest-cost -- --seed 7
-
-A search is **two walks, not one**. Section 5.1 ranks candidates by the deep walk
-(`N_max = 50 000`, `ε_total = 0.001`) and then drops anyone whose weight under the **on-demand**
-budget is already high, because somebody the live feed carries is not a suggestion. Both walks
-run over the one neighbourhood that was read, so there is one read and two walks. Per viewer, over
-150 viewers:
-
-| seed | nodes loaded | neighbourhood as json | deep pushes, median / p90 / max | deep walk ms, median / p90 / max | on-demand walk ms | whole search ms, median / p90 / max |
-|---|---|---|---|---|---|---|
-| 7 | 147 | 315 435 B | 7 636 / 8 721 / 9 533 | 5.7 / 6.1 / 7.8 | 6.8 / 7.8 / 9.1 | 10.5 / 12.8 / 15.0 |
-| 11 | 148 | 319 004 B | 7 588 / 8 735 / 9 263 | 5.8 / 6.0 / 8.0 | 6.8 / 7.8 / 9.5 | 10.5 / 12.7 / 15.0 |
-| 23 | 149 | 319 570 B | 7 637 / 8 572 / 9 694 | 5.8 / 6.0 / 7.2 | 6.9 / 7.8 / 9.0 | 11.4 / 12.9 / 14.8 |
-
-Reading the rows into the core costs another 6.0 ms at the median, which is the same crossing
-section 8 says is the larger of the two costs for the feed. About 85 of the 150 viewers have
-somebody to suggest.
-
-**It fits, on CPU, with two orders of magnitude in hand.** Fifteen milliseconds at the worst case
-against an Edge Function metered on the order of two seconds. The deep walk costs about 1.5 times
-the on-demand one's pushes, which is what `ε_total` at `0.001` instead of `0.02` buys; its time is
-no larger, because scoring the passes is most of either.
-
-**The constraint is egress, not CPU, and it is linear in nodes loaded.** At 150 users the
-neighbourhood *is* the connected component, so the deep search reads exactly what a feed refresh
-reads — the same 320 KB — and adds no egress at all over the refresh that ran a minute earlier.
-Five gigabytes a month is about 15 000 reads of that size; the feed already spends them, and the
-people screen behind the same ten-minute rule spends far fewer.
-
-**What this does not measure.** The deep budget allows `N_max = 50 000` and this world can supply
-149, so the cap never binds and nothing here says what happens when it does. At 50 000 nodes the
-same read is on the order of a hundred megabytes, which does not fit anything — so the number to
-watch as the population grows is the **neighbourhood size**, not the walk. `E_max` bounds the
-walk's CPU and not the query's bytes; if the deep search ever loads a neighbourhood much larger
-than the feed's, its `N_max` has to come down to where the egress is affordable, and that is a
-decision with a measurement behind it rather than a constant to raise.
+A Gaussian over all of a viewer's ratables, with
+a covariance learned from the reach at the relay walk's masses, on top of the relay's evidence:
+rank 0 is the relay's scoring exactly; at rank 8 it moved held-out AUC by −0.014 to +0.003, and by
+−0.025 to +0.010 over ranks 2–32; the same covariance over everyone at equal weight gained +0.005 to
++0.060 (a global, per-account aggregate, ruled out); bots splitting on the promoted item took the
+first ring from 56 to 79 of 96 at `+0.91`; and its error could move a shown mean by 2–17 times what
+a single score's error could. Its code is not kept.

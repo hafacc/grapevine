@@ -17,12 +17,12 @@ insert into public.ratings (user_id, item_id, tag, value) values
   ('22222222-2222-2222-2222-222222222222', 'café bleu', 'bad name', 1),
   ('22222222-2222-2222-2222-222222222222', 'café bleu', 'coffee', 1),
   ('11111111-1111-1111-1111-111111111111', 'bad name', '', -1);
-insert into public.user_recs (user_id, computed_at, entries, feed_hash, error) values
+insert into public.user_recs (user_id, computed_at, entries, feed_hash) values
   ('11111111-1111-1111-1111-111111111111', now(),
    '[{"itemId":"bad name","score":0.4,"conf":1,"tags":{}},
      {"itemId":"café bleu","score":0.2,"conf":1,"tags":{"bad name":0.5,"coffee":0.3}},
      {"itemId":"tea","score":0,"conf":0,"tags":{"bad name":0.4}}]'::jsonb,
-   'h', 0.04);
+   'h');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';

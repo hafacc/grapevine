@@ -350,14 +350,15 @@ export const NO_RELATION: TagRelation = () => [];
 
 /** A thing as the feed scores it: its support and its attribute scores. */
 export type ScoredThing = {
-  // `W_u(i)`: how much the viewer's network has to say about it.
+  // `W_u(i)`: how many of the viewer's own thumbs its evidence amounts to.
   readonly weight: number;
   // `s_u(i,t)` per attribute, on §2.6's `(−1, 1)`.
   readonly tags: Readonly<Record<string, number>>;
 };
 
-// §2.6's `κ_s`: the same shrinkage a score gets, so a pair of attributes seen
-// together on one thing reads as a hint rather than a law.
+// `κ_s`: the one pseudo-thumb a certainty starts from (§2.6), in the same unit
+// as `W`, so a pair of attributes seen together on one thing reads as a hint
+// rather than a law.
 const KAPPA_S = 1;
 
 // As many as a search could use for one word; the rest are weaker by
@@ -368,13 +369,13 @@ export const RELATED_PER_TAG = 8;
  * Attribute nearness from the viewer's own feed, and nothing else.
  *
  * A weighted cosine of two attributes' scores across the things in the feed,
- * each thing weighted by its support as §2.6 weights evidence, and shrunk by
- * `κ_s` as a score is:
+ * each thing weighted by its certainty's evidence `W` (§2.6), and shrunk by
+ * the one pseudo-thumb that certainty starts from:
  *
  *     ρ(a,b)  =  Σ_i W(i)·s(i,a)·s(i,b)  /  ( κ_s + sqrt(Σ_i W(i)·s(i,a)² · Σ_i W(i)·s(i,b)²) )
  *
  * Cosine and not a centred correlation because 0 on §2.6's scale already
- * means "nothing known": an attribute missing from a thing is that 0, adds
+ * means "no lean": an attribute missing from a thing is that 0, adds
  * nothing to the top and nothing to the bottom's own sum, and a thing tagged
  * `loud` that nobody asked about `quiet` weakens the pair rather than being
  * skipped. The feed is already on the client, so this discloses nothing

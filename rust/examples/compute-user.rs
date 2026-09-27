@@ -26,7 +26,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let snapshot = world.snapshot.to_snapshot();
+    let snapshot = world.to_snapshot();
     let Some(viewer) = snapshot.user_id(viewer_name) else {
         eprintln!("no user {viewer_name} in {path}");
         return ExitCode::FAILURE;

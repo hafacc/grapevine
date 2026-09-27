@@ -19,9 +19,11 @@
 // really a change in the core.
 
 import { spawnSync } from "node:child_process";
+import { join } from "node:path";
 
 import { expect, finish, refreshAs, seedWorld } from "./harness.mjs";
 import { serviceRoleSql, uuidOf } from "./local-session.mjs";
+import { itemIdOf, RATABLE_JOIN } from "./seeded-names.mjs";
 
 const TOLERANCE = 1e-9;
 
@@ -76,7 +78,14 @@ if (crate.status !== 0) {
   console.error(crate.stderr);
   process.exit(1);
 }
-const native = JSON.parse(crate.stdout);
+// Under the names the stack stores, so a key means the same thing on both sides.
+const native = { scores: {} };
+for (const [ratable, score] of Object.entries(
+  JSON.parse(crate.stdout).scores,
+)) {
+  const [simulated, ...tag] = ratable.split(RATABLE_JOIN);
+  native.scores[[itemIdOf(simulated), ...tag].join(RATABLE_JOIN)] = score;
+}
 
 // The function folds `scores` (keyed by ratable) into one entry per item, so the
 // comparison unfolds it again rather than trusting the fold to be its own check.
@@ -105,12 +114,12 @@ for (const entry of entries) {
       itemMismatches += 1;
     }
   } else if (entry.conf !== 0 || entry.score !== 0) {
-    // An item with no ratable of its own is the `conf: 0` carrier of its tags
-    // (DESIGN §3.4); anything else there is a number the crate never produced.
+    // An item with no ratable of its own is the `conf: 0` carrier of its tags;
+    // anything else there is a number the crate never produced.
     itemMismatches += 1;
   }
   for (const [tag, score] of Object.entries(entry.tags)) {
-    const ratable = `${entry.itemId}~${tag}`;
+    const ratable = `${entry.itemId}${RATABLE_JOIN}${tag}`;
     const theirs = native.scores[ratable];
     seen.add(ratable);
     if (!theirs || !compare(`${ratable}.score`, score, theirs.score)) {
@@ -130,7 +139,7 @@ expect(
   `${tagMismatches} tags`,
 );
 expect(
-  "the stored feed covers exactly the ratables above the display floor",
+  "the stored feed covers exactly the ratables the crate scores",
   seen.size === Object.keys(native.scores).length,
   `stored ${seen.size}, crate ${Object.keys(native.scores).length}`,
 );

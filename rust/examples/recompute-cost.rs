@@ -1,4 +1,4 @@
-//! What one viewer's recompute costs, on a fixed world: wall time and edge pushes per viewer,
+//! What one viewer's recompute costs, on a fixed world: wall time and people reached per viewer,
 //! over every viewer of it (`docs/algorithm-notes.md` section 8). It reads no parameter but the
 //! defaults, so the same flags and seed give numbers comparable across changes to the core.
 //!
@@ -7,12 +7,10 @@
 use std::process::ExitCode;
 use std::time::Instant;
 
-use grapevine_core::{Params, Rng, WorldConfig, compute_user, simulate};
+use grapevine_core::{Params, Rng, UserId, WorldConfig, compute_user, simulate};
 
 fn main() -> ExitCode {
     let mut seed = 7u64;
-    // A spread-out world, so the numbers are comparable with the measurements in
-    // `docs/algorithm-notes.md` §9.
     let mut config = WorldConfig {
         users: 150,
         items: 500,
@@ -47,7 +45,7 @@ fn main() -> ExitCode {
     let snapshot = &world.snapshot;
     let params = Params::default();
 
-    let payload = match serde_json::to_string(&snapshot.to_data()) {
+    let payload = match serde_json::to_string(&snapshot.to_data(UserId(0))) {
         Ok(document) => document.len(),
         Err(error) => {
             eprintln!("could not serialize the snapshot: {error}");
@@ -56,14 +54,14 @@ fn main() -> ExitCode {
     };
 
     let mut millis: Vec<f64> = Vec::new();
-    let mut work: Vec<usize> = Vec::new();
+    let mut reached: Vec<usize> = Vec::new();
     let mut failures = 0usize;
     for viewer in snapshot.users() {
         let started = Instant::now();
         match compute_user(snapshot, viewer, &params) {
             Ok(result) => {
                 millis.push(started.elapsed().as_secs_f64() * 1000.0);
-                work.push(result.work);
+                reached.push(result.reached);
             }
             Err(_) => failures += 1,
         }
@@ -73,7 +71,7 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
     millis.sort_by(f64::total_cmp);
-    work.sort_unstable();
+    reached.sort_unstable();
 
     println!(
         "world: seed {seed}, {} users, {} items, rated {:.2}, p-same {:.3}",
@@ -87,10 +85,10 @@ fn main() -> ExitCode {
         millis[millis.len() - 1]
     );
     println!(
-        "per viewer, edge pushes: median {}  p90 {}  max {}",
-        work[work.len() / 2],
-        work[work.len() * 9 / 10],
-        work[work.len() - 1]
+        "per viewer, people reached: median {}  p90 {}  max {}",
+        reached[reached.len() / 2],
+        reached[reached.len() * 9 / 10],
+        reached[reached.len() - 1]
     );
     if failures > 0 {
         println!("{failures} viewers had no result");

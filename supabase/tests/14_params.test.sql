@@ -43,7 +43,7 @@ set local role postgres;
 -- Columns rather than a nested object, so that a half-written row is not
 -- expressible and 0005's pooling statement writes one field at a time under its
 -- own guard. Every field is separately nullable, so the core merges it into
--- DESIGN §2.8's table field by field and a missing, partial or crafted row can
+-- DESIGN §2.9's table field by field and a missing, partial or crafted row can
 -- only fail to move a number.
 select is(
   (select string_agg(column_name, ',' order by ordinal_position)
@@ -74,7 +74,7 @@ select is(
   0, 'and neither client role holds a single grant in the schema');
 
 
--- DESIGN §2.10's estimator, run from the schedule's own text so the statement
+-- DESIGN §2.9's estimator, run from the schedule's own text so the statement
 -- tested is the statement scheduled, over tallies four viewers reported: 400
 -- pairs one hop out, agreement rates half at 0.4 and half at 0.8 — a mean of
 -- 0.6 — each over an overlap of 20.
@@ -122,8 +122,8 @@ select is(
 -- exactly like success.
 select is(
   (select string_agg(jobname, ',' order by jobname) from cron.job),
-  'debug-ttl,deleted-identities-sweep,params-priors,write-budget-sweep',
-  'four statements are scheduled, 0005''s three and 0012''s fingerprint sweep');
+  'debug-ttl,deleted-identities-sweep,params-priors,ratings-cleared-sweep,snapshot-cache-sweep,write-budget-sweep',
+  'six statements are scheduled: 0005''s three, 0012''s fingerprint sweep and 0016''s two');
 
 -- Nothing at all to pool is nothing written, rather than an estimate of
 -- nothing: the insert matches no row and every number stands.

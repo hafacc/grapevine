@@ -1,7 +1,7 @@
 -- What stamps the clock a recompute's window is keyed on, besides a thumb.
 --
 -- `private.ratings_changed` is "has anything this viewer's feed is made of
--- changed since the last walk": a friend gained or lost is that, so a new
+-- changed since the last recompute": a friend gained or lost is that, so a new
 -- friend's thumbs reach the feed on the next open rather than on the ten-minute
 -- window.
 --

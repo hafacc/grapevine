@@ -27,6 +27,7 @@ import {
   serviceRoleSql,
   uuidOf,
 } from "./local-session.mjs";
+import { itemIdOf, RATABLE_JOIN } from "./seeded-names.mjs";
 
 type Sql = ReturnType<typeof postgres>;
 
@@ -38,6 +39,8 @@ type World = {
       Record<string, Readonly<Record<string, number>>>
     >;
   };
+  /** When each thumb was given, as an order; an absent one is zero. */
+  readonly stamps: Readonly<Record<string, Readonly<Record<string, number>>>>;
   readonly items: readonly string[];
 };
 
@@ -48,9 +51,6 @@ type World = {
  * widest table below is nineteen of them.
  */
 const ROWS_PER_STATEMENT = 1_000;
-
-/** What the crate joins an item to one of its attributes with. */
-const RATABLE_JOIN = String.fromCodePoint(0);
 
 function argument(flag: string, fallback: string): string {
   const at = process.argv.indexOf(flag);
@@ -67,30 +67,6 @@ function argument(flag: string, fallback: string): string {
  */
 export function emailOf(uid: string): string {
   return `${uid}@example.com`;
-}
-
-/**
- * A few of the simulator's `i0`… ids under names a person would actually type,
- * so that every check runs over an accent, a script with no Latin in it and a
- * space between two words rather than over ASCII alone.
- *
- * `café bleu` is the one the written checks name: its `search_id` is
- * `cafe bleu`, so typing the unaccented spelling has to find it.
- */
-const NAMED_ITEMS: Readonly<Record<string, string>> = {
-  i0: "café bleu",
-  i1: "日本",
-  i2: "late night diner",
-  i3: "o'brien's",
-};
-
-/**
- * The id this thing is stored and drawn under — there is no second field for a
- * name (DESIGN §3.2), so this IS the display text and it has to be something
- * `normalizeId` would have emitted.
- */
-export function itemIdOf(simulated: string): string {
-  return NAMED_ITEMS[simulated] ?? simulated;
 }
 
 function dumpWorld(): string {
@@ -237,29 +213,60 @@ console.log(`  ${items.length} items`);
 // one key per rated thing, the item and the attribute joined by a NUL — the
 // join belongs to the core and to the wasm boundary, and nothing stores it, so
 // it is split here (DESIGN §3.2).
-const ratings: {
+//
+// `rated_at` follows the dump's stamps, one microsecond per distinct stamp and
+// equal stamps equal, because it is what the loader's "given after the viewer's
+// own" bit is read from (0015): with any other order the stack and
+// `compute-user` on the same dump would answer different questions, and
+// `check:recs-parity` would compare them.
+const rows: {
   user_id: string;
   item_id: string;
   tag: string;
   value: number;
+  stamp: number;
 }[] = [];
 for (const [uid, theirs] of Object.entries(world.snapshot.ratings)) {
   for (const [ratable, value] of Object.entries(theirs)) {
     const [simulated, tag = ""] = ratable.split(RATABLE_JOIN);
-    ratings.push({
+    rows.push({
       user_id: uuidOf(uid),
       item_id: itemIdOf(simulated as string),
       tag,
       value,
+      stamp: world.stamps[uid]?.[ratable] ?? 0,
     });
   }
 }
-for (let start = 0; start < ratings.length; start += ROWS_PER_STATEMENT) {
-  const slice = ratings.slice(start, start + ROWS_PER_STATEMENT);
-  await sql`
-    insert into public.ratings ${sql(slice)}
-    on conflict (user_id, item_id, tag) do update set value = excluded.value`;
-}
+const distinct = [...new Set(rows.map((row) => row.stamp))].sort(
+  (left, right) => left - right,
+);
+const rankOf = new Map(distinct.map((stamp, rank) => [stamp, rank]));
+const last = distinct.length - 1;
+const ratings = rows.map(({ stamp, ...row }) => ({
+  ...row,
+  before: last - (rankOf.get(stamp) ?? 0),
+}));
+// Every seeded person's thumbs are replaced, not upserted: an update that
+// turns a thumb over is stamped `now()` by `ratings_flip_moves_rated_at`, and a
+// thumb an earlier seed or check left behind is not in the dump.
+await sql.begin(async (tx) => {
+  await tx`delete from public.ratings where user_id = any(${profileIds}::uuid[])`;
+  for (let start = 0; start < ratings.length; start += ROWS_PER_STATEMENT) {
+    const slice = ratings.slice(start, start + ROWS_PER_STATEMENT);
+    await tx`
+      insert into public.ratings (user_id, item_id, tag, value, rated_at)
+      select r.user_id, r.item_id, r.tag, r.value,
+             now() - r.before * interval '1 microsecond'
+      from unnest(
+        ${slice.map((row) => row.user_id)}::uuid[],
+        ${slice.map((row) => row.item_id)}::text[],
+        ${slice.map((row) => row.tag)}::text[],
+        ${slice.map((row) => row.value)}::smallint[],
+        ${slice.map((row) => row.before)}::int[]
+      ) as r(user_id, item_id, tag, value, before)`;
+  }
+});
 console.log(`  ${ratings.length} ratings`);
 
 await owner.end();

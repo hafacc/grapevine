@@ -1,4 +1,4 @@
-// The pure half of both Edge Functions. Everything around it is the database,
+// The pure half of the Edge Function. Everything around it is the database,
 // which the pgTAP suites and the check scripts exercise.
 
 import { describe, it } from "bun:test";
@@ -44,6 +44,13 @@ describe("sanitizeRatings", () => {
         [`café bleu${JOIN}cheap`]: -1,
         "late night": 1,
       },
+    );
+  });
+
+  it("keeps a thumb marked as given after the viewer's, marked", () => {
+    assert.deepEqual(
+      sanitizeRatings({ "café bleu": { "": 2, cheap: -2, loud: 3 } }),
+      { "café bleu": 2, [`café bleu${JOIN}cheap`]: -2 },
     );
   });
 
@@ -140,23 +147,10 @@ describe("allFinite", () => {
   });
 
   it("passes a whole result and fails any part of one", () => {
-    assert.equal(allFinite([entry(0.5, 1, 0.2)], [0.01, 0]), true);
-    assert.equal(allFinite([entry(Number.NaN, 1, 0.2)], [0.01, 0]), false);
-    assert.equal(
-      allFinite([entry(0.5, Number.POSITIVE_INFINITY, 0.2)], [0.01, 0]),
-      false,
-    );
-    assert.equal(allFinite([entry(0.5, 1, Number.NaN)], [0.01, 0]), false);
-  });
-
-  // They are stored rather than shown, so a non-finite one lands in the row as
-  // a stored NaN instead of being refused — and `error` is drawn with.
-  it("fails any non-finite figure beside the entries", () => {
-    const fine = [entry(0.5, 1, 0.2)];
-    assert.equal(allFinite(fine, [Number.NaN, 0, 0]), false);
-    assert.equal(allFinite(fine, [0.01, Number.POSITIVE_INFINITY, 0]), false);
-    assert.equal(allFinite(fine, [0.01, 0, Number.NaN]), false);
-    assert.equal(allFinite([], [Number.NaN]), false);
+    assert.equal(allFinite([entry(0.5, 1, 0.2)]), true);
+    assert.equal(allFinite([entry(Number.NaN, 1, 0.2)]), false);
+    assert.equal(allFinite([entry(0.5, Number.POSITIVE_INFINITY, 0.2)]), false);
+    assert.equal(allFinite([entry(0.5, 1, Number.NaN)]), false);
   });
 });
 
@@ -192,8 +186,8 @@ describe("needsRecompute", () => {
 
   // A thumb that did not change the feed: the recompute it caused landed on the
   // same answer and moved only `checkedAt`. Compared against `computedAt`, that
-  // thumb would stay "newer than the feed" forever and every open pay a walk.
-  it("does not recompute again for a thumb a same-answer walk already read", () => {
+  // thumb would stay "newer than the feed" forever and every open pay a recompute.
+  it("does not recompute again for a thumb a same-answer recompute already read", () => {
     const ratedAt = NOW - 3_000;
     const checkedAt = NOW - 2_000;
     assert.equal(
@@ -202,22 +196,15 @@ describe("needsRecompute", () => {
     );
   });
 
-  // A walk that could not meet `ε_total` writes no feed and stamps only
-  // `checkedAt`. Keyed on "is there a feed", that viewer would pay a full walk
-  // on every open.
-  it("waits out the window when the last check wrote no feed", () => {
-    assert.equal(needsRecompute(stamps(NOW - 1_000, 0), NOW, WINDOW), false);
-  });
-
   it("recomputes when nothing has ever been checked", () => {
     assert.equal(needsRecompute(stamps(0, 0), NOW, WINDOW), true);
   });
 });
 
 describe("nextBoundaryNodes", () => {
-  const node = (id: string, residual: number) => ({ id, residual });
+  const node = (id: string, strength: number) => ({ id, strength });
 
-  it("takes the most residual first and skips what is loaded", () => {
+  it("takes the strongest chain first and skips what is loaded", () => {
     assert.deepEqual(
       nextBoundaryNodes(
         [node("a", 0.1), node("b", 0.9), node("c", 0.5), node("d", 0.7)],
@@ -243,7 +230,7 @@ describe("nextBoundaryNodes", () => {
     );
   });
 
-  // DESIGN §3.4 step 1: `N_max` counts every node loaded, so a boundary round
+  // DESIGN §3.4: `N_max` counts every node loaded, so a boundary round
   // gets what is left of the budget and not a fresh allowance.
   it("never spends more than the node budget has left", () => {
     const boundary = Array.from({ length: 50 }, (_, at) =>
@@ -259,6 +246,20 @@ describe("nextBoundaryNodes", () => {
     assert.deepEqual(
       nextBoundaryNodes([node("a", 0.9)], new Set(["a"]), 1_000, 200),
       [],
+    );
+  });
+
+  // DESIGN §2.4: a chain through a link that predicts nothing reaches nobody,
+  // so reading that person would spend the budget on a voice of zero.
+  it("never reads a person no chain reaches", () => {
+    assert.deepEqual(
+      nextBoundaryNodes(
+        [node("a", 0), node("b", 0.3), node("c", -0.2), node("d", Number.NaN)],
+        new Set(),
+        1_000,
+        200,
+      ),
+      ["b"],
     );
   });
 });
@@ -356,7 +357,7 @@ describe("pairTallies", () => {
   });
 });
 
-// Both Edge Functions read `private.params` through these, so what a row MEANS
+// The Edge Function reads `private.params` through these, so what a row MEANS
 // is decided once.
 describe("sanitizePriors", () => {
   it("reads a row the pooling statement wrote", () => {
@@ -389,6 +390,12 @@ describe("sanitizePriors", () => {
     assert.equal(sanitizePriors({ kappa: null, a0_d1: null }), null);
   });
 
+  // The core reads `kappa` and `a0_d1` only, so a row with nothing else is not
+  // an estimate a feed was computed under.
+  it("reads a row with only the priors the core ignores as no estimate", () => {
+    assert.equal(sanitizePriors({ a0_d2: 0.6, a0_d3plus: 0.55 }), null);
+  });
+
   // A column of the wrong type is a field nobody estimated. It must not reach
   // the core as anything but null: a viewer's recompute is not the place to find
   // out that something wrote a string.
@@ -412,7 +419,7 @@ describe("storedPriors", () => {
   });
 
   // `user_model.priors_at` exists to say which estimate a feed was computed
-  // under. A row whose every value was unusable is one the walk did not use, so
+  // under. A row whose every value was unusable is one the core did not use, so
   // stamping the feed with its `computed_at` would name an estimate that never
   // reached the core.
   it("withholds the stamp when nothing in the row was usable", () => {

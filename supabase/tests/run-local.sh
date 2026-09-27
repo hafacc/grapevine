@@ -14,7 +14,8 @@
 # Two things stand in for the platform, named where they are created below: a
 # minimal `auth` schema (GoTrue's, cut down to what the migrations and the
 # tests actually touch), and Supabase Vault, reduced to one view and one call.
-# above the suite loop — and a stand-in only offline. Under `supabase test db`
+# pgTAP is the real one wherever it can be had — see above the suite loop — and a
+# stand-in only offline. Under `supabase test db`
 # neither stand-in exists — the real `auth` schema and the real extension are
 # already there — so a suite that passes here and fails there is a suite that
 # depended on a stand-in, which is what keeping them this small is for.
@@ -176,8 +177,8 @@ as $$
   returning id;
 $$;
 
--- `0005_cron.sql` schedules three statements. pg_cron is a compiled extension and
--- is not installed here; a suite that needs a statement runs its text by hand,
+-- The migrations schedule six statements (0005, 0012, 0016). pg_cron is a
+-- compiled extension and is not installed here; a suite that needs a statement runs its text by hand,
 -- so the stand-in records the schedule and runs nothing.
 create schema cron;
 create table cron.job (

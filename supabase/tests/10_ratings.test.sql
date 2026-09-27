@@ -105,7 +105,7 @@ set local role postgres;
 select is(
   (select changed_at from private.ratings_changed
     where user_id = '11111111-1111-1111-1111-111111111111'),
-  'epoch'::timestamptz, 'changes nothing a walk reads, so the clock stays put');
+  'epoch'::timestamptz, 'changes nothing a recompute reads, so the clock stays put');
 select is(
   (select rated_at from public.ratings where item_id = 'café bleu' and tag = ''),
   'epoch'::timestamptz, 'and neither does rated_at');

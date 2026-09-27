@@ -4,9 +4,10 @@
 // reading a stored `private.params` row back as something the core may be
 // handed.
 //
-// It lives here rather than inside a function's own directory because both Edge
-// Functions import it directly, where it is — Deno reads the TypeScript, so
-// there is nothing to generate and no copy to keep in step.
+// It lives here rather than inside the function's own directory because the Edge
+// Function imports it directly, where it is, and the web app imports its
+// `RefreshResult` — Deno reads the TypeScript, so there is nothing to generate
+// and no copy to keep in step.
 // `tests/entries.test.ts` is the whole contract.
 
 import { isNormalizedId } from "./index.ts";
@@ -31,16 +32,23 @@ const RATABLE_JOIN = String.fromCodePoint(0);
 // The wasm-boundary shapes the folding touches, declared here so that the pure
 // half depends on no build output.
 
-/** One ratable's score and its weight `W_u(i)` — `ScoreData` in `rust/src/data.rs`. */
+/**
+ * One ratable's score `s ∈ (−1, 1)` and its certainty `W ≥ 0` (DESIGN §2.6): how
+ * many of the viewer's own thumbs the evidence behind the score amounts to.
+ */
 export type ScoreData = {
   readonly score: number;
   readonly confidence: number;
 };
 
-/** A node nobody read, and the mass still waiting on it. */
+/**
+ * A person nobody loaded who is connected to someone loaded, and the strength a
+ * chain would reach them at: the best loaded neighbour's `|chain|` times the
+ * prior link, `2a₀ − 1` (DESIGN §2.4). Zero is a person no chain can reach.
+ */
 export type BoundaryNodeData = {
   readonly id: string;
-  readonly residual: number;
+  readonly strength: number;
 };
 
 /**
@@ -52,7 +60,7 @@ export type BoundaryNodeData = {
 export type RecsEntry = {
   readonly itemId: string;
   readonly score: number;
-  /** `W_u(i)`. Zero for an item carried only by a tag of it — see `foldScores`. */
+  /** The certainty `W`. Zero for an item carried only by a tag of it — see `foldScores`. */
   readonly conf: number;
   readonly tags: Readonly<Record<string, number>>;
 };
@@ -80,26 +88,11 @@ export type RefreshResult = {
    * it is one row rather than a second call per open.
    */
   readonly entries: readonly RecsEntry[] | null;
-  /**
-   * The step the bar's fill may move in, for the feed this answer describes:
-   * `max(truncation·L, settleMovement)`, and `user_recs.error` for the row.
-   * It rides out beside the entries so the common path needs no second read.
-   *
-   * Null only when there is no feed at all — a first open whose walk did not
-   * resolve. A bar with no quantum draws "nothing known yet" rather than
-   * picking one, because a default there would be a silent claim about
-   * precision.
-   */
-  readonly error: number | null;
-  /** The unresolved mass this feed was computed with, in friend-units. */
-  readonly truncation: number | null;
-  /** The largest score movement in the settling loop's last pass. */
-  readonly settleMovement: number | null;
 };
 
-// Far finer than any step the bar can draw, so two results a viewer could tell
-// apart are never called equal, and coarse enough that the last bits of a float
-// do not rewrite the feed on a recompute that found nothing new.
+// Far finer than a pixel of the bar, so two results a viewer could tell apart
+// are never called equal, and coarse enough that the last bits of a float do
+// not rewrite the feed on a recompute that found nothing new.
 const COMPARISON_PLACES = 6;
 
 function rounded(value: number): number {
@@ -109,12 +102,15 @@ function rounded(value: number): number {
 /**
  * Turns one person's ratings as `private.neighbourhood` returns them (item to
  * tag to thumb, the empty string for the thing itself) into what the core
- * takes: one key per rated thing, the two halves joined. Everything a crafted
- * row can hold is dropped: a value that is not exactly a thumb, an item id or a
- * tag that is not canonical, and a half holding the join character.
+ * takes: one key per rated thing, the two halves joined. A thumb is `1` or
+ * `-1`, or `2` or `-2` when it was given after the viewer's own thumb on the
+ * same thing (0015, DESIGN §2.3) — the one bit about time the core reads, and
+ * passed through as it came. Everything a crafted row can hold is dropped: a
+ * value that is not one of those four, an item id or a tag that is not
+ * canonical, and a half holding the join character.
  *
  * `ratings` carries the same refusals as column constraints, so this is defence
- * in depth rather than the only check: it is what protects a walk from a schema
+ * in depth rather than the only check: it is what protects a recompute from a schema
  * that changes, and it runs before the wasm boundary so junk never crosses it
  * at all. `to_snapshot` in the crate drops the same things a third time.
  *
@@ -122,7 +118,7 @@ function rounded(value: number): number {
  * asks `toLowerCase` and `normalize`, which are the client's implementation of
  * a table the database also holds, and where the two disagree the database is
  * the authority — so an id that reaches here non-canonical is at worst a second
- * key for one word, which cannot forge the join and cannot make a mass
+ * key for one word, which cannot forge the join and cannot make a score
  * non-finite.
  */
 export function sanitizeRatings(
@@ -135,7 +131,7 @@ export function sanitizeRatings(
     if (typeof tags !== "object" || tags === null) continue;
     if (!isNormalizedId(itemId)) continue;
     for (const [tag, value] of Object.entries(tags)) {
-      if (value !== 1 && value !== -1) continue;
+      if (value !== 1 && value !== -1 && value !== 2 && value !== -2) continue;
       if (tag.length > 0 && !isNormalizedId(tag)) continue;
       kept[tag.length > 0 ? `${itemId}${RATABLE_JOIN}${tag}` : itemId] = value;
       any = true;
@@ -155,11 +151,10 @@ export function sanitizeFriendIds(stored: unknown): string[] {
 /**
  * The core's per-ratable scores as one entry per item.
  *
- * An item earns an entry if its own `W ≥ W_min` or any of its tags does
- * (DESIGN §3.4) — the core has already applied the floor per ratable, so
- * presence in `scores` IS being above it. An item carried only by a tag has
- * `conf: 0`, which keeps it out of the ranking and out of search order while
- * still giving the item page its chips.
+ * Every rated thing in reach is in `scores` (DESIGN §2.6: there is no floor),
+ * so every one gets an entry. An item carried only by a tag of it has
+ * `conf: 0` and a score of zero: nothing believable behind the thing itself,
+ * and its chips on the item page.
  *
  * An item the catalog has no row for is kept rather than dropped. A ratings row
  * can name an id nobody created, and drawing it is harmless: the id has been
@@ -201,25 +196,16 @@ export function foldScores(
 }
 
 /**
- * True when every number the recompute produced is one a viewer could be shown.
- *
- * `figures` is whatever the caller is about to store beside the entries — the
- * truncation, the boundary residual, the settling distance — because a
- * non-finite one of those is a walk that went wrong, and writing it stores a
- * `NaN` rather than refusing.
+ * True when every number in the feed is one a viewer could be shown. The core
+ * already refuses a non-finite score or certainty, so this is the second copy of
+ * that refusal, on the side of the boundary that writes the row.
  */
-export function allFinite(
-  entries: readonly RecsEntry[],
-  figures: readonly number[],
-): boolean {
-  return (
-    figures.every((figure) => Number.isFinite(figure)) &&
-    entries.every(
-      (entry) =>
-        Number.isFinite(entry.score) &&
-        Number.isFinite(entry.conf) &&
-        Object.values(entry.tags).every((score) => Number.isFinite(score)),
-    )
+export function allFinite(entries: readonly RecsEntry[]): boolean {
+  return entries.every(
+    (entry) =>
+      Number.isFinite(entry.score) &&
+      Number.isFinite(entry.conf) &&
+      Object.values(entry.tags).every((score) => Number.isFinite(score)),
   );
 }
 
@@ -235,17 +221,12 @@ export type FeedStamps = {
 };
 
 /**
- * DESIGN §3.4: whether a viewer's cached feed has to be walked again.
+ * DESIGN §3.4: whether a viewer's cached feed has to be computed again.
  *
- * Both halves key on `checkedAt`, which is when a walk last read the viewer's
- * thumbs, and not on `computedAt`: the same-answer recompute moves only
+ * Both halves key on `checkedAt`, which is when a recompute last read the
+ * viewer's thumbs, and not on `computedAt`: the same-answer recompute moves only
  * `checkedAt`, so a thumb that did not change the feed would stay newer than
- * `computedAt` and every later open would pay a full walk to learn nothing.
- *
- * Having no feed yet is not a reason on its own either. A walk that could not
- * meet `ε_total` writes no feed but does stamp `checkedAt`; recomputing whenever
- * there is no feed would make that viewer pay a full walk on every open, for
- * the same failure each time.
+ * `computedAt` and every later open would pay a recompute to learn nothing.
  */
 export function needsRecompute(
   stamps: FeedStamps,
@@ -263,12 +244,14 @@ export function needsRecompute(
 }
 
 /**
- * The boundary nodes one more round should read: most residual first, never one
- * already loaded, and never more than the node budget has left.
+ * The boundary nodes one more round should read: strongest chain first, never
+ * one already loaded, never one no chain reaches (`strength` zero, or anything
+ * that is not a positive finite number), and never more than the node budget
+ * has left.
  *
  * `N_max` counts every node a recompute loads, boundary rounds included
  * (DESIGN §3.4), so what is left is `maxLoaded − loaded.size` for the whole of
- * the rest of the walk rather than a fresh allowance each round. The loaded ones
+ * the rest of the recompute rather than a fresh allowance each round. The loaded ones
  * are dropped before the cut, not after, so a round that asks for `perRound`
  * nodes reads that many new ones.
  */
@@ -281,9 +264,14 @@ export function nextBoundaryNodes(
   const room = Math.min(perRound, maxLoaded - loaded.size);
   if (room <= 0) return [];
   return [...boundaryNodes]
-    .sort((left, right) => right.residual - left.residual)
+    .filter(
+      (node) =>
+        Number.isFinite(node.strength) &&
+        node.strength > 0 &&
+        !loaded.has(node.id),
+    )
+    .sort((left, right) => right.strength - left.strength)
     .map((node) => node.id)
-    .filter((id) => !loaded.has(id))
     .slice(0, room);
 }
 
@@ -310,7 +298,7 @@ export function feedSignature(entries: readonly RecsEntry[]): string {
 
 /**
  * One recompute's `PairTallies` (`rust/src/priors.rs`) — what it has to say
- * about the population's `κ` and `a₀(d)` (DESIGN §2.10), per distance class —
+ * about the population's `κ` and `a₀(d)` (DESIGN §2.9), per distance class —
  * as the twelve `user_model` columns hold them,
  * with anything that is not a finite number dropped to zero.
  *
@@ -348,7 +336,9 @@ function finite(value: unknown): number {
  * `PriorEstimate` in `rust/src/priors.rs`: the population's two priors, as
  * `private.params` stores them. Every field is independently null until its own
  * `N_min` sample exists, and null anywhere — including for the whole object —
- * means DESIGN §2.8's table for that field and nothing else.
+ * means DESIGN §2.9's table for that field and nothing else. The witness core
+ * reads `kappa` and `a0.d1`; `d2` and `d3plus` are still pooled and passed, and
+ * it ignores them, because a chain replaces a prior by distance.
  */
 export type Priors = {
   readonly kappa: number | null;
@@ -367,7 +357,7 @@ export type StoredPriors = {
   readonly priors: Priors | null;
 };
 
-/** What a consumer with no row, or no readable one, uses: DESIGN §2.8's table. */
+/** What a consumer with no row, or no readable one, uses: DESIGN §2.9's table. */
 export const NO_PRIORS: StoredPriors = { computedAt: null, priors: null };
 
 function finiteOrNull(value: unknown): number | null {
@@ -397,21 +387,19 @@ export function sanitizePriors(stored: unknown): Priors | null {
       d3plus: finiteOrNull(data.a0_d3plus),
     },
   };
-  const estimated =
-    priors.kappa !== null ||
-    priors.a0.d1 !== null ||
-    priors.a0.d2 !== null ||
-    priors.a0.d3plus !== null;
+  // `a0_d2` and `a0_d3plus` are carried for the pooling job but the core reads
+  // neither, so a row with only those is no estimate the feed was computed under.
+  const estimated = priors.kappa !== null || priors.a0.d1 !== null;
   return estimated ? priors : null;
 }
 
 /**
- * A `private.params` row as both consumers take it: the numbers, and the stamp
+ * A `private.params` row as the recompute takes it: the numbers, and the stamp
  * that names them.
  *
  * The two travel together or not at all. `user_model.priors_at` exists to say
  * WHICH estimate a feed was computed under, so a stamp beside a row whose values
- * were every one of them unusable would name an estimate the walk did not use —
+ * were every one of them unusable would name an estimate the recompute did not use —
  * the one distinction the column is there to make. A row that reads as no
  * estimate is the same answer as no row.
  */

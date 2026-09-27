@@ -17,9 +17,9 @@ that way. A capital letter in the interface is a person's own display name from 
 bug. Do not add `text-transform` anywhere to enforce this: a transform would hide the one case
 that matters, an id that reached the screen without being normalized.
 
-Designed dark first in intent; the light palette is the same instrument under a lamp. **The
-light palette was designed; the dark one is derived.** Every dark value below is derived from the
-light one, so the first dark build is where they get decided for real.
+Dark first in intent; the light palette is the same instrument under a lamp. **The light palette
+was designed; the dark one is derived** from it, and "How far the dark column has been checked"
+below says what that leaves open.
 
 ## The mark
 
@@ -158,25 +158,22 @@ on its own, and is unverified as a *look*.
 
 **The bar** — an item's or an attribute's score for this viewer, everywhere one is shown. Four
 segments, 15 × 9 px, 4 px apart, 2 px radius, `track` fill with a 1 px `track-edge` outline.
-The fill is **continuous-looking and quantized**: map `s ∈ [−1, 1]` to `(s + 1) / 2`, round
-that to a multiple of `q`, multiply by 4, and fill that many segments — the one it lands in is
-part-filled, not rounded up to the segment. `danger` at or below the midpoint, `accent` above.
-**No word beside it, anywhere**, and no number ever; the whole label is the `aria-label` on the
-group (`role="img"`), which is a sentence like "how café bleu scores for you", or "nothing
-known yet" where there is no score. A word beside it (*strong no … strong yes*) would repeat
-the bar to someone who can already read it and pretend to a precision the bar does not have.
+The fill is the value as it is: map `v ∈ [−1, 1]` to `(v + 1) / 2`, multiply by 4, and fill that
+many segments — the one it lands in is part-filled, and every lit part is at full opacity.
+`danger` at or below the midpoint, `accent` above. **No word beside it, anywhere**, and no number
+ever; the whole label is the `aria-label` on the group (`role="img"`), which is a sentence like
+"how café bleu scores for you", or "nothing known yet" where there is no score. A word beside it
+(*strong no … strong yes*) would repeat the bar to someone who can already read it and pretend to
+a precision the bar does not have.
 
-`q = error / 2`, where `error` is `user_recs.error` — the error the walk that produced this feed
-reported, which is `max(truncation · L, settle_movement)` and is therefore already on the score's
-own scale, so the halving carries it onto the bar's `0..1` one and is the whole of the
-arithmetic. **This is not decoration and the component owns it**: a fill finer than `q` draws a
-difference the arithmetic cannot support, which is DESIGN §2.9's whole argument about truncation
-never changing what a viewer sees. At `error = 0.04` that is `q = 0.02`: fifty possible fills, a
-dozen per segment, and it still reads as a continuous bar. The prop is the quantum, not an
-option — a bar with no `q` renders as
-"nothing known yet" rather than picking a default, because a default here would be a silent
-claim about precision. The quantum never reaches the screen as text, and ordering is done
-elsewhere on the unquantized score, so the bar can round freely without creating ties.
+**For a thing, the value is the cautious one**, `c = s · W / (1 + W)` (`cautiousScore` in
+`utils/bar.ts`; DESIGN §1 "The bar", §2.6): the score `s` pulled toward the middle by how little
+stands behind it, `W` being how many of the viewer's own thumbs the evidence amounts to and the
+one the prior's one pseudo-thumb. A thing reaches an end only when the prediction is strong and a
+lot stands behind it; little behind a thing leaves it near the middle on either side, and
+`W = 0` is "nothing known yet". An attribute's entry carries no `W`, so its bar draws `s`. The
+component takes that one value as `score`; nothing else about the bar varies. The list ranks by
+the same `c` the bar draws, so the order never disagrees with the bars.
 
 **Row** (the list) — `surface`, 1 px `border` bottom, 12 × 16. Name at 17, attribute chips
 under it, the bar at the right. Rated: background `accent-tint` / `danger-tint`, and the

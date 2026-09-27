@@ -2,7 +2,7 @@
  * The *suggested* rail: which attributes to propose on a thing (DESIGN §2.11).
  *
  * It reads the viewer's own ratings and nothing else — not the feed, not the
- * walk's output, not any aggregate over anybody — and the reason is an attack
+ * model's output, not any aggregate over anybody — and the reason is an attack
  * rather than a privacy rule: candidates drawn from the network would let
  * somebody poison a viewer's suggestions by rating the things that viewer
  * rates. Drawing only on the viewer's own vocabulary makes that impossible by

@@ -9,11 +9,8 @@ const NOTHING: readonly number[] = SEGMENT_KEYS.map(() => 0);
 /**
  * What the viewer's own feed makes of a thing or one of its attributes.
  *
- * `quantum` is required and has no default: a bar handed none draws an empty
- * track and says nothing known yet, because a default step would be a silent
- * claim about how accurate the walk behind the feed was. The step never reaches
- * the screen as text, and ordering happens elsewhere on the unquantized score,
- * so rounding here cannot manufacture a tie.
+ * `score` is what to draw on `−1..1`: an item's `cautiousScore`, an
+ * attribute's own score. Null is nothing known yet, drawn as an empty track.
  *
  * No word beside it and no number ever (DESIGN §4). `role="img"` with a
  * sentence for a label, because four unlabelled boxes are nothing to a reader
@@ -22,14 +19,12 @@ const NOTHING: readonly number[] = SEGMENT_KEYS.map(() => 0);
 export default function Bar({
   subject,
   score,
-  quantum,
 }: {
   // What the score is about, so a label read out of context names the thing.
   subject: string;
-  score: number;
-  quantum: number | null;
+  score: number | null;
 }): ReactElement {
-  const fill = fillFor(score, quantum);
+  const fill = fillFor(score);
   const fills = fill === null ? NOTHING : segmentFills(fill);
   const lit =
     fill !== null && fillTone(fill) === "accent" ? "accent" : "danger";

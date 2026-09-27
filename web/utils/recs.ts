@@ -15,20 +15,11 @@ export type { RefreshResult };
 
 const NO_ENTRIES: readonly RecsEntry[] = [];
 
-/**
- * The feed, and the step its bar may be drawn in.
- *
- * `error` is `user_recs.error`: the walk behind these entries was accurate to
- * within this much, so a difference smaller than it is one the walk cannot
- * support and must not be drawn (DESIGN §1 "The bar"). Null is "there is no feed
- * to quantize", and a bar handed no step says nothing known yet rather than
- * picking one — a default there would be a silent claim about precision.
- */
+/** The feed, as the last read or refresh left it. */
 type FeedState = {
   readonly uid: string | null;
   readonly entries: readonly RecsEntry[];
   readonly computedAt: number;
-  readonly error: number | null;
   readonly ready: boolean;
   // The stored feed could not be read, which is not "there is nothing in it".
   // Kept apart for the same reason `profileUnreachable` is, and read by every
@@ -45,7 +36,6 @@ const EMPTY: FeedState = {
   uid: null,
   entries: NO_ENTRIES,
   computedAt: 0,
-  error: null,
   ready: false,
   failed: false,
   refreshFailed: false,
@@ -77,17 +67,9 @@ export function forgetCachedFeeds(storage: Storage): void {
   for (const key of keys) storage.removeItem(key);
 }
 
-/** A number the database or an older cache may have written as anything else. */
-function reportedError(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0
-    ? value
-    : null;
-}
-
 type CachedFeed = {
   entries: readonly RecsEntry[];
   computedAt: number;
-  error: number | null;
 };
 
 /**
@@ -96,9 +78,7 @@ type CachedFeed = {
  * It is the viewer's own feed, which they may see anyway, and it is the only
  * thing on the device that could make the list render before the network
  * answers. Every access is guarded: storage throws in a private window, and it
- * can come back with whatever an older version of this app wrote — which is why
- * the step the bar draws in is read back the same way the row is, and a cache
- * with no step reads as no step rather than as zero.
+ * can come back with whatever an older version of this app wrote.
  */
 function readCache(uid: string): CachedFeed | null {
   try {
@@ -107,14 +87,12 @@ function readCache(uid: string): CachedFeed | null {
     const parsed = JSON.parse(raw) as {
       entries?: unknown;
       computedAt?: unknown;
-      error?: unknown;
     };
     if (!Array.isArray(parsed.entries) || typeof parsed.computedAt !== "number")
       return null;
     return {
       entries: parsed.entries as RecsEntry[],
       computedAt: parsed.computedAt,
-      error: reportedError(parsed.error),
     };
   } catch {
     return null;
@@ -139,7 +117,7 @@ function apply(uid: string, feed: CachedFeed): void {
 async function loadStored(uid: string): Promise<void> {
   const { data, error } = await supabase()
     .from("user_recs")
-    .select("computed_at,entries,error")
+    .select("computed_at,entries")
     .eq("user_id", uid)
     .maybeSingle();
   if (error) throw error;
@@ -153,14 +131,12 @@ async function loadStored(uid: string): Promise<void> {
   const row = data as {
     computed_at: string;
     entries: unknown;
-    error: unknown;
   };
   apply(uid, {
     entries: Array.isArray(row.entries)
       ? (row.entries as RecsEntry[])
       : NO_ENTRIES,
     computedAt: Date.parse(row.computed_at) || 0,
-    error: reportedError(row.error),
   });
 }
 
@@ -172,8 +148,7 @@ async function loadStored(uid: string): Promise<void> {
  * caller from the verified token and from nowhere else, so the only feed it can
  * touch is the caller's own. When it recomputed, the entries come back in the
  * same response — one body instead of a stamp followed by a second read of
- * everything the stamp was about — and the step the bar draws in rides out with
- * them, so the common path needs no second read for that either.
+ * everything the stamp was about.
  */
 export async function refreshMyRecs(): Promise<RefreshResult> {
   const asked = cell.get().uid;
@@ -200,7 +175,6 @@ export async function refreshMyRecs(): Promise<RefreshResult> {
       apply(uid, {
         entries: data.entries,
         computedAt: data.computedAt,
-        error: reportedError(data.error),
       });
     // Current on the server, and this browser has never seen it: the cold start
     // this function deliberately does not re-send.
@@ -245,7 +219,6 @@ function retain(uid: string, generation: number): void {
       uid,
       entries: cached?.entries ?? NO_ENTRIES,
       computedAt: cached?.computedAt ?? 0,
-      error: cached?.error ?? null,
       // A cache is something to look at, not an answer: `ready` waits for the
       // row, so "you have nothing yet" is never said on the strength of a
       // browser that has never asked.
@@ -277,14 +250,12 @@ function retain(uid: string, generation: number): void {
         const row = payload.new as {
           computed_at?: string;
           entries?: unknown;
-          error?: unknown;
         };
         if (!Array.isArray(row.entries) || typeof row.computed_at !== "string")
           return;
         apply(uid, {
           entries: row.entries as RecsEntry[],
           computedAt: Date.parse(row.computed_at) || 0,
-          error: reportedError(row.error),
         });
       },
     );
@@ -299,7 +270,7 @@ function release(uid: string, generation: number): void {
 }
 
 /**
- * The signed-in user's recommendations, and the step their bars may move in.
+ * The signed-in user's recommendations.
  *
  * One Realtime channel, not a stamp to watch and a collection to re-read: the
  * payload of a feed rewritten by something other than this tab's own call IS the
@@ -309,7 +280,6 @@ export function useMyRecs(): {
   entries: readonly RecsEntry[];
   byItemId: ReadonlyMap<string, RecsEntry>;
   computedAt: number;
-  error: number | null;
   ready: boolean;
   failed: boolean;
   refreshFailed: boolean;
@@ -341,7 +311,6 @@ export function useMyRecs(): {
     entries,
     byItemId,
     computedAt: mine ? state.computedAt : 0,
-    error: mine ? state.error : null,
     ready: mine && state.ready,
     failed: mine && state.failed,
     refreshFailed: mine && state.refreshFailed,

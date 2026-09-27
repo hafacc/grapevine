@@ -1,15 +1,13 @@
 //! The WebAssembly boundary the Edge Function calls.
 
-use std::collections::BTreeMap;
-
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
-use crate::compute::{WalkReport, compute_user, rescore_user};
 use crate::data::SnapshotData;
 use crate::error::CoreError;
 use crate::params::Params;
 use crate::priors::PriorEstimate;
+use crate::witness::compute_user;
 
 /// The parameter table a caller gave, or the shipped one.
 fn table_of(params: JsValue) -> Result<Params, JsValue> {
@@ -50,15 +48,13 @@ fn with_priors(table: Params, priors: JsValue) -> Result<Params, JsValue> {
 ///
 /// `snapshot` is a `SnapshotData` object — `users`, `friendIds` (directed, one entry per node
 /// whose list was read), `loaded`, `ratings` — `params` a partial parameter table (`null` for
-/// the defaults). Returns a `ResultData` object, whose `boundaryResidual` and `boundaryNodes`
-/// are what the loader reads for another round (DESIGN section 3.4). `truncation` is measured
-/// over the loaded nodes only; `boundaryResidual` is reported beside it and not counted against
-/// `ε_total`.
+/// the defaults) and `priors` the `private.params` row (`null` for none). Returns
+/// `{ viewer, reached, boundaryNodes: { id, strength }[], pairs, scores }`: `boundaryNodes` are
+/// what the loader reads for another round, strongest first (DESIGN section 3.4).
 ///
-/// Throws only on something the caller can act on: a parameter out of range, an unknown viewer,
-/// or a computation that did not resolve. Nothing a *rated* account can write reaches this —
-/// values and keys are sanitized in `to_snapshot`, so one crafted ratings map cannot fail every
-/// viewer within reach of it.
+/// Throws only on an invalid parameter, an unknown viewer or a non-finite result. Nothing a
+/// *rated* account can write reaches this — values and keys are sanitized in `to_snapshot`, so
+/// one crafted ratings map cannot fail every viewer within reach of it.
 #[wasm_bindgen(js_name = computeUser)]
 pub fn compute_user_js(
     snapshot: JsValue,
@@ -80,81 +76,10 @@ pub fn compute_user_js(
     };
     let result = compute_user(&snapshot, viewer_id, &params)
         .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    // Only a non-finite result is refused. A large but finite truncation is a walk the budget
-    // stopped early, which the caller can read off `truncation` and act on; refusing on its size
-    // would also refuse DESIGN section 3.4's first call, whose frontier is exactly the thing the
-    // loader asked for.
-    if !result.truncation.is_finite()
-        || !result.boundary_residual.is_finite()
-        || !result.settle_movement.is_finite()
-    {
-        return Err(JsValue::from_str(
-            &CoreError::Divergent {
-                truncation: result.truncation,
-            }
-            .to_string(),
-        ));
-    }
-    let result = snapshot.result_data(&result);
     // The JSON-compatible serializer writes maps as plain objects rather than `Map`s, which is
     // what the function and the tests expect to index into.
-    result
-        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
-        .map_err(|error| JsValue::from_str(&error.to_string()))
-}
-
-/// Rescores one viewer against masses a previous walk produced, skipping the walk.
-///
-/// `reach` is the `{ userId: mass }` map the caller stored, and `walk` the
-/// `{ truncation, boundaryResidual, settleMovement, passes, settled }` the computation that
-/// produced it reported — carried through, never recomputed, because they bound the error in
-/// exactly these masses. The caller is the one that established the masses are still
-/// good: it hashes the adjacency it just loaded against `user_model.reach_hash` (DESIGN section
-/// 3.4). A name in the map that this snapshot does not hold is dropped, which is a person who
-/// has left rather than a caller's mistake.
-///
-/// This saves the walk and nothing else, and the walk is the third largest of the three costs
-/// in a recompute — the snapshot crossing this boundary and the neighbourhood read are both
-/// larger. It is here because it is nearly free.
-#[wasm_bindgen(js_name = rescoreUser)]
-pub fn rescore_user_js(
-    snapshot: JsValue,
-    viewer: &str,
-    reach: JsValue,
-    walk: JsValue,
-    params: JsValue,
-    priors: JsValue,
-) -> Result<JsValue, JsValue> {
-    let data: SnapshotData = serde_wasm_bindgen::from_value(snapshot)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    let masses: BTreeMap<String, f64> = serde_wasm_bindgen::from_value(reach)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    let walk: WalkReport = serde_wasm_bindgen::from_value(walk)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    let params = with_priors(table_of(params)?, priors)?;
-    let snapshot = data.to_snapshot();
-    let Some(viewer_id) = snapshot.user_id(viewer) else {
-        return Err(unknown_user(viewer));
-    };
-    let mut visit_mass = vec![0.0; snapshot.user_count()];
-    for (name, mass) in masses {
-        if let Some(user) = snapshot.user_id(&name) {
-            visit_mass[user.index()] = mass;
-        }
-    }
-    let result = rescore_user(&snapshot, viewer_id, &visit_mass, walk, &params)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
     snapshot
         .result_data(&result)
         .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
         .map_err(|error| JsValue::from_str(&error.to_string()))
-}
-
-fn unknown_user(name: &str) -> JsValue {
-    JsValue::from_str(
-        &CoreError::UnknownUser {
-            name: name.to_string(),
-        }
-        .to_string(),
-    )
 }

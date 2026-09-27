@@ -1,6 +1,6 @@
 // The one list end to end: the feed as the ranking, a typed word filtering it by
-// name and by attribute, the bar's fill against the error that feed reported,
-// the add button, and what a first rating writes.
+// name and by attribute, the bar's fill against the score it draws, the add
+// button, and what a first rating writes.
 //
 //   supabase start                  # shell 1, the whole backend.
 //   cd web && bun run dev:local     # shell 2, serves on 3001 against it
@@ -52,14 +52,11 @@ seedWorld();
 
 const sql = serviceRoleSql();
 
-/** The feed as the function wrote it: one row, and the error it was computed under. */
+/** The feed as the function wrote it: one row. */
 async function feedOf(uid) {
   const [row] = await sql`
-    select entries, error from public.user_recs where user_id = ${uid}::uuid`;
-  return {
-    entries: Array.isArray(row?.entries) ? row.entries : [],
-    error: typeof row?.error === "number" ? row.error : null,
-  };
+    select entries from public.user_recs where user_id = ${uid}::uuid`;
+  return { entries: Array.isArray(row?.entries) ? row.entries : [] };
 }
 
 /** The viewer's own thumbs, item to tag to value — the shape the client holds. */
@@ -97,7 +94,7 @@ const SHOWN = `[...document.querySelectorAll("[data-item]")].map((row) => row.ge
  * Four segments, each an inner span whose style width is a percentage of its
  * own segment, so the fill is their mean. A row whose bar says nothing known
  * yet draws four empty segments and lands at 0, which is why the assertion
- * below is about multiples rather than about any particular width.
+ * below skips a row with no entry.
  */
 const FILLS = `[...document.querySelectorAll("[data-item]")].map((row) => {
   const segments = [...row.querySelectorAll('[role="img"] > span > span')];
@@ -125,17 +122,12 @@ const type = async (page, value, wait = 900) => {
 
 console.log("\nasking for this viewer's feed");
 await callRefreshRecs(VIEWER_UID, VIEWER_EMAIL);
-const { entries, error } = await feedOf(VIEWER_UID);
+const { entries } = await feedOf(VIEWER_UID);
 const ratings = await ratingsOf(VIEWER_UID);
 expect(
   "the function wrote this viewer a feed",
   entries.length > 0,
   `entries: ${entries.length}`,
-);
-expect(
-  "and said what error it computed it under",
-  error !== null && error > 0,
-  `error: ${error}`,
 );
 
 const page = await openBrowser({
@@ -151,27 +143,38 @@ console.log("\nthe list is the feed");
 await page.go(`${ORIGIN}/#/`, 12000);
 await settle(1500);
 
-// Every entry with support of its own plus everything the viewer has rated, best
-// first, ties by id — `feedRows` with an empty field, where a rated thing the
-// feed does not score sorts as zero. Computed from what the function wrote
-// rather than from a number typed into this file.
-const scoreOf = new Map(entries.map((entry) => [entry.itemId, entry.score]));
+// `cautiousScore` in `utils/bar.ts`, restated because node cannot import it:
+// `s · W / (1 + W)`, and nothing to draw at `W = 0`.
+const cautious = (entry) =>
+  entry.conf > 0 ? (entry.score * entry.conf) / (1 + entry.conf) : null;
+
+// Every entry plus everything the viewer has rated, by cautious score, then by
+// how much stands behind it, then by id — `feedRows` with an empty field, where
+// a thing with nothing to draw sorts as zero. Computed from what the function
+// wrote rather than from a number typed into this file.
+const scoreOf = new Map(
+  entries.map((entry) => [entry.itemId, cautious(entry)]),
+);
+const confOf = new Map(entries.map((entry) => [entry.itemId, entry.conf]));
 const ranked = [
   ...new Set([
-    ...entries.filter((entry) => entry.conf > 0).map((entry) => entry.itemId),
+    ...entries.map((entry) => entry.itemId),
     ...Object.keys(ratings),
   ]),
 ].sort((left, right) => {
   const leftScore = scoreOf.get(left) ?? 0;
   const rightScore = scoreOf.get(right) ?? 0;
-  return rightScore !== leftScore
-    ? rightScore - leftScore
+  if (rightScore !== leftScore) return rightScore - leftScore;
+  const leftConf = confOf.get(left) ?? 0;
+  const rightConf = confOf.get(right) ?? 0;
+  return rightConf !== leftConf
+    ? rightConf - leftConf
     : left.localeCompare(right);
 });
 
 const shown = await page.evaluate(SHOWN);
 expect(
-  "it shows the entries with support of their own and everything the viewer rated, in score order",
+  "it shows every entry and everything the viewer rated, in cautious score order",
   JSON.stringify(shown) === JSON.stringify(ranked),
   `screen ${shown?.length} rows, expected ${ranked.length}`,
 );
@@ -200,25 +203,21 @@ expect(
   !/this list comes from your vine/i.test(await bodyText(page)),
 );
 
-console.log("\nthe fill is a multiple of the error this feed reported");
-// `q = ε · L / 2` as `utils/bar.ts` computes it: the error already carries `L`
-// and is on the score's own scale, so half of it is the step.
-const quantum = error / 2;
+console.log("\nthe fill is the cautious score, drawn as it is");
 const fills = (await page.evaluate(FILLS)) ?? [];
-expect(
-  "every row drew a bar",
-  fills.every((fill) => fill !== null),
-  `${fills}`,
+const drawn = shown.map((itemId) => {
+  const score = scoreOf.get(itemId);
+  return score === undefined || score === null ? null : (score + 1) / 2;
+});
+const offBy = fills.filter(
+  // A percentage that went through the style attribute and back is not exact.
+  (fill, index) =>
+    drawn[index] !== null && Math.abs((fill ?? -1) - drawn[index]) > 0.01,
 );
-const offBy = fills
-  .map((fill) => Math.abs(fill / quantum - Math.round(fill / quantum)))
-  // A percentage that went through the style attribute and back is not exact,
-  // so the tolerance is the round trip's and not the step's.
-  .filter((remainder) => remainder > 0.02);
 expect(
-  `no fill is finer than the step ${quantum} the feed allows`,
+  "every row's fill is its cautious score on the bar's own scale",
   offBy.length === 0,
-  `${offBy.length} of ${fills.length} rows land between steps`,
+  `${offBy.length} of ${fills.length} rows drew something else`,
 );
 
 console.log("\na typed word filters by name");
@@ -261,8 +260,7 @@ if (tagged) {
   );
   const at = byTag.indexOf(tagged.itemId);
   const tagFills = (await page.evaluate(FILLS)) ?? [];
-  const expectedFill =
-    Math.round((tagged.tags[tag] + 1) / 2 / quantum) * quantum;
+  const expectedFill = (tagged.tags[tag] + 1) / 2;
   expect(
     "and the row's bar is that attribute's score, not the thing's own",
     Math.abs((tagFills[at] ?? -1) - expectedFill) < 0.02,
