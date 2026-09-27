@@ -31,6 +31,12 @@ export default function HelpPage(): ReactElement {
         it an attribute.
       </P>
       <P>
+        Several words at once work: “starbucks quiet” puts the quiet starbucks
+        first. Start a word with <code>!</code> to see the lowest-rated first,
+        with <code>@</code> to look at names only, or with <code>#</code> to
+        look at attributes only: “!#quiet” puts the least quiet first.
+      </P>
+      <P>
         <strong>You rate by swiping a row: right is yes, left is no.</strong>{" "}
         Swiping the way you already voted takes that rating back; swiping the
         other way flips it. A rated row keeps its bar and tints its background.
