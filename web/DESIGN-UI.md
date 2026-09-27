@@ -264,7 +264,8 @@ device has a share sheet (feature-tested), and *copy* (`LuCopy`, then `LuCheck` 
 `accent-ink` once it has). The viewer's own name
 is a button too, drawn as the name with a 16 px pencil in `muted` after it. Everything else there
 is a row that swipes. Its sheet carries its own: *cancel* (quiet) and *save* (primary) in *your
-name*.
+name*. The last line on the screen, *delete your account*, is a full-width `danger-tint` line in
+`danger-ink`, the tint of a no-rated row, 32 px below the sections; its sheet's `dangerSolid` button stays disabled until *delete* is typed.
 
 ## Layout
 
@@ -278,7 +279,7 @@ name*.
     thing's rating row.
   - **People**: back arrow and *you and your vine*, and **no avatar** — this is where the
     avatar leads. Under it, in order: the viewer's own row, the link row, the install line,
-    then *your vine*.
+    then *your vine*, then the delete line.
 - **Desktop (deferred).** The whole phone in a 720 px column centred on `bg`, with a rule down
   each side from the top of the screen to the bottom: top or title bar, list, bottom bar, and
   every screen alike — the list, a thing and people share the one column, set once around

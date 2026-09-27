@@ -122,8 +122,8 @@ select is(
 -- exactly like success.
 select is(
   (select string_agg(jobname, ',' order by jobname) from cron.job),
-  'debug-ttl,params-priors,write-budget-sweep',
-  'three statements are scheduled and the two sweeps are two of them');
+  'debug-ttl,deleted-identities-sweep,params-priors,write-budget-sweep',
+  'four statements are scheduled, 0005''s three and 0012''s fingerprint sweep');
 
 -- Nothing at all to pool is nothing written, rather than an estimate of
 -- nothing: the insert matches no row and every number stands.

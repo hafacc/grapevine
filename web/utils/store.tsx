@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { googleSignIn } from "./auth";
+import { googleSignIn, deleteAccount as pgDeleteAccount } from "./auth";
 import { clientState, recordDebugEvent } from "./debug";
 import { forgetHintsSeen } from "./first-run";
 import {
@@ -120,6 +120,7 @@ type ContextShape = {
   back: () => void;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
   // The owner's id, or null when the link stopped working. Once the server has
   // answered, either way, the waiting token is spent.
@@ -737,6 +738,20 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // The server has already revoked every session the account held, so what is
+  // left is this device's copy of one; a failure here leaves the account gone
+  // either way, and is not reported as the deletion failing.
+  const deleteAccount = useCallback(async () => {
+    await pgDeleteAccount();
+    try {
+      await signOut();
+    } catch (error) {
+      console.error(error);
+      forgetDevice();
+      forgetTab();
+    }
+  }, [signOut]);
+
   // One row, and every friend sees the new name the next time they read a
   // profile: there is no copy of it on an edge to go around rewriting.
   const updateDisplayName = useCallback(
@@ -846,6 +861,7 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     back,
     signIn,
     signOut,
+    deleteAccount,
     updateDisplayName,
     redeemInvite,
     dismissInvite,

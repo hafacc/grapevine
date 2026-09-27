@@ -257,13 +257,12 @@ export default function PrivacyPage(): ReactElement {
 
       <H2>leaving</H2>
       <P>
-        There is no delete-my-account button yet. Until there is,{" "}
-        <a className={link} href={`mailto:${CONTACT_EMAIL}`}>
-          write to us
-        </a>{" "}
-        and your profile, your ratings, your feed and your friendships will be
-        removed by hand. Names you added to the catalog stay: a name is a shared
-        entry rather than a post of yours, and nothing can change or remove one.
+        Delete your account at the bottom of the people screen. Your profile,
+        your ratings, your feed, your friendships and your link are removed at
+        once. Names you added to the catalog stay: a name is a shared entry
+        rather than a post of yours, and nothing can change or remove one. A
+        one-way fingerprint of your Google account is kept until midnight UTC,
+        so deleting can't reset the daily limit.
       </P>
 
       <H2>children</H2>
