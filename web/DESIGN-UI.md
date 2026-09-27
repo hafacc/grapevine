@@ -53,14 +53,14 @@ bar's segments and nothing else. A radius scale would be four decisions where on
 not a rounded pen stroke. A wide `stroke-linejoin: round` rounds the outside of the join and
 not the inside, so a hexagon drawn that way has six subtly wrong corners at every size.
 
-**Avatars are hexagons.** Flat-top, radius-30 in a 64 box, 5 px corners, 2 px `border` rule.
+**Avatars are hexagons.** Pointy-top like the mark's berries, which also fits a face, radius-30 in a 64 box, 5 px corners, 2 px `border` rule.
 A Google photo is clipped to that hexagon; with no photo it is `accent-soft` with the
 person's initials in the display face. Sizes: 36 in a bar, 40 in a people row, 48 on the
 viewer's own row.
 
 **A notification badge sits on a hexagon's upper-right vertex** — not the corner of a
-bounding box that is not there. In practice: `left: 68%`, `top: −4%` of the avatar's size, a
-15 px filled hexagon with a 4 px `surface`-coloured stroke punching it out of the photo. There
+bounding box that is not there. In practice the badge is centred on `(57.98, 17)` of the 64
+box, `left: calc(90.6% − 7.5px)`, `top: calc(26.6% − 7.5px)`: a 15 px filled hexagon with a 4 px `surface`-coloured stroke punching it out of the photo. There
 is exactly one badge in the product, and it means a connect request is waiting.
 
 ## Space
