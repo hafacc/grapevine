@@ -33,7 +33,6 @@ pub mod rng;
 pub mod score;
 pub mod sim;
 pub mod snapshot;
-pub mod suggest;
 pub mod walk;
 
 #[cfg(feature = "wasm")]
@@ -45,10 +44,7 @@ pub use compute::{
     UserDetail, UserResult, WalkReport, affinity_of, compute_all, compute_user,
     compute_user_detail, rescore_user,
 };
-pub use data::{
-    BoundaryNodeData, RatingValue, ResultData, ScoreData, SnapshotData, SuggestParamsData,
-    SuggestionData, WorldData,
-};
+pub use data::{BoundaryNodeData, RatingValue, ResultData, ScoreData, SnapshotData, WorldData};
 pub use error::CoreError;
 pub use graph::{Graph, hop_distances};
 pub use ids::{ID_MAX, ItemId, RATABLE_JOIN, Ratable, TagId, UserId, is_normalized_id};
@@ -62,7 +58,4 @@ pub use rng::Rng;
 pub use score::{Score, score_ratables};
 pub use sim::{World, WorldConfig, simulate};
 pub use snapshot::{Snapshot, SnapshotBuilder};
-pub use suggest::{
-    MAX_CURRENT_INFLUENCE, MAX_SUGGESTIONS, MIN_ALIGNMENT, MIN_OVERLAP, Suggestion, suggest,
-};
 pub use walk::{BoundaryNode, Budget, Walk, walk, walk_within};

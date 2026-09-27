@@ -2,7 +2,7 @@
 //   bash scripts/build-wasm.sh nodejs
 // with: node rust/examples/smoke.mjs
 import { createRequire } from "node:module";
-const { computeUser, rescoreUser, suggestFor } = createRequire(import.meta.url)("../core-wasm/grapevine_core.js");
+const { computeUser, rescoreUser } = createRequire(import.meta.url)("../core-wasm/grapevine_core.js");
 
 // The input form the loader of DESIGN 3.4 produces: directed `friendIds`, the set of nodes whose
 // lists were read, and ratings exactly as the `ratings` rows carry them.
@@ -74,51 +74,6 @@ const crafted = computeUser(
 );
 if (Math.abs(crafted.scores.i0.score - expected) > 1e-9 || Object.keys(crafted.scores).length !== 1) {
   console.error(`crafted ratings changed the result: ${JSON.stringify(crafted.scores)}`);
-  process.exit(1);
-}
-
-// `suggestFor` across the same boundary (DESIGN 5.1). One lane six hops long: the walk halves
-// its mass at every hop, so `h` holds 2^-5 friend-units — enough for the deep search to rank
-// them and far too little for the on-demand budget to call them influential already.
-const lane = ["a", "c1", "c2", "c3", "c4", "h"];
-const contested = Array.from({ length: 40 }, (_, index) => `item${index}`);
-const thumbs = (sign) =>
-  Object.fromEntries(contested.map((item, index) => [item, (index % 2 === 0 ? 1 : -1) * sign]));
-const tasteSnapshot = {
-  users: ["u", "b", ...lane],
-  friendIds: {
-    u: ["a", "b"],
-    b: ["u"],
-    a: ["u", "c1"],
-    c1: ["a", "c2"],
-    c2: ["c1", "c3"],
-    c3: ["c2", "c4"],
-    c4: ["c3", "h"],
-    h: ["c4"],
-  },
-  loaded: ["u", "b", ...lane],
-  // `b` disagrees with everything, which is what makes the items contested and the overlap
-  // worth anything at all; the chain rates nothing and is reach rather than evidence.
-  ratings: { u: thumbs(1), a: thumbs(1), h: thumbs(1), b: thumbs(-1) },
-};
-const discoverable = ["a", "b", ...lane];
-const suggestions = suggestFor(tasteSnapshot, "u", discoverable, [], null, null);
-console.log(JSON.stringify(suggestions));
-if (suggestions.length !== 1 || suggestions[0].uid !== "h") {
-  console.error(`expected h to be the one suggestion, got ${JSON.stringify(suggestions)}`);
-  process.exit(1);
-}
-if (suggestions[0].overlap < 20) {
-  console.error(`a suggestion under the overlap floor: ${JSON.stringify(suggestions[0])}`);
-  process.exit(1);
-}
-// Dismissed, and not discoverable: the same absence by two different routes.
-if (suggestFor(tasteSnapshot, "u", discoverable, ["h"], null, null).length !== 0) {
-  console.error("a dismissed person was suggested again");
-  process.exit(1);
-}
-if (suggestFor(tasteSnapshot, "u", ["a", "b"], [], null, null).length !== 0) {
-  console.error("somebody who turned discoverability off was suggested");
   process.exit(1);
 }
 

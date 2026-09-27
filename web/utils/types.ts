@@ -23,20 +23,6 @@ export type Friend = {
   readonly since: number;
 };
 
-// "Let's be friends", nothing else. `(from, to)` is the primary key, so exactly
-// one pending ask per pair.
-export type ConnectRequest = {
-  readonly from: string;
-  readonly to: string;
-  readonly createdAt: number;
-  // The party at the other end, whoever that is: the sender on an ask you
-  // received, the recipient on one you sent. Both lists are read for one viewer,
-  // so "the other one" is never ambiguous. It is joined rather than stored: a
-  // pending request in either direction is itself what lets the two read each
-  // other's profile.
-  readonly other: Party;
-};
-
 // A public-safe identity, for wherever two people can't yet read each other.
 export type Party = {
   readonly uid: string;
@@ -90,18 +76,3 @@ export type RecsEntry = {
   // also where the item page's chips come from.
   readonly tags: Readonly<Record<string, number>>;
 };
-
-// Somebody taste search found. A uid and a rank and nothing else: the name is
-// joined from the profile, which anyone in your own suggestions list
-// lets you read, and the words the row is drawn with are the attributes you
-// agree on against the grain — asked for by `sharedAttributes` and stored
-// nowhere (DESIGN §5.1).
-export type Suggestion = {
-  readonly uid: string;
-  readonly displayName: string;
-};
-
-// `user_prefs`, which only its owner can read or write. Off means never
-// suggested to anyone and no suggestions of your own: one channel, both ways
-// (DESIGN §5.1).
-export type { Prefs } from "grapevine-shared/entries";

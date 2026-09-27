@@ -7,7 +7,7 @@
 -- budget.
 
 begin;
-select plan(36);
+select plan(35);
 
 insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'owner@example.com',    now()),
@@ -89,12 +89,6 @@ select throws_ok(
   'and the table is not readable at all');
 set local role authenticated;
 
--- A pending ask from the guest to the owner, which redeeming answers.
-set local role postgres;
-insert into public.connect_requests (from_id, to_id) values
-  ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111');
-set local role authenticated;
-
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
 select is(
   public.redeem_invite((select token from made where label = 'first')),
@@ -104,9 +98,6 @@ select is(
     where user_id in ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')
       and friend_id in ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')),
   2, 'and makes both halves of the friendship');
-select is(
-  (select count(*)::int from public.connect_requests), 0,
-  'and the pending ask between them is gone');
 select lives_ok(
   $$select public.redeem_invite((select token from made where label = 'first'))$$,
   'redeeming again as a friend is harmless');

@@ -744,8 +744,8 @@ touches â_{uv} directly for a v who did not rate x.`}</Formula>
             person at once. It stops when:
           </P>
           <Formula>{`stop when  Σ |r| · (1 − α)/α  <  ε_total        (default 0.02, in π̃ units)
-       or  nodes touched ≥ N_max                (2 000 on open; 50 000 for the deeper search behind friend suggestions)
-       or  push work ≥ E_max                     (10 000 000, on open and deep alike: a CPU backstop)`}</Formula>
+       or  nodes touched ≥ N_max                (2 000)
+       or  push work ≥ E_max                     (10 000 000: a CPU backstop)`}</Formula>
           <P>
             “Residual left at termination still counts as visit mass where it
             sits; only its onward flow is lost, and{" "}
@@ -835,12 +835,6 @@ const PARAMETERS: readonly {
     name: "W_min",
     value: "0.5",
     why: "display floor: half a friend-unit (how much has to be behind a thing before it is shown at all)",
-  },
-  {
-    kind: "product",
-    name: "taste-search thresholds",
-    value: "20 overlaps, 5 suggestions",
-    why: "how much agreement it takes before a stranger with your taste is suggested, and how many are offered",
   },
   {
     kind: "budget",

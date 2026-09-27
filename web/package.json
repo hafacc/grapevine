@@ -19,7 +19,6 @@
     "seed:local": "bun scripts/seed-local.ts",
     "check:search-id": "bun scripts/search-id-check.ts",
     "check:recs-function": "node scripts/recs-function-check.mjs",
-    "check:suggestions": "node scripts/suggestions-check.mjs",
     "check:recs-parity": "node scripts/recs-parity-check.mjs"
   },
   "dependencies": {

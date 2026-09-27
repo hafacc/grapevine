@@ -28,10 +28,8 @@ fn main() -> ExitCode {
             "--tag-rated-fraction" => {
                 config.tag_rated_fraction = value.parse().unwrap_or(config.tag_rated_fraction);
             }
-            // The two edge probabilities, because how far apart people are is
-            // the whole subject of a world seeded for taste search (DESIGN 5):
-            // at the default density every pair is two hops apart and nobody is
-            // far enough away to be a suggestion rather than a neighbour.
+            // The two edge probabilities: at the default density every pair is
+            // two hops apart, and a spread-out world needs them lower.
             "--p-same-cluster" => {
                 config.p_same_cluster = value.parse().unwrap_or(config.p_same_cluster);
             }

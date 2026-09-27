@@ -63,14 +63,13 @@ export default function HelpPage(): ReactElement {
 
       <H2>people</H2>
       <P>
-        Behind your avatar: your own row, then anyone who has asked to connect,
-        then your friends, then people with similar taste. There is no searching
-        for people: to add a friend, tap <strong>make a link</strong> and send
-        them the link however you like. You can copy it again any time from{" "}
-        <strong>your link</strong>. Whoever opens it signs in with Google and is
-        asked whether to be your friend. Your friend list is visible to you, and
-        each connection on it to the friend at the other end. Friends are what
-        the recommendations are made of: with none, there is nothing to
+        Behind your avatar: your own row, then your friends. There is no
+        searching for people: to add a friend, tap <strong>make a link</strong>{" "}
+        and send them the link however you like. You can copy it again any time
+        from <strong>your link</strong>. Whoever opens it signs in with Google
+        and is asked whether to be your friend. Your friend list is visible to
+        you, and each connection on it to the friend at the other end. Friends
+        are what the recommendations are made of: with none, there is nothing to
         recommend.
       </P>
       <P>
@@ -86,13 +85,6 @@ export default function HelpPage(): ReactElement {
         To unfriend someone, swipe their row and confirm. It ends for both of
         you at once: you drop out of each other's friends and feeds, and being
         friends again takes a new link from one of you.
-      </P>
-      <P>
-        grapevine can also offer you people whose taste matches yours but who
-        you don't know. That is off until you swipe the line about friend
-        suggestions on, and it is the same switch both ways: off, nobody is
-        offered you and you are offered nobody. Saying yes to someone offered
-        there sends them a request, which they accept or decline.
       </P>
 
       <H2>tags</H2>

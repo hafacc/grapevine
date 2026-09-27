@@ -7,9 +7,7 @@ import type { Friend, Party, Profile } from "./types";
 // leave out: it is not a column of this table at all.
 const PROFILE_COLUMNS = "id,display_name,photo_url,created_at";
 
-// What one person may know about another: a name and a face. The same three
-// whether they come from a friend edge, a pending request or a suggestion, so
-// every one of those reads the same list.
+// What one person may know about another: a name and a face.
 export const PARTY_COLUMNS = "id,display_name,photo_url";
 
 export type PartyRow = {

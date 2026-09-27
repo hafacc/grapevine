@@ -1,5 +1,5 @@
 // Loads a simulated world into the running local stack, in exactly the shapes
-// the schema and the policies expect, so both Edge Functions and the list can
+// the schema and the policies expect, so the Edge Function and the list can
 // be exercised against something with a real graph in it.
 //
 //   supabase start                 # shell 1, the whole backend
@@ -117,9 +117,8 @@ function dumpWorld(): string {
       argument("--items", "60"),
       "--rated-fraction",
       argument("--rated-fraction", "0.35"),
-      // How far apart people are, which is the whole subject of a world seeded
-      // for taste search: at the default density everyone is two hops from
-      // everyone and nobody is far enough away to be a suggestion.
+      // How far apart people are: at the simulator's default density everyone
+      // is two hops from everyone.
       "--p-same-cluster",
       argument("--p-same-cluster", "0.18"),
       "--p-other-cluster",
@@ -169,7 +168,7 @@ const sql: Sql = serviceRoleSql();
 console.log(`seeding the local stack from ${worldPath}`);
 
 // `public.profiles.id` references `auth.users`, and `private.handle_new_user()`
-// fires on this insert to create the profile and the prefs row — so this is not
+// fires on this insert to create the profile — so this is not
 // a fixture for a door, it is the row the rest of the schema hangs off. What
 // each column is for is in `authUserRow`, which the signed-in checks share.
 const accounts = world.snapshot.users.map((uid) =>
@@ -233,16 +232,6 @@ for (let start = 0; start < items.length; start += ROWS_PER_STATEMENT) {
   await sql`insert into public.items ${sql(slice)} on conflict (id) do nothing`;
 }
 console.log(`  ${items.length} items`);
-
-// Every account opted in to taste search. The switch ships off, so a seeded
-// world without this would have nobody to suggest and nobody to suggest them to
-// — the checks that exercise the feature need everyone in the channel, and one
-// of them turns a single account back off to see the difference.
-await sql`
-  update public.user_prefs
-     set discoverable_by_taste = true
-   where user_id = any(${profileIds}::uuid[])`;
-console.log(`  ${profileIds.length} prefs rows in the channel`);
 
 // One row per thumb, keyed by columns. The crate hands its ratings back under
 // one key per rated thing, the item and the attribute joined by a NUL — the

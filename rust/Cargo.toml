@@ -37,10 +37,6 @@ required-features = ["serde"]
 name = "recompute-cost"
 required-features = ["serde"]
 
-[[example]]
-name = "suggest-cost"
-required-features = ["serde"]
-
 [profile.release]
 opt-level = 3
 lto = true
