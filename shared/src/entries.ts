@@ -19,8 +19,8 @@ import { isNormalizedId } from "./index.ts";
  * A NUL, because Postgres text cannot hold one at all — the server refuses the
  * byte on input — so no name anybody can type can forge the join or smuggle a
  * second separator into a half. That holds by construction, which matters
- * because an id is arbitrary Unicode and no pattern `CHECK` could enumerate what
- * a half may contain.
+ * because an id is any script's letters and punctuation, and no pattern
+ * `CHECK` could enumerate what a half may contain.
  *
  * It exists here and in `rust/src/data.rs` and nowhere else: never stored,
  * never queried, never shown. The database keys a rating by its columns and

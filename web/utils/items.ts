@@ -1,6 +1,13 @@
 "use client";
 
-import { MAX_ID_LENGTH, normalizeId, searchFold } from "grapevine-shared";
+import {
+  foldId,
+  MAX_ID_LENGTH,
+  mixesScripts,
+  normalizeId,
+  searchFold,
+  usesAllowedCharacters,
+} from "grapevine-shared";
 import { supabase } from "./supabase";
 import type { Item } from "./types";
 
@@ -19,15 +26,22 @@ function toItem(row: ItemRow): Item {
 /**
  * Null when the text names something, or a sentence saying why it does not.
  *
- * The refusals are `normalizeId`'s, which are the column `CHECK`'s: over 128
- * code points, a control or format character, an unassigned or private-use one.
+ * The refusals are `normalizeId`'s, which are the column `CHECK`'s. Length,
+ * `!`, `#` or `@` at the front of a word, and a word mixing alphabets are what
+ * a keyboard reaches, so each has its own sentence; everything else (an emoji,
+ * an invisible character, a stack of accents) is one.
  */
 export function validateItemId(typed: string): string | null {
   if (normalizeId(typed) !== null) return null;
-  if (typed.trim().length === 0) return "type a name.";
-  // Length is the refusal somebody reaches by typing; the rest arrive by paste,
-  // and one sentence covers every one of them.
-  return `at most ${MAX_ID_LENGTH} characters, and nothing a font cannot draw.`;
+  const folded = foldId(typed);
+  if (folded.length === 0) return "type a name.";
+  if ([...folded].length > MAX_ID_LENGTH)
+    return `at most ${MAX_ID_LENGTH} characters.`;
+  // Search reads each as an operator (DESIGN §1 "Search").
+  if (/(^| )[!#@]/u.test(folded)) return "a word can’t start with !, # or @.";
+  if (usesAllowedCharacters(folded) && mixesScripts(folded))
+    return "a word can’t mix alphabets.";
+  return "letters, numbers and ordinary punctuation only.";
 }
 
 /**
@@ -74,9 +88,9 @@ export async function getItem(id: string): Promise<Item | null> {
 }
 
 /**
- * `%`, `_` and the backslash are ordinary punctuation in an id, which is
- * arbitrary Unicode, so a query carrying one has to reach `LIKE` as a literal
- * rather than as a wildcard.
+ * `%` and `_` are ordinary punctuation in an id, so a query carrying one has
+ * to reach `LIKE` as a literal rather than as a wildcard. An id cannot hold a
+ * backslash, but a query is typed text and escaping it costs nothing.
  *
  * `*` is the one that cannot be escaped: PostgREST turns every `*` in a `like`
  * value into `%` before Postgres is handed the pattern. It only ever widens the
@@ -109,7 +123,7 @@ type SearchRange = { column: "id" | "search_id"; prefix: string };
  * The stripped range runs even when the query has nothing to strip, because
  * that is the case it is for: `cafe` strips to itself, and it is the
  * `search_id` range that finds `café bleu` for it. Only a query that strips to
- * nothing (`!!!`) skips it, since an empty prefix is the whole catalog.
+ * nothing (`...`) skips it, since an empty prefix is the whole catalog.
  */
 export function searchRanges(typed: string): SearchRange[] {
   const id = normalizeId(typed);

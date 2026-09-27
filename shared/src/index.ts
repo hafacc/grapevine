@@ -1,19 +1,43 @@
+import { jsEscape, nameRules } from "./name-rules.ts";
+
 /**
  * The cap on an id, counted in code points rather than in UTF-16 units or
  * bytes, because that is what the column `CHECK` counts with `char_length`.
  */
 export const MAX_ID_LENGTH = 128;
 
-/** ZWNJ and ZWJ: the two format characters an id may contain. */
-const ALLOWED_FORMAT = new Set([0x200c, 0x200d]);
+// The allow-list, compiled from the same patterns the column `CHECK` holds.
+const RULES = nameRules(jsEscape);
+const WHOLE = new RegExp(RULES.whole, "u");
+const REFUSED = RULES.refused.map((pattern) => new RegExp(pattern, "u"));
+const SINGLE_SCRIPT_WORDS = RULES.singleScriptWords.map(
+  (pattern) => new RegExp(pattern, "u"),
+);
+const LATIN_OR_COMMON = new RegExp(RULES.latinOrCommon, "gu");
+const LATIN_PLUS_ONE = new RegExp(RULES.latinPlusOne, "u");
 
 /**
- * The five general categories an id admits nothing from: control, format,
- * surrogate, private-use and unassigned. ZWNJ and ZWJ are taken out of the
- * format half above — Persian and several Indic scripts need them to spell
- * ordinary words, and an emoji sequence is built from them.
+ * Is every character of this id on the allow-list — letters, marks, digits,
+ * space, ordinary punctuation and `$ € £ ¥ %` — whatever else is wrong with it?
  */
-const REFUSED_CATEGORY = /[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}]/u;
+export function usesAllowedCharacters(id: string): boolean {
+  return WHOLE.test(id);
+}
+
+/**
+ * Does some word of this id mix scripts the way a look-alike does — Latin
+ * with Cyrillic or Greek, or two scripts that are not Latin plus one other or
+ * one of the CJK combinations (UTS #39's "moderately restrictive", per word)?
+ */
+export function mixesScripts(id: string): boolean {
+  return id
+    .split(" ")
+    .some(
+      (word) =>
+        !SINGLE_SCRIPT_WORDS.some((pattern) => pattern.test(word)) &&
+        !LATIN_PLUS_ONE.test(word.replace(LATIN_OR_COMMON, "")),
+    );
+}
 
 /**
  * The one folding, per DESIGN §3.2: an id is the text a person typed, and
@@ -34,12 +58,17 @@ const REFUSED_CATEGORY = /[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Cn}]/u;
  * id it may write or has nothing.
  */
 export function normalizeId(input: string): string | null {
-  const folded = input
-    .toLowerCase()
-    .normalize("NFKC")
-    .replace(/\s+/gu, " ")
-    .trim();
+  const folded = foldId(input);
   return isNormalizedId(folded) ? folded : null;
+}
+
+/**
+ * `normalizeId`'s folding without its refusals: what the typed text would be
+ * as an id if it were allowed. For saying why it is not, and for matching a
+ * look-alike somebody typed against the thing it imitates.
+ */
+export function foldId(input: string): string {
+  return input.toLowerCase().normalize("NFKC").replace(/\s+/gu, " ").trim();
 }
 
 /**
@@ -62,11 +91,13 @@ export function isNormalizedId(id: string): boolean {
   // Every whitespace run is one plain space, so a tab, a line separator and a
   // doubled space are each something the folding cannot emit.
   if (/\s\s/u.test(id) || /[^\S ]/u.test(id)) return false;
-  return codePoints.every(
-    (character) =>
-      ALLOWED_FORMAT.has(character.codePointAt(0) as number) ||
-      !REFUSED_CATEGORY.test(character),
-  );
+  // Letters, marks, digits, space and ordinary punctuation only, no word
+  // starting with one of search's operators, a mark on a letter and not too
+  // many, ZWJ and ZWNJ only where a script needs them, and no word mixing
+  // scripts: `name-rules.ts`, and DESIGN §3.2.
+  if (!usesAllowedCharacters(id)) return false;
+  if (REFUSED.some((pattern) => pattern.test(id))) return false;
+  return !mixesScripts(id);
 }
 
 /**
@@ -90,8 +121,8 @@ export function isNormalizedId(id: string): boolean {
  * decomposed, a Korean name's stripped copy runs to three times its length and
  * past the 128 the column `CHECK` allows on `search_id`.
  *
- * Symbols survive, currency signs and emoji among them: they are how somebody
- * would type the thing and there is nothing to strip them down to.
+ * Symbols survive, the currency signs and `+` among them: they are how
+ * somebody would type the thing and there is nothing to strip them down to.
  */
 export function searchFold(id: string): string {
   return id
@@ -149,10 +180,12 @@ const CONFUSABLES = new Map(
  *
  * NFKC removes the compatibility look-alikes — `ﬁ` is `fi`, full-width is
  * half-width — and leaves the ones that are separate letters in separate
- * scripts: Latin `a` and Cyrillic `а` survive it as two characters, so
- * `café bleu` and `cаfé bleu` are two things no reader can distinguish. This
- * catches the accident of two people and two keyboards, at lookup and before
- * offering to add a second copy.
+ * scripts: Latin `a` and Cyrillic `а` survive it as two characters. A word
+ * mixing the two is refused outright (`mixesScripts`), but a word written
+ * wholly in Cyrillic can still imitate a Latin one, and a typed mixture is
+ * still worth matching to the thing it imitates. This catches the accident of
+ * two people and two keyboards, at lookup and before offering to add a second
+ * copy.
  *
  * It is a HAND-PICKED table of the common Latin/Cyrillic/Greek shapes, not
  * Unicode TR39's confusables data, which is a file per Unicode version and a

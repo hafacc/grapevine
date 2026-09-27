@@ -26,7 +26,7 @@ const ANSWERED: Partial<Record<ChipTone, string>> = {
  * An attribute, as a chip.
  *
  * The text is the attribute itself — there is no display name to look up — so
- * it is arbitrary Unicode with spaces in it, in any script and either
+ * it is letters and punctuation with spaces in it, in any script and either
  * direction. It is therefore bounded and clipped rather than assumed short, and
  * it sets no `direction`: the browser's own bidi handling is right here and an
  * override would be the bug.

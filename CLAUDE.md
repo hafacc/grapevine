@@ -13,7 +13,9 @@ Read DESIGN §1 before changing any screen.
                  of it exists anywhere. Bun.
     scripts/     build-wasm.sh — wasm-pack, one target argument: `web` for the Edge
                  Functions, `nodejs` for `rust/examples/smoke.mjs`, the only thing that
-                 runs the wasm boundary outside Deno.
+                 runs the wasm boundary outside Deno. generate-name-rules.ts — the
+                 allow-list for names, from pinned Unicode data, written into
+                 `shared/src/name-tables.ts` and a new migration (see "Normalization").
     rust/        The one Rust crate (`grapevine-core`): DESIGN §2's algorithm, the simulator
                  and the property suite. No I/O. Built to WebAssembly by wasm-pack; neither
                  build output is committed.
@@ -300,12 +302,34 @@ Functions:
 
 NFKC comes after lowercasing, because lowercasing a normalized string can denormalize it and the
 last step must be the one the column `CHECK` tests. `"Café  BLEU "` is `café bleu`; `日本` survives.
-The `CHECK` refuses: empty after trimming; control characters (nothing in `Cc`/`Cf` except ZWNJ and
-ZWJ, which Persian, several Indic scripts and emoji need; the bidi overrides refused by name);
-anything not NFKC-normal (`x is nfkc normalized`); and over 128 code points, which the folding
-refuses rather than truncates, since a cut can land inside a grapheme cluster or denormalize. The
-two lowercasings (`toLowerCase`, and `lower` under a non-`C` collation) can disagree on a handful
-of characters; the database is the authority, because its `CHECK` decides whether the row exists.
+The `CHECK` refuses: empty after trimming; anything not NFKC-normal (`x is nfkc normalized`); a
+word starting with `!`, `#` or `@`, which search reads as operators (migration 0008, DESIGN §1
+"Search"); over 128 code points, which the folding refuses rather than
+truncates, since a cut can land inside a grapheme cluster or denormalize; and, since 0008,
+anything off the allow-list:
+
+- **Characters**: UTS #39's `Identifier_Status=Allowed` (letters, marks and digits of the scripts
+  in use today), plus space, `! " # $ % & ( ) * + , / ; ? @`, `¡ ¿ « » – — ‘ “ ” „`, CJK's
+  `、 。` and brackets, the Arabic comma, semicolon and question mark, the dandas, and `€ £ ¥`.
+  So no emoji, pictograph, other symbol, invisible or default-ignorable character.
+- **Marks**: on a letter or digit, at most four on one, never the same one twice running.
+- **ZWJ and ZWNJ** only in RFC 5892's contexts: after a virama, and ZWNJ also between two joining
+  letters. That is where Indic scripts and Persian need them.
+- **Scripts, per space-separated word**: one script, or Latin plus one other that is not Cyrillic
+  or Greek, or Latin with Han and kana, Han and Bopomofo, or Han and Hangul (UTS #39's
+  "moderately restrictive"). `café кафе` is fine; `cаfé` with a Cyrillic `а` is refused.
+
+**The allow-list is generated, and the client and the database run the same patterns.**
+`scripts/generate-name-rules.ts <NNNN_name>` reads Unicode 15.1's data (Postgres 17's version),
+writes the tables to `shared/src/name-tables.ts`, and writes the migration replacing
+`private.is_normalized_id`. `shared/src/name-rules.ts` builds the regular expressions from those
+tables in two escapings, one per engine, which is why neither side uses `\p{…}`: JavaScript's
+follows the engine's Unicode version, and Postgres has none. `shared/tests/name-rules.test.ts`
+fails if the newest migration defining the function no longer holds the client's patterns. To
+change the list, edit the generator and write the NEXT migration; like 0008, it must
+refuse to apply over an existing row the new list would refuse, and name it. The two lowercasings
+(`toLowerCase`, and `lower` under a non-`C` collation) can disagree on a handful of characters;
+the database is the authority, because its `CHECK` decides whether the row exists.
 
 **Inside the core, a ratable is `item` or `item\0tag`**, joined with a NUL. Postgres text cannot
 contain a NUL, so no name anybody can type can forge the join. The join is never stored, queried
@@ -314,8 +338,9 @@ or shown.
 **Search matches a stored stripped copy, and `searchFold` in `shared/` is the ONLY implementation
 of the stripping.** Stripping only at query time would leave the prefix search literal, so a viewer
 typing the unaccented name finds nothing and adds the thing twice. Look-alikes NFKC leaves (Latin
-`a`, Cyrillic `а`) are met with a confusable skeleton at lookup, which catches the accident of two
-people and two keyboards and does not pretend to stop a determined one.
+`a`, Cyrillic `а`) cannot share a word (above); a whole word in Cyrillic imitating a Latin one can
+still be written, and is met with a confusable skeleton at lookup, which catches the accident of
+two people and two keyboards and does not pretend to stop a determined one.
 
 ## Conventions worth not rediscovering
 
@@ -609,7 +634,8 @@ one that drops or rewrites a column is reviewed as the irreversible thing it is,
 reset` belongs nowhere near the project.
 
 `ci.yml`'s `database` job fails a push or pull request that modifies, deletes or renames an
-existing file under `supabase/migrations/`. `0001`–`0007` are recorded.
+existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008` is not, and the next
+deploy applies it.
 
 ### The domain (do once, by hand)
 

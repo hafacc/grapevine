@@ -26,6 +26,12 @@ const IDEOGRAPHIC_SPACE = codePoint(0x3000);
 const PRIVATE_USE = codePoint(0xe000);
 const UNASSIGNED = codePoint(0x50000);
 const CYRILLIC_A = codePoint(0x0430);
+// "I want", with the ZWNJ Persian writes between a prefix and its verb.
+const PERSIAN = `می${ZWNJ}خواهم`;
+// क्‍ष: a virama and ZWJ ask for the half form of क.
+const DEVANAGARI_HALF_FORM = `क${codePoint(0x094d)}${ZWJ}ष`;
+// 𠀀, one code point and two UTF-16 units.
+const ASTRAL_HAN = codePoint(0x20000);
 const CYRILLIC_ER = codePoint(0x0440);
 
 describe("normalizeId", () => {
@@ -54,9 +60,9 @@ describe("normalizeId", () => {
     expect(normalizeId(`late${IDEOGRAPHIC_SPACE}night`)).toBe("late night");
   });
 
-  it("keeps the two format characters a word can need", () => {
-    expect(normalizeId(`zero${ZWNJ}width`)).toBe(`zero${ZWNJ}width`);
-    expect(normalizeId(`zero${ZWJ}width`)).toBe(`zero${ZWJ}width`);
+  it("keeps the two format characters where a word needs them", () => {
+    expect(normalizeId(PERSIAN)).toBe(PERSIAN);
+    expect(normalizeId(DEVANAGARI_HALF_FORM)).toBe(DEVANAGARI_HALF_FORM);
   });
 
   it("refuses rather than emptying or shortening", () => {
@@ -72,8 +78,8 @@ describe("normalizeId", () => {
   // is 256 of those and is a name somebody may write.
   it("counts the cap in code points", () => {
     expect(normalizeId("a".repeat(MAX_ID_LENGTH))?.length).toBe(MAX_ID_LENGTH);
-    expect(normalizeId("🍇".repeat(MAX_ID_LENGTH))).not.toBeNull();
-    expect(normalizeId("🍇".repeat(MAX_ID_LENGTH + 1))).toBeNull();
+    expect(normalizeId(ASTRAL_HAN.repeat(MAX_ID_LENGTH))).not.toBeNull();
+    expect(normalizeId(ASTRAL_HAN.repeat(MAX_ID_LENGTH + 1))).toBeNull();
   });
 
   it("is idempotent, which is what makes the id canonical", () => {
@@ -91,12 +97,16 @@ describe("normalizeId", () => {
 });
 
 describe("isNormalizedId", () => {
+  it("accepts a colon", () => {
+    expect(isNormalizedId("noise:loud")).toBe(true);
+    expect(normalizeId("Star Wars: A New Hope")).toBe("star wars: a new hope");
+  });
   it("accepts every id the folding emits", () => {
     for (const input of [
       "Café Bleu",
       "日本",
       "late night",
-      `zero${ZWNJ}width`,
+      PERSIAN,
       "a".repeat(MAX_ID_LENGTH),
     ]) {
       expect(isNormalizedId(normalizeId(input) as string)).toBe(true);
@@ -117,6 +127,115 @@ describe("isNormalizedId", () => {
     expect(isNormalizedId(PRIVATE_USE)).toBe(false);
     expect(isNormalizedId(UNASSIGNED)).toBe(false);
     expect(isNormalizedId("a".repeat(MAX_ID_LENGTH + 1))).toBe(false);
+  });
+
+  // `!`, `#` and `@` at the front of a word are the list's search operators,
+  // so no name or attribute may have one there; anywhere else each is
+  // punctuation.
+  it("refuses a word that starts with !, # or @", () => {
+    for (const id of ["!!!", "!hip", "not !hip", "#1", "#hip", "at @home"]) {
+      expect(isNormalizedId(id)).toBe(false);
+    }
+    expect(normalizeId("！hip")).toBeNull();
+    expect(normalizeId("＃hip")).toBeNull();
+    expect(normalizeId("＠home")).toBeNull();
+    for (const id of ["yahoo!", "panic! at the disco", "a!b", "c#", "a@b"]) {
+      expect(isNormalizedId(id)).toBe(true);
+    }
+  });
+});
+
+describe("isNormalizedId, the allow-list", () => {
+  it("takes letters of any script in use, digits and ordinary punctuation", () => {
+    for (const id of [
+      "joe's pizza & sub-shop",
+      "c++",
+      "ac/dc",
+      "m*a*s*h",
+      "50% off",
+      "$5 €5 £5 ¥5",
+      "«le monde»",
+      "“quoted”",
+      "o’brien",
+      "who? (me) at-home no.1; ¡sí! ¿no? c# a@b",
+      "ʻokina",
+      "हिन्दी",
+      "עברית",
+      "العربية",
+      "ภาษาไทย",
+      "ελληνικά",
+      "ကြို့",
+      "日本語テキスト",
+    ]) {
+      expect([id, isNormalizedId(id)]).toEqual([id, true]);
+    }
+  });
+
+  it("refuses emoji and pictographs, and symbols outside the short list", () => {
+    for (const id of [
+      "🍇",
+      "pizza 🍕",
+      "♥",
+      "a<b",
+      "a=b",
+      "a~b",
+      "a|b",
+      "©",
+      "°",
+    ]) {
+      expect([id, isNormalizedId(id)]).toEqual([id, false]);
+    }
+  });
+
+  // Look-alike spoofing: one word, two scripts (UTS #39, moderately restrictive).
+  it("refuses a word mixing Latin with Cyrillic or Greek", () => {
+    expect(isNormalizedId(`c${CYRILLIC_A}fé bleu`)).toBe(false);
+    expect(isNormalizedId(`${CYRILLIC_ER}izza`)).toBe(false);
+    expect(isNormalizedId("abcαβγ")).toBe(false);
+    expect(isNormalizedId("абвαβγ")).toBe(false);
+  });
+
+  it("allows two scripts side by side, and the usual mixtures in a word", () => {
+    expect(isNormalizedId("café кафе")).toBe(true);
+    expect(isNormalizedId("abc αβγ")).toBe(true);
+    expect(isNormalizedId("tokyo 東京")).toBe(true);
+    expect(isNormalizedId("東京とうきょう")).toBe(true);
+    expect(isNormalizedId("ramenラーメン")).toBe(true);
+    expect(isNormalizedId("서울seoul漢")).toBe(true);
+    expect(isNormalizedId("abcع")).toBe(true);
+    expect(isNormalizedId("कखabc")).toBe(true);
+    expect(isNormalizedId("कखع")).toBe(false);
+  });
+
+  it("refuses invisible and default-ignorable characters", () => {
+    for (const invisible of [
+      0x200b, 0x2060, 0xfeff, 0x00ad, 0x034f, 0x115f, 0x3164, 0xfe0f, 0xe0061,
+    ]) {
+      expect(isNormalizedId(`caf${codePoint(invisible)}é`)).toBe(false);
+    }
+    expect(normalizeId(`caf${RIGHT_TO_LEFT_OVERRIDE}é`)).toBeNull();
+  });
+
+  it("takes ZWNJ and ZWJ only where a script needs them", () => {
+    expect(isNormalizedId(`zero${ZWNJ}width`)).toBe(false);
+    expect(isNormalizedId(`zero${ZWJ}width`)).toBe(false);
+    expect(isNormalizedId(`${ZWNJ}می`)).toBe(false);
+    expect(isNormalizedId(`क${ZWJ}ष`)).toBe(false);
+  });
+
+  // Zalgo text: marks stacked past what any script writes.
+  it("caps the combining marks on one letter", () => {
+    const marks = [0x302, 0x303, 0x304, 0x306, 0x307].map(codePoint);
+    expect(isNormalizedId(`q${marks.slice(0, 4).join("")}`)).toBe(true);
+    expect(isNormalizedId(`q${marks.join("")}`)).toBe(false);
+    expect(isNormalizedId(`q${marks[0]}${marks[0]}`)).toBe(false);
+    expect(isNormalizedId(`${marks[0]}q`)).toBe(false);
+    expect(isNormalizedId(`a -${marks[0]}`)).toBe(false);
+  });
+
+  it("folds full-width to the ordinary letters, which it then allows", () => {
+    expect(normalizeId("ＤＡＴＥ ｎｉｇｈｔ")).toBe("date night");
+    expect(isNormalizedId("ｄａｔｅ")).toBe(false);
   });
 });
 

@@ -6,7 +6,22 @@ import { searchRanges, validateItemId } from "../utils/items";
 // before the write, rather than as an error nobody can read.
 describe("validateItemId", () => {
   it("accepts a name in any script, with its accents and its spaces", () => {
-    for (const typed of ["Café  Bleu", "日本", "late night", "!!!"]) {
+    for (const typed of ["Café  Bleu", "日本", "late night", "...", "yahoo!"]) {
+      expect(validateItemId(typed)).toBeNull();
+    }
+  });
+
+  // `!`, `#` and `@` at the front of a word are search's operators (DESIGN §1 "Search").
+  it("refuses a word that starts with !, # or @, and says why", () => {
+    const refusal = "a word can’t start with !, # or @.";
+    expect(validateItemId("!!!")).toBe(refusal);
+    expect(validateItemId("not !hip")).toBe(refusal);
+    expect(validateItemId("#1 hits")).toBe(refusal);
+    expect(validateItemId("at @home")).toBe(refusal);
+  });
+
+  it("accepts !, # and @ anywhere else in a word, and a colon", () => {
+    for (const typed of ["c#", "a@b", "star wars: a new hope", "noise:loud"]) {
       expect(validateItemId(typed)).toBeNull();
     }
   });
@@ -16,13 +31,27 @@ describe("validateItemId", () => {
   });
 
   it("refuses a name past the length the column allows", () => {
-    expect(validateItemId("x".repeat(129))).not.toBeNull();
+    expect(validateItemId("x".repeat(129))).toBe("at most 128 characters.");
   });
 
   // A bidi override reverses the rest of the row it is drawn in, which is why
   // the refusals are a category list rather than a pattern.
   it("refuses a character no font can draw", () => {
-    expect(validateItemId("caf‮eleb")).not.toBeNull();
+    expect(validateItemId("caf‮eleb")).toBe(
+      "letters, numbers and ordinary punctuation only.",
+    );
+  });
+
+  it("refuses an emoji, and says what a name may hold", () => {
+    expect(validateItemId("pizza 🍕")).toBe(
+      "letters, numbers and ordinary punctuation only.",
+    );
+  });
+
+  // A Cyrillic `а` in a Latin word is the look-alike no reader can see.
+  it("refuses a word that mixes alphabets, and says so", () => {
+    expect(validateItemId("c\u0430fé")).toBe("a word can’t mix alphabets.");
+    expect(validateItemId("café кафе")).toBeNull();
   });
 });
 
@@ -44,7 +73,7 @@ describe("searchRanges", () => {
   });
 
   it("reads no stripped range for a query that strips to nothing", () => {
-    expect(searchRanges("!!!")).toEqual([{ column: "id", prefix: "!!!" }]);
+    expect(searchRanges("...")).toEqual([{ column: "id", prefix: "..." }]);
   });
 
   it("reads nothing for an empty box", () => {
