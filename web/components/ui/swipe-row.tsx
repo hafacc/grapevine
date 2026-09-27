@@ -71,6 +71,9 @@ export default function SwipeRow({
   children: ReactNode;
 }): ReactElement {
   const [offset, setOffset] = useState(0);
+  // What letting go reads: the rendered `offset` can be a frame behind a
+  // quick drag back, and acting on it would fire a swipe that was taken back.
+  const latest = useRef(0);
   const [dragging, setDragging] = useState(false);
   const start = useRef<{ x: number; y: number; engaged: boolean } | null>(null);
 
@@ -96,20 +99,21 @@ export default function SwipeRow({
       event.currentTarget.setPointerCapture(event.pointerId);
       setDragging(true);
     }
-    setOffset(
-      Math.max(
-        sides === "yes" ? 0 : -travel,
-        Math.min(sides === "no" ? 0 : travel, across),
-      ),
+    latest.current = Math.max(
+      sides === "yes" ? 0 : -travel,
+      Math.min(sides === "no" ? 0 : travel, across),
     );
+    setOffset(latest.current);
   }
 
   function onPointerEnd(): void {
     const engaged = start.current?.engaged ?? false;
     start.current = null;
     setDragging(false);
-    if (engaged && Math.abs(offset) >= travel / 2) {
-      const direction: SwipeDirection = offset > 0 ? "right" : "left";
+    const released = latest.current;
+    latest.current = 0;
+    if (engaged && Math.abs(released) >= travel / 2) {
+      const direction: SwipeDirection = released > 0 ? "right" : "left";
       onRate(swipeOutcome(value, direction).next);
     }
     setOffset(0);
