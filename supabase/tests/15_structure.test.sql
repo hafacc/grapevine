@@ -173,8 +173,8 @@ select is(
   (select count(*)::int from pg_tables
    where schemaname = 'public' and not rowsecurity
      and tablename in ('profiles', 'friendships', 'items', 'ratings',
-                       'user_recs', 'user_model', 'invite_links')),
-  0, 'row-level security is on for all seven tables in public');
+                       'user_recs', 'user_model', 'invite_links', 'reports')),
+  0, 'row-level security is on for all eight tables in public');
 
 -- Postgres grants EXECUTE on a new function to PUBLIC by default, which is the
 -- hazard DESIGN §3.3 names: "no client verb" is not the default here, and has

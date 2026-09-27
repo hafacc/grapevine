@@ -21,10 +21,11 @@ import {
   useMyRatings,
 } from "../utils/ratings";
 import { useMyRecs } from "../utils/recs";
+import { reportName } from "../utils/reports";
 import { useGrapevine } from "../utils/store";
 import type { RatingValue } from "../utils/types";
 import AvatarButton from "./avatar-button";
-import { useAction } from "./dialog";
+import { useAction, useDialog } from "./dialog";
 import LoadFailure from "./load-failure";
 import AddButton from "./ui/add-button";
 import Bar from "./ui/bar";
@@ -91,7 +92,14 @@ export default function EntityView({
   const { ratings, failed: ratingsFailed } = useMyRatings();
   const { byItemId, error, failed: feedFailed } = useMyRecs();
   const run = useAction();
+  const { confirm, alert } = useDialog();
   const [query, setQuery] = useState("");
+  // Whether the catalog answered that this name exists, which is when it is
+  // somebody's to report; a name only the viewer has typed is not.
+  const [inCatalog, setInCatalog] = useState<string | null>(null);
+  // Reported from this screen this session. Nothing can be read back, so this
+  // is only what stops the line being offered twice.
+  const [reported, setReported] = useState<string | null>(null);
   const [hideRated, setHideRated] = useState(false);
 
   // Carried with the thing they were tapped on rather than cleared by an
@@ -121,6 +129,9 @@ export default function EntityView({
       .then((item) => item !== null)
       .catch(() => false);
     catalogued.current = asked;
+    void asked.then((found) => {
+      if (found) setInCatalog(itemId);
+    });
     return () => {
       if (catalogued.current === asked) catalogued.current = null;
     };
@@ -223,6 +234,25 @@ export default function EntityView({
     });
   }
 
+  // Anyone can name a thing and nobody can rename one, so a name that is abuse,
+  // a private person or spam is reported to the owner, who can remove it for
+  // everyone (0013). No reason is asked for: the owner reads the name.
+  async function report(): Promise<void> {
+    const sure = await confirm({
+      title: "report this name?",
+      body: "for a name that is abusive, names a private person, or is spam. it's looked at by hand, and a removed name is gone for everyone.",
+      confirmLabel: "report",
+      tone: "danger",
+    });
+    if (!sure) return;
+    run(async () => {
+      await reportName(itemId);
+      setReported(itemId);
+      await alert({ title: "thanks. it'll be looked at." });
+    }, "that didn't send. check your connection and try again.");
+  }
+  const reportable = entry !== undefined || inCatalog === itemId;
+
   const ownSaid = answered(own);
   return (
     <div className="flex h-full min-h-0 flex-col bg-bg">
@@ -318,6 +348,18 @@ export default function EntityView({
               />
             ))}
           </div>
+
+          {/* Last, and quiet: it is about the name, not the thing's rating. */}
+          {reportable ? (
+            <button
+              type="button"
+              disabled={reported === itemId}
+              onClick={() => void report()}
+              className="mt-auto block w-full border-t border-border bg-surface px-4 py-3 text-left text-[15px] text-muted focus-visible:outline-offset-[-2px] disabled:cursor-default"
+            >
+              {reported === itemId ? "reported" : "report this name"}
+            </button>
+          ) : null}
         </div>
       </main>
 

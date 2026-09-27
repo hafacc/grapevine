@@ -1,7 +1,8 @@
 import { DAILY_LIMIT_MESSAGE, errorCode, isDailyLimit } from "./supabase";
 
-// A write refused outright (0010): the account is locked, which the server is
-// asked to confirm rather than assumed.
+// A write refused outright (0010, 0013): either the account is locked, or the
+// row names a thing that was removed. The code does not tell the two apart, so
+// the lock is asked of the server.
 export function isRefused(error: unknown): boolean {
   return errorCode(error) === "42501";
 }
@@ -18,6 +19,8 @@ export function isForbiddenCall(error: unknown): boolean {
   );
 }
 
+export const NAME_REMOVED_MESSAGE = "that name was removed.";
+
 export type WriteFailure =
   // The locked screen takes over, which says it better than a message would.
   | { readonly kind: "locked" }
@@ -25,7 +28,8 @@ export type WriteFailure =
 
 /**
  * What to tell somebody whose write failed. `checkLocked` is only asked on a
- * refusal, and a failed check falls back to `fallback`.
+ * refusal, and a failed check falls back to `fallback`: saying "removed" about
+ * an account that is in fact locked would send them looking for the wrong fix.
  */
 export async function explainWriteFailure(
   error: unknown,
@@ -45,7 +49,7 @@ export async function explainWriteFailure(
     return { kind: "message", text: fallback };
   }
   if (locked) return { kind: "locked" };
-  else return { kind: "message", text: fallback };
+  else return { kind: "message", text: NAME_REMOVED_MESSAGE };
 }
 
 /**
@@ -56,11 +60,12 @@ export async function explainWriteFailure(
 export async function lockedAfterUnfriend(
   checkLocked: () => Promise<boolean>,
   friendsLeft: number,
+  admin: boolean,
 ): Promise<boolean> {
   try {
     return await checkLocked();
   } catch (error) {
     console.error("locked", error);
-    return friendsLeft === 0;
+    return friendsLeft === 0 && !admin;
   }
 }

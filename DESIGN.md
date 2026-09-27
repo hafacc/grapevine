@@ -98,7 +98,9 @@ the avatar in the corner. Everything user-facing is lower case.
    tint is unreadable to anyone who cannot see the tint. The same toggle in the feed hides
    things the viewer has rated. At the end of the attribute list a row of dashed chips
    proposes attributes to apply (§2.11) under the heading *suggested*, which claims nothing
-   about who: "people like you use this" is an attribution and §4 forbids it.
+   about who: "people like you use this" is an attribution and §4 forbids it. Last, for a
+   name the catalog or the feed holds, a quiet *report this name* line (§4 "Item names"),
+   which asks first and then says *reported*.
 
    The attribute list on a thing contains only attributes somebody has **rated**. A chip the
    viewer taps but never thumbs creates nothing — it is provisional on the client and never
@@ -173,16 +175,16 @@ the avatar in the corner. Everything user-facing is lower case.
    someone for theirs.*, with *sign out* and *delete your account*. Removing the last person
    asks first: *they're the last person in your vine. your account will be locked until
    someone sends you a link.*
-7. **The first list, and nothing to show.** Everyone arrives through a link, so their first
-   list is already their vine's ratings. Over it, once per viewer on a device, sits
+7. **The first list, and nothing to show.** Everyone but an admin arrives through a link, so
+   their first list is already their vine's ratings. Over it, once per viewer on a device, sits
    one line: *this list comes from your vine. swipe right for yes, left for no.* (at desktop
    width, only the first sentence: the thumbs on the buttons say the rest), with a close
    button. Closing it or rating anything puts it away for good. It waits for a list with rows
    in it, because a gesture taught before there is anything to use it on teaches nothing.
-   A list that is really empty — a vine that has rated nothing yet — reads *nothing here yet.
-   search to add something, or add people to your vine.* with an *add to your vine* button.
-   When the eye has hidden every row there is, the list says *you've rated everything here.
-   the eye shows it again.* instead.
+   A list that is really empty — an admin with no vine, or a vine that has rated nothing yet —
+   reads *nothing here yet. search to add something, or add people to your vine.* with an
+   *add to your vine* button. When the eye has hidden every row there is, the list says
+   *you've rated everything here. the eye shows it again.* instead.
 8. **Desktop keeps the mobile layout** and replaces the swipe with a button welded to each
    side of a row — no on the left, yes on the right — tinted the same soft green and red that
    a rated row gets, with the coloured glyph on top. The side matching the viewer's current
@@ -1233,6 +1235,7 @@ items             (id text pk, search_id text not null, created_at, created_by u
                   -- client-written from `searchFold`, its own text_pattern_ops index,
                   -- checked by a script rather than by a trigger (below)
 ratings           (user_id, item_id, tag) pk, value smallint, rated_at timestamptz
+reports           (user_id, item_id) pk, created_at      -- insert only; nobody reads one
 user_recs         (user_id pk, computed_at, entries jsonb, feed_hash text,
                    error real not null)          -- max(truncation·L, settle movement); §1
 user_model        (user_id pk, computed_at, checked_at, nodes_touched,
@@ -1247,6 +1250,8 @@ private.params        (one row: computed_at, kappa, a0_d1, a0_d2, a0_d3plus, sam
 private.debug_events  (id, user_id, kind, detail, at, expires)
 private.ratings_changed (user_id pk, changed_at)                      -- trigger-written
 private.write_budget  (user_id, day) pk, writes                       -- trigger-written
+private.removed_names (id pk, removed_at)                             -- the owner's, §4
+private.admins        (user_id pk, added_at)                          -- written by hand, §4
 ```
 
 - **`friendships` is the adjacency**, a join is the read, and a deferred constraint trigger
@@ -1457,7 +1462,7 @@ Five conventions:
   `created_at`, `created_by`, `since`, `rated_at`, `at` and `expires` unforgeable.
 - **Table privileges.** "No update verb and no delete verb, for anyone" is a `REVOKE`.
 - **A daily write budget, in the database.** Every rating insert or update, every item created,
-  every link turned on, replaced or redeemed and every diagnostics event draws on one allowance per account per
+  every link turned on, replaced or redeemed, every report and every diagnostics event draws on one allowance per account per
   UTC day, a number written once, in `private.daily_write_limit()`; deletes draw nothing. A
   `security definer` BEFORE trigger counts against `auth.uid()` in `private.write_budget` and
   refuses the write past the allowance with SQLSTATE `PT429`, which PostgREST serves as HTTP 429
@@ -1478,7 +1483,9 @@ friendship is deletable from either end and insertable by no client at all — `
 writes both halves. `user_recs` is readable by its owner and writable by nobody, since the Edge
 Function writes as `service_role`, which bypasses RLS. `user_model` is readable by nobody at
 all, so alignment never leaves the server. Items are readable by every signed-in user and
-creatable by them, with no update and no delete for anyone.
+creatable by them, with no update and no delete for anyone but the owner's `remove_name`. A
+report is insertable by its author and readable by no client; an admin sees how many each name
+has, through `reported_names()` (§4).
 
 **The whole of what a client may call**, and it is short, because a stored procedure here is a
 transaction rather than a server: `set_invite_link()` (after `has_credential()`; mints a token
@@ -1488,9 +1495,11 @@ them), `redeem_invite(text)` (after `has_credential()`; spends one write
 whether or not the token matches, then writes both friendship rows — `security definer`,
 because it writes the owner's half of the edge, which the owner authorized by handing the link
 over, and the caller by saying yes), `record_debug_event(text, text)`, which is the only write
-verb on a table in `private` and supplies none of the three columns it stamps, and
-`account_locked()` (§3.6; whether the caller has no connection), and `delete_account()` (§4),
-which takes no argument and deletes the caller's own `auth.users` row.
+verb on a table in `private` and supplies none of the three columns it stamps, an INSERT of
+one name into `reports` (§4), `account_locked()` (§3.6; whether the caller has no connection),
+`account_is_admin()`, `reported_names()`, `remove_reported_name(text)` and `dismiss_reports(text)`
+(§4; each answers only an admin),
+and `delete_account()` (§4), which takes no argument and deletes the caller's own `auth.users` row.
 
 Two triggers complete the schema and neither is callable: `handle_new_user()` on `auth.users`
 creates the profile row in the same transaction as the account, so "the profile is missing"
@@ -1779,7 +1788,7 @@ looks. So every Google sign-in creates an account, and the gate is on what the a
 - **Locked means no connection.** Nothing stores the lock: `private.is_unlocked()` reads
   `friendships`, so an account that never joined and one that removed its last connection, or
   whose last connection deleted their account, are locked by one rule. `private.count_write`,
-  the trigger every counted write already goes through — a rating, an item, a link, a
+  the trigger every counted write already goes through — a rating, an item, a report, a link, a
   diagnostic — refuses a locked caller before it spends anything, and a second trigger
   refuses the two client writes it does not see, a name update and clearing a thumb, with the
   same error rather than by matching no row.
@@ -1793,6 +1802,8 @@ looks. So every Google sign-in creates an account, and the gate is on what the a
 - **Nothing is deleted.** A locked account keeps its ratings, and can sign out, delete itself
   and answer a link. Every account with no connection when `0010` applies is locked like any
   other.
+- **Admins are never locked** (migration `0014`, §4), with or without a connection. That is the
+  bootstrap: the first account is made an admin by hand and makes the first link.
 - **A Google account with no name is called *unknown***, rather than asked: there is no name
   screen, and the name is changed on the people screen like any other.
 
@@ -1905,9 +1916,23 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   three limits: names are rendered as plain text, never as links or markup; the folding
   refuses control characters, so a bidirectional override cannot reverse the row a name is
   drawn in; and a misleading name occupies only itself — anyone else can still create and
-  find the name they meant, since identity is exact. A report-and-hide mechanism (per viewer,
-  then admin) is the planned remedy, and it is also the remedy for a homograph of an existing
-  name, which §3.2 says is bounded rather than prevented.
+  find the name they meant, since identity is exact. **A name can be reported**, from the
+  quiet *report this name* line at the end of the thing's screen (§1 item 4): a `reports` row the
+  client may insert and nobody may read through the API, one per person per name, no reason
+  asked, one write spent. An **admin** — a row in `private.admins`, written by hand, which no
+  client reads — reviews them in a queue on the people screen: every reported name with how many
+  reported it, never who. `reported_names()`, `remove_reported_name(text)` and
+  `dismiss_reports(text)` check `private.is_admin()` before anything else and answer anybody
+  else nothing or a refusal. Dismissing deletes a name's reports and keeps the name. Removing
+  calls `private.remove_name(text)`, which no client can call directly: it deletes every thumb
+  that names it,
+  as a thing or as an attribute, its catalog row and its reports, strips it from every stored
+  feed, and adds it to `private.removed_names`, which restrictive insert policies on `items`,
+  `ratings` and `reports` check so it cannot be typed back or reported again. Removal rather than a hidden flag the client
+  filters: a flag would still ship the name in every feed that carries it, readable to anyone
+  with DevTools, and leave thumbs pointing at it; a report is about text that should not be
+  served at all. The same path is the remedy for a homograph of an existing name, which §3.2
+  says is bounded rather than prevented.
 - Alignments are never shown, so there is no way to learn "the app thinks you and X
   disagree". There is no per-friend trust map (§2.5), and `user_model` is readable by nobody,
   not even its owner (§3.3). Nothing about alignment leaves the server.

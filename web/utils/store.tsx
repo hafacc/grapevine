@@ -614,7 +614,8 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     let reported = false;
 
     /**
-     * The profile, and whether the account is locked (0010).
+     * The profile, whether the account is locked (0010) and whether it is an
+     * admin (0014).
      *
      * A read that FAILED leaves `profileReady` false and reports the session as
      * unreachable, so a returning viewer with no network sees "can't reach us"
@@ -834,7 +835,13 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
         current.filter((entry) => entry.uid !== friendUid),
       );
       // The last connection locks the account (0010).
-      showLocked(await lockedAfterUnfriend(fetchLocked, left.length));
+      showLocked(
+        await lockedAfterUnfriend(
+          fetchLocked,
+          left.length,
+          Boolean(profileRef.current?.admin),
+        ),
+      );
     },
     [uid, friends, showLocked],
   );

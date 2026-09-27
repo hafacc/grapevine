@@ -48,7 +48,7 @@ export function useDialog(): DialogContextValue {
   return ctx;
 }
 
-// Run a fire-and-forget async action (removing a friend, a
+// Run a fire-and-forget async action (a report, removing a friend, a
 // delete) so a policy refusing the write, or the network never answering,
 // surfaces as a dialog instead of an unhandled rejection + a button that
 // silently does nothing. Returns a void-returning handler suitable for onClick.
