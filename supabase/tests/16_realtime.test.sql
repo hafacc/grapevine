@@ -7,7 +7,7 @@
 -- subscribes to a table this file does not publish.
 
 begin;
-select plan(9);
+select plan(8);
 
 select is(
   (select count(*)::int from pg_publication where pubname = 'supabase_realtime'),
@@ -17,15 +17,15 @@ select is(
   (select string_agg(tablename, ',' order by tablename)
    from pg_publication_tables
    where pubname = 'supabase_realtime' and schemaname = 'public'),
-  'connect_requests,friendships,user_recs',
-  'and carries the three tables the client listens to');
+  'friendships,user_recs',
+  'and carries the two tables the client listens to');
 
 -- A policy is evaluated against a row, and a deleted row is gone, so RLS cannot
 -- be applied to a DELETE: every subscriber whose filter matches receives it,
--- carrying the replica identity — for `connect_requests`, both uuids. A client
--- subscribing with no filter would get a pair for every accept, decline and
--- withdrawal in the instance, which is who-knows-whom globally, and DESIGN §4
--- says friend lists are private.
+-- carrying the replica identity — for `friendships`, both uuids. A client
+-- subscribing with no filter would get a pair for every unfriending in the
+-- instance, which is who-knows-whom globally, and DESIGN §4 says friend lists
+-- are private.
 select ok(
   (select not pubdelete from pg_publication where pubname = 'supabase_realtime'),
   'and publishes no delete events, which RLS cannot bound');
@@ -38,13 +38,13 @@ select ok(
 
 -- Membership is not itself a decision to publish anything: what a subscriber
 -- receives is what their own SELECT policy admits, evaluated as them. So the
--- three published tables must each be under RLS with a policy that names the
+-- two published tables must each be under RLS with a policy that names the
 -- viewer — a published table with RLS off would broadcast every row to
 -- everybody.
 select is(
   (select count(*)::int from pg_tables
    where schemaname = 'public'
-     and tablename in ('user_recs', 'connect_requests', 'friendships')
+     and tablename in ('user_recs', 'friendships')
      and not rowsecurity),
   0, 'each published table is under row-level security');
 select is(
@@ -54,14 +54,9 @@ select is(
   1, 'a feed reaches its owner and nobody else');
 select is(
   (select count(*)::int from pg_policies
-   where schemaname = 'public' and tablename = 'connect_requests' and cmd = 'SELECT'
-     and qual like '%auth.uid()%'),
-  1, 'a request reaches its two parties');
-select is(
-  (select count(*)::int from pg_policies
    where schemaname = 'public' and tablename = 'friendships' and cmd = 'SELECT'
      and qual like '%auth.uid()%'),
-  1, 'and a new edge — the accept signal that replaces the delete — its two ends');
+  1, 'and a new edge — how a link''s owner learns of a new friend — its two ends');
 
 select * from finish();
 rollback;

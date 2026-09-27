@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   # Its own job: the crate has no Node, no bun and no database, and it is where
-  # the Edge Functions are compiled, because the wasm they read is built here.
+  # the Edge Function is compiled, because the wasm it reads is built here.
   # The toolchain comes from rust/rust-toolchain.toml, which rustup honours on
   # its own.
   rust:
@@ -49,7 +49,7 @@ jobs:
           tool: wasm-pack@0.15.0
 
       # Two targets, and only one of them has a caller that ships: `web` glue
-      # takes the bytes and is what the two Deno Edge Functions load. The
+      # takes the bytes and is what the Deno Edge Function loads. The
       # `nodejs` one is built because `examples/smoke.mjs` below runs it — the
       # only thing that exercises the boundary outside Deno, and letting the
       # untested target break unnoticed is what this line prevents.
@@ -60,23 +60,23 @@ jobs:
       # The script resolves the module against its own path, so it runs from anywhere.
       - run: node examples/smoke.mjs
 
-      # The Edge Functions, which nothing else compiles. `supabase functions
-      # deploy` bundles them with esbuild, which does not typecheck, and they
-      # import `shared/src/entries.ts` — a file two other packages DO typecheck,
+      # The Edge Function, which nothing else compiles. `supabase functions
+      # deploy` bundles it with esbuild, which does not typecheck, and it
+      # imports `shared/src/entries.ts` — a file two other packages DO typecheck,
       # so a signature change there is green in both and breaks only here. It
-      # runs in this job because this is where the `web` wasm they import has
+      # runs in this job because this is where the `web` wasm it imports has
       # just been built.
       - uses: denoland/setup-deno@v2
         with:
           deno-version: 2.9.6
 
-      - run: deno check supabase/functions/refresh-recs/index.ts supabase/functions/refresh-suggestions/index.ts
+      - run: deno check supabase/functions/refresh-recs/index.ts
         working-directory: .
 
       # `deno lint` and not just `check`: `no-unused-vars` is the rule that
       # catches an import left behind by a refactor, and `biome` never sees these
       # files.
-      - run: deno lint supabase/functions/refresh-recs/index.ts supabase/functions/refresh-suggestions/index.ts
+      - run: deno lint supabase/functions/refresh-recs/index.ts
         working-directory: .
 
   check:
@@ -101,7 +101,7 @@ jobs:
       # The artifact a deploy publishes. It belongs in the gate and not only in
       # the deploy: web.yml builds the site in a job that `needs: supabase`, so
       # a build failing only there would go red after forward-only migrations
-      # and both Edge Functions had reached production, leaving the database
+      # and the Edge Function had reached production, leaving the database
       # ahead of a site stuck on the last good version with no rollback on the
       # free tier. It needs no secret and no stack.
       - run: bun export
@@ -156,7 +156,7 @@ jobs:
       # is plpgsql_check inside the database and `test db` applies the migrations
       # to it. Docker is on the runner already; nothing here needs a project ref,
       # a key or a network. Only the database and what the suites touch: the
-      # Edge Runtime would serve both functions, whose `static_files` name a
+      # Edge Runtime would serve the function, whose `static_files` name a
       # `.wasm` this job never builds, and the rest is a browser UI and its
       # logging.
       - run: supabase start -x edge-runtime,studio,imgproxy,logflare,vector

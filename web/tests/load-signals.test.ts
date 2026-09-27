@@ -81,23 +81,3 @@ describe("a failed read is never drawn as an empty one", () => {
     });
   }
 });
-
-describe("a switch is never drawn at its default before the row answers", () => {
-  it("the store reports whether the preferences have been read", () => {
-    const store = readFileSync(join(here, "utils/store.tsx"), "utf8");
-    expect(store).toContain("prefsReady,");
-    expect(store).toContain("prefsUnreachable,");
-  });
-
-  // `DEFAULT_PREFS` is "off", and off is a claim about a privacy switch.
-  it("every screen reading prefs reads prefsReady", () => {
-    expect(
-      callers("useGrapevine")
-        .filter(
-          ({ names }) =>
-            names.includes("prefs") && !names.includes("prefsReady"),
-        )
-        .map(({ path }) => path),
-    ).toEqual([]);
-  });
-});

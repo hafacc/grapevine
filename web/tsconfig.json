@@ -12,14 +12,14 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     // `shared/` has no build step: it is TypeScript source, imported here and
-    // by both Edge Functions, so id normalization has exactly one definition.
+    // by the Edge Function, so id normalization has exactly one definition.
     // A path alias rather than a `file:` dependency because bun installs one as
     // a tree of symlinks Turbopack refuses to follow.
     // No `baseUrl`: TypeScript 7 removed it, and paths resolve against this
     // file's directory without one.
     "paths": {
       "grapevine-shared": ["../shared/src/index.ts"],
-      // `entries.ts` too, for the one type the Edge Functions and this app both
+      // `entries.ts` too, for the one type the Edge Function and this app both
       // have to agree on. It is a separate entry because that module imports
       // `./index.ts` by its real name — Deno resolves the path it is given —
       // which is also why `allowImportingTsExtensions` is on below.
@@ -27,7 +27,7 @@
       // The *suggested* rail's estimator, its own entry because it is the one
       // module here nothing on a server imports — it reads the viewer's own
       // ratings and nothing else (DESIGN §2.11), and folding it into
-      // `index.ts` would put it in the Edge Functions' bundles.
+      // `index.ts` would put it in the Edge Function's bundle.
       "grapevine-shared/suggest-attributes": [
         "../shared/src/suggest-attributes.ts"
       ],

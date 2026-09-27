@@ -1,8 +1,8 @@
 -- Who can read a profile, and what a display name may be.
 --
 -- There are no handles: nobody is found by typing anything, so there is no
--- lookup by key for a stranger at all, and a stranger's row is unreadable
--- whatever they have switched on. A name is the default from Google — the
+-- lookup by key for a stranger at all, and a stranger's row is unreadable.
+-- The only profiles a caller reads are their own and their friends'. A name is the default from Google — the
 -- first name — and anything its owner types after that, short of a control
 -- character or a bidirectional mark.
 
@@ -13,7 +13,7 @@ insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) value
   ('11111111-1111-1111-1111-111111111111', 'owner@example.com',     now(), '{}'),
   ('22222222-2222-2222-2222-222222222222', 'stranger@example.com',  now(), '{}'),
   ('33333333-3333-3333-3333-333333333333', 'friend@example.com',    now(), '{}'),
-  ('44444444-4444-4444-4444-444444444444', 'discover@example.com',  now(), '{}');
+  ('44444444-4444-4444-4444-444444444444', 'another@example.com',   now(), '{}');
 create or replace function private.is_unlocked(p_user uuid) returns boolean
   language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
@@ -46,9 +46,7 @@ select is((select char_length(display_name) from public.profiles where id = 'a00
 update public.profiles set display_name = 'Owner'    where id = '11111111-1111-1111-1111-111111111111';
 update public.profiles set display_name = 'Stranger' where id = '22222222-2222-2222-2222-222222222222';
 update public.profiles set display_name = 'Friend'   where id = '33333333-3333-3333-3333-333333333333';
-update public.profiles set display_name = 'Discover' where id = '44444444-4444-4444-4444-444444444444';
-update public.user_prefs set discoverable_by_taste = true
-  where user_id = '44444444-4444-4444-4444-444444444444';
+update public.profiles set display_name = 'Another' where id = '44444444-4444-4444-4444-444444444444';
 
 insert into public.friendships (user_id, friend_id) values
   ('11111111-1111-1111-1111-111111111111', '33333333-3333-3333-3333-333333333333'),
@@ -69,17 +67,17 @@ select is(
   0, 'a stranger''s is not');
 select is(
   (select count(*)::int from public.profiles where id = '44444444-4444-4444-4444-444444444444'),
-  0, 'nor a discoverable stranger''s who was never suggested to you');
+  0, 'nor any other stranger''s');
 
--- No clause matches a stranger, so the whole-table read returns the caller,
--- their friends, their counterparties and their at-most-five suggestions.
+-- No clause matches a stranger, so the whole-table read returns the caller and
+-- their friends.
 select is(
   (select count(*)::int from public.profiles),
   2, 'the profile table cannot be enumerated');
 
-select is((select count(*)::int from public.user_prefs
-           where user_id = '44444444-4444-4444-4444-444444444444'),
-          0, 'a stranger''s prefs stay unreadable');
+select throws_ok(
+  $$select 1 from public.user_prefs$$, '42P01', null,
+  'there are no prefs: the suggestions switch went with taste search');
 select is((select count(*)::int from public.friendships
            where user_id = '44444444-4444-4444-4444-444444444444'),
           0, 'and so do their friend edges');

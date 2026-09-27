@@ -289,6 +289,9 @@ tables. The worst converged loop measured spends 2.5 million (2 000 × 50, deep)
 
 ## 9. Whether one viewer's taste search fits on demand — measured
 
+Taste search has since been removed from the product; its code, `suggest-cost.rs` included,
+is in version-control history. The measurements are kept.
+
 DESIGN §3.7 runs taste search on demand on the strength of this measurement. The tool is
 `rust/examples/suggest-cost.rs`, over the same world as section 8:
 

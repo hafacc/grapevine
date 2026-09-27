@@ -53,7 +53,8 @@ select throws_ok(
     where id = (select auth.uid())$$, '42501', null,
   'nor a profile re-keyed');
 
--- The two verbs that survive on an edge, and the two that do not.
+-- The two verbs a client has on an edge. There is no insert: `redeem_invite`
+-- writes both halves as its owner (0011).
 select is(
   (select string_agg(distinct privilege_type, ',' order by privilege_type)
    from information_schema.table_privileges
@@ -64,7 +65,7 @@ select is(
    from information_schema.column_privileges
    where table_schema = 'public' and table_name = 'friendships'
      and grantee = 'authenticated' and privilege_type = 'INSERT'),
-  'friend_id,user_id', 'and written with two uuids — `since` is the server''s');
+  null, 'and written by no client at all');
 
 select * from finish();
 rollback;

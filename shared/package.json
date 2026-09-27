@@ -3,7 +3,7 @@
   "name": "grapevine-shared",
   "version": "0.0.0",
   "type": "module",
-  "description": "Pure TypeScript shared by the web app and the Edge Functions: no dependencies.",
+  "description": "Pure TypeScript shared by the web app and the Edge Function: no dependencies.",
   "main": "src/index.ts",
   "engines": {
     "bun": ">=1.3.0"

@@ -70,9 +70,9 @@ describe("the Realtime publication", () => {
 
   // Realtime applies the subscriber's own SELECT policy to each changed row —
   // except on a DELETE, where there is no row left to apply it to and every
-  // matching subscriber is sent the primary key. `connect_requests`' key is
-  // both uuids, so a client subscribing with no filter would receive a pair for
-  // every accept, decline and withdrawal in the instance. The publication is
+  // matching subscriber is sent the primary key. `friendships`' key is both
+  // uuids, so a client subscribing with no filter would receive a pair for
+  // every unfriending in the instance. The publication is
   // therefore inserts and updates only, and that is load-bearing rather than
   // tidy.
   it("publishes no delete events", () => {

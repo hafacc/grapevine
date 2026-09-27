@@ -73,7 +73,8 @@ impl Default for Params {
 }
 
 impl Params {
-    /// The deep budget of DESIGN section 2.8: the wider, tighter search taste search runs at.
+    /// The deep budget of DESIGN section 2.8: a wider, tighter walk, which the sybil suite also
+    /// checks.
     pub fn deep() -> Self {
         Params {
             error_budget: 0.001,

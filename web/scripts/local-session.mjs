@@ -231,7 +231,7 @@ export function ownerSql() {
  * The service role, which no policy applies to.
  *
  * `role=service_role` is a startup parameter rather than a connection string
- * taken at its word — the same shape the Edge Functions use, so what a check
+ * taken at its word — the same shape the Edge Function uses, so what a check
  * reads back is what `0002_grants.sql` actually allows rather than what the
  * owner of the database could see.
  */

@@ -11,8 +11,8 @@ use grapevine_core::{Params, Rng, WorldConfig, compute_user, simulate};
 
 fn main() -> ExitCode {
     let mut seed = 7u64;
-    // The world the taste-search checks seed, so the numbers are comparable with the suggestion
-    // measurements.
+    // A spread-out world, so the numbers are comparable with the measurements in
+    // `docs/algorithm-notes.md` §9.
     let mut config = WorldConfig {
         users: 150,
         items: 500,

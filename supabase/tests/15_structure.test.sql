@@ -60,15 +60,15 @@ select ok(
   has_function_privilege('service_role', 'private.neighbourhood(uuid, int, int)', 'execute'),
   'while service_role, which reaches them over a direct connection, does');
 
--- The eight functions in 0001 are created before 0002 turns off
+-- The functions 0001 creates, and 0011 left, are created before 0002 turns off
 -- Postgres' default of granting EXECUTE on a new function to PUBLIC, so a
 -- revoke list that named only the functions created after it would leave them
 -- at `proacl = NULL` — the built-in default, which is EXECUTE to PUBLIC. None is
--- reachable (no USAGE on the schema, and six of them return `trigger`, which
+-- reachable (no USAGE on the schema, and five of them return `trigger`, which
 -- is not a type a caller can pass or receive), but DESIGN §3.3 claims both locks rather
 -- than one, and an exception that has to be discovered is not a lock.
 --
--- `is_normalized_id` is the one of the eight that a client role really does
+-- `is_normalized_id` is the one of them that a client role really does
 -- hold EXECUTE on, because a CHECK constraint calling a function checks it
 -- against the role doing the INSERT. It is still behind the schema lock, and
 -- PUBLIC is still not in its ACL, which is what this asks.
@@ -77,11 +77,10 @@ select is(
    where p.pronamespace = 'private'::regnamespace
      and p.proname in ('assert_symmetric', 'handle_new_user',
                        'stamp_ratings_changed', 'stamp_rating_flip',
-                       'forget_suggestions_search',
                        'count_write', 'daily_write_limit', 'is_normalized_id')
      and (p.proacl is null
           or exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0))),
-  0, 'the eight functions 0001 creates carry an explicit ACL, and PUBLIC is not in it');
+  0, 'the functions 0001 creates carry an explicit ACL, and PUBLIC is not in it');
 
 -- A trigger fires with no EXECUTE check — that check happens once, when the
 -- trigger is created — so the revoke above costs the triggers nothing, and
@@ -99,10 +98,13 @@ select is(
 -- is_friend".
 select ok(
   has_function_privilege('authenticated', 'private.is_friend(uuid)', 'execute'),
-  'the five policy helpers DO carry EXECUTE for authenticated');
-select ok(
-  has_function_privilege('authenticated', 'private.is_discoverable(uuid)', 'execute'),
-  'all five of them');
+  'the policy helper DOES carry EXECUTE for authenticated');
+select is(
+  (select count(*)::int from pg_proc
+   where pronamespace = 'private'::regnamespace
+     and proname in ('is_discoverable', 'is_suggested_to_me',
+                     'has_incoming_request_from', 'has_open_outgoing_request_to')),
+  0, 'and it is the only one left: the request and suggestion helpers went with 0011');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
@@ -131,7 +133,7 @@ select is(
      and (table_name, column_name) in (
        ('items', 'created_at'), ('items', 'created_by'),
        ('friendships', 'since'), ('ratings', 'rated_at'),
-       ('connect_requests', 'created_at'), ('profiles', 'created_at'))),
+       ('profiles', 'created_at'))),
   '', 'no insert or update grant admits a column the server owns');
 
 -- A column absent from a select grant is in no response.
@@ -147,9 +149,9 @@ select is(
                               order by table_name || ':' || privilege_type), 'none')
    from information_schema.role_table_grants
    where table_schema = 'public' and grantee = 'authenticated'
-     and table_name in ('user_recs', 'user_model', 'suggestions')),
-  'suggestions:SELECT, user_recs:SELECT',
-  'the three the server writes carry nothing but SELECT, and user_model not that');
+     and table_name in ('user_recs', 'user_model')),
+  'user_recs:SELECT',
+  'the two the server writes carry nothing but SELECT, and user_model not that');
 
 -- The catalog's grants are per COLUMN, so they sit in `column_privileges` and
 -- in no table-level row at all — which is also how `created_by` and
@@ -170,10 +172,9 @@ select is(
 select is(
   (select count(*)::int from pg_tables
    where schemaname = 'public' and not rowsecurity
-     and tablename in ('profiles', 'friendships', 'connect_requests', 'items', 'ratings',
-                       'user_prefs', 'user_recs', 'user_model', 'suggestions',
-                       'invite_links')),
-  0, 'row-level security is on for all ten tables in public');
+     and tablename in ('profiles', 'friendships', 'items', 'ratings',
+                       'user_recs', 'user_model', 'invite_links')),
+  0, 'row-level security is on for all seven tables in public');
 
 -- Postgres grants EXECUTE on a new function to PUBLIC by default, which is the
 -- hazard DESIGN §3.3 names: "no client verb" is not the default here, and has
@@ -264,21 +265,19 @@ select is(
      and proname in ('find_by_username', 'profile_by_id', 'claim_username')),
   0, 'and the handle lookups are gone');
 
--- Enumeration is the default, so seed twenty discoverable accounts, each with a
+-- Enumeration is the default, so seed twenty accounts, each with a
 -- link, who are neither friends nor counterparties of the caller. The
 -- whole-table reads still return the caller alone.
 set local role postgres;
 insert into auth.users (id)
   select ('aaaaaaaa-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid from generate_series(1, 20) as n;
-update public.user_prefs set discoverable_by_taste = true
- where user_id::text like 'aaaaaaaa-%' or user_id = '11111111-1111-1111-1111-111111111111';
 insert into public.invite_links (owner_id, token)
   select id, left(replace(id::text || id::text, '-', ''), 43) from public.profiles;
 
 set local role authenticated;
 select is(
   (select count(*)::int from public.profiles),
-  1, 'twenty discoverable strangers later, the profile read is still one row');
+  1, 'twenty strangers later, the profile read is still one row');
 select is(
   (select count(*)::int from public.invite_links),
   1, 'and the link read is the caller''s own link');
