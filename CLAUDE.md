@@ -534,6 +534,15 @@ by hand in the Google Cloud console. Nothing below is needed to run against the 
    - `SUPABASE_AUTH_GOOGLE_CLIENT_ID`, `SUPABASE_AUTH_GOOGLE_SECRET` (secrets) — `config push`.
    - `SUPABASE_PROJECT_REF` (a **variable**) — out of the file so a second project needs no diff.
 
+   `SUPABASE_ACCESS_TOKEN` is a scoped token (Project scope, this project only, 90 days at most),
+   and each of these is needed by some step of the deploy — `link` reads the secret API keys,
+   `config diff` reads `/v2/projects/{ref}/config`, `config push` reads the add-ons first:
+   Project Settings, Auth Config, Data API Config, Database Config, Migrations, Connection
+   Pooling, Edge Functions, Realtime Config and Storage Config read-write; API Keys, API Key
+   Secrets, Database, Network Restrictions, SSL Enforcement and Add-ons read. A token that has
+   expired or lacks one fails at the step that needs it, and the fix is a new token (they cannot
+   be edited) and `gh secret set SUPABASE_ACCESS_TOKEN -R hafacc/grapevine`.
+
    `web.yml` refuses to start if any of the five is empty. These are long-lived secrets (Supabase
    has no workload identity federation): rotate them, and never put one in anything the client
    bundles.
@@ -631,7 +640,9 @@ Then, in order:
 1. **The records above**, and Email Routing's for the subdomain.
 2. **Confirm the org's domain verification** reads *verified* under the `hafacc` org's Settings →
    Pages. It verified `hafa.cc`, which covers immediate subdomains; nothing to add.
-3. **The first `web.yml` run**, which turns Pages on with GitHub Actions as its source.
+3. **Settings → Pages → Source: GitHub Actions.** The deploy cannot do this itself: the job's
+   token is refused creating a Pages site ("Resource not accessible by integration"), so a run
+   before it fails in `build`, after the `supabase` job has already deployed.
 4. **Settings → Pages → Custom domain: `grapevine.hafa.cc`**, Save, and wait for the DNS check. That
    field is the only place the domain is set: a `CNAME` file is ignored when a custom Actions
    workflow deploys, so the repo carries none.
@@ -690,8 +701,7 @@ By hand, against the deployed site:
   only by `config push`).
 - **Both** functions answer 401 to a POST with no `Authorization` header and to one carrying only
   the anon key: `verify_jwt = false`, so nothing in front refuses it for them.
-- The repo is public and Pages-eligible (`actions/configure-pages` with `enablement: true` only
-  turns Pages on for a repo that may have it).
+- The repo is public and Pages is on with GitHub Actions as its source.
 - The Google consent screen's privacy-policy URL resolves to `/privacy/`.
 - `http://grapevine.hafa.cc/` redirects to `https://`, and Pages shows the custom domain with
   Enforce HTTPS ticked.

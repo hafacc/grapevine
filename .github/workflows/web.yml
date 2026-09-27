@@ -140,12 +140,10 @@ jobs:
 
       - run: bun export
 
-      # Turns Pages on if it isn't already, so the first deploy doesn't fail on
-      # an unclicked setting. Needs the repo to be Pages-eligible: public, on a
-      # free org plan.
+      # Pages must already be on (Settings → Pages → Source: GitHub Actions):
+      # the job's token cannot create a Pages site, so `enablement: true` only
+      # trades this step's "not found" for "Resource not accessible by integration".
       - uses: actions/configure-pages@v6
-        with:
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v5
         with:
