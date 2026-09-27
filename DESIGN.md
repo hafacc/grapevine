@@ -49,8 +49,6 @@ and check it.
 
 ### The one view
 
-The comps are in [`docs/mockups/`](docs/mockups/).
-
 **There are no tabs.** The app is one screen: a list of things, with a search field pinned to
 the bottom where a thumb already is. Everything else is a layer over that list, and the two
 things that are not the list — a thing, and the people — are reached by opening a row and by
