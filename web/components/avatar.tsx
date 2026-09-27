@@ -4,15 +4,16 @@ import { type ReactElement, useId } from "react";
 import { initials } from "../utils/initials";
 import { photoSrc } from "../utils/photos";
 
-// Flat-top, radius 30 in a 64 box, with real rounded corners: the path carries
-// a quadratic at each vertex. A wide `stroke-linejoin: round` rounds the
-// outside of a join and not the inside, so a hexagon drawn that way has six
-// subtly wrong corners at every size.
+// Pointy-top like the mark's berries, and taller than wide like a face.
+// Radius 30 in a 64 box, with real rounded corners: the path carries a
+// quadratic at each vertex. A wide `stroke-linejoin: round` rounds the outside
+// of a join and not the inside, so a hexagon drawn that way has six subtly
+// wrong corners at every size.
 const HEXAGON =
-  "M59.5 27.67 Q62.0 32.0 59.5 36.33 L49.5 53.65 Q47.0 57.98 42.0 57.98 L22.0 57.98 Q17.0 57.98 14.5 53.65 L4.5 36.33 Q2.0 32.0 4.5 27.67 L14.5 10.35 Q17.0 6.02 22.0 6.02 L42.0 6.02 Q47.0 6.02 49.5 10.35 Z";
+  "M27.67 59.5 Q32.0 62.0 36.33 59.5 L53.65 49.5 Q57.98 47.0 57.98 42.0 L57.98 22.0 Q57.98 17.0 53.65 14.5 L36.33 4.5 Q32.0 2.0 27.67 4.5 L10.35 14.5 Q6.02 17.0 6.02 22.0 L6.02 42.0 Q6.02 47.0 10.35 49.5 Z";
 
-// The badge is pointy-top, so it meets the avatar at a vertex rather than at
-// the corner of a bounding box that is not there.
+// Centred on the avatar's upper-right vertex, (57.98, 17) of 64, rather than
+// on the corner of a bounding box that is not there.
 const BADGE_HEXAGON =
   "M13.92 3.2 Q16.0 2.0 18.08 3.2 L26.05 7.8 Q28.12 9.0 28.12 11.4 L28.12 20.6 Q28.12 23.0 26.05 24.2 L18.08 28.8 Q16.0 30.0 13.92 28.8 L5.95 24.2 Q3.88 23.0 3.88 20.6 L3.88 11.4 Q3.88 9.0 5.95 7.8 Z";
 
@@ -99,7 +100,10 @@ export default function Avatar({
         )}
       </svg>
       {badge ? (
-        <span className="absolute" style={{ left: "68%", top: "-4%" }}>
+        <span
+          className="absolute"
+          style={{ left: "calc(90.6% - 7.5px)", top: "calc(26.6% - 7.5px)" }}
+        >
           <svg width={15} height={15} viewBox="0 0 32 32" className="block">
             <title>a request is waiting</title>
             {/* The stroke is the surface punching the badge out of whatever it
