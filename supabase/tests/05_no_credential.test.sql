@@ -7,7 +7,7 @@
 -- a client (DESIGN §3.3), and a toggle ships no diff.
 
 begin;
-select plan(17);
+select plan(15);
 
 insert into auth.users (id, email, email_confirmed_at, phone, phone_confirmed_at, is_anonymous) values
   -- The credentialed account: a confirmed address.
@@ -21,8 +21,8 @@ insert into auth.users (id, email, email_confirmed_at, phone, phone_confirmed_at
   -- The other two doors, each of which proves itself.
   ('44444444-4444-4444-4444-444444444444', null, null, '+15555550123', now(), false),
   ('55555555-5555-5555-5555-555555555555', 'google@example.com', null, null, null, false),
-  -- Somebody suggested to the uncredentialed account, for it to ask.
-  ('66666666-6666-6666-6666-666666666666', 'suggested@example.com', now(), null, null, false);
+  -- Somebody whose link the uncredentialed account holds.
+  ('66666666-6666-6666-6666-666666666666', 'linker@example.com', now(), null, null, false);
 create or replace function private.is_unlocked(p_user uuid) returns boolean
   language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
@@ -37,20 +37,18 @@ update public.profiles set display_name = 'Owner'
   where id = '11111111-1111-1111-1111-111111111111';
 update public.profiles set display_name = 'Nobody'
   where id = '22222222-2222-2222-2222-222222222222';
-update public.profiles set display_name = 'Suggested'
+update public.profiles set display_name = 'Linker'
   where id = '66666666-6666-6666-6666-666666666666';
-update public.user_prefs set discoverable_by_taste = true
-  where user_id = '66666666-6666-6666-6666-666666666666';
-insert into public.suggestions (user_id, rank, suggested_id) values
-  ('22222222-2222-2222-2222-222222222222', 1, '66666666-6666-6666-6666-666666666666');
 
 -- 6's link, whose token is known here because the row is written directly
 -- rather than through `set_invite_link`.
 insert into public.invite_links (owner_id, token) values
   ('66666666-6666-6666-6666-666666666666', 'KnownTokenKnownTokenKnownTokenKnownToken123');
 
-insert into public.connect_requests (from_id, to_id) values
-  ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222');
+-- Made before a toggle stripped 2's credential, say.
+insert into public.friendships (user_id, friend_id) values
+  ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'),
+  ('22222222-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
@@ -60,18 +58,9 @@ select lives_ok(
   $$update public.profiles set display_name = 'Stranger' where id = (select auth.uid())$$,
   'writes its own profile with a display name');
 
-select lives_ok(
-  $$select public.accept_connect_request('11111111-1111-1111-1111-111111111111')$$,
-  'accepts a request — no policy mentions how anybody signed in');
-
 select is(
   (select display_name from public.profiles where id = '11111111-1111-1111-1111-111111111111'),
-  'Owner', 'reads a friend''s profile once the edge exists');
-
-select lives_ok(
-  $$insert into public.connect_requests (from_id, to_id)
-    values ((select auth.uid()), '66666666-6666-6666-6666-666666666666')$$,
-  'sends a connect request to someone suggested to it');
+  'Owner', 'reads a friend''s profile — no policy mentions how anybody signed in');
 
 select lives_ok(
   $$insert into public.ratings (user_id, item_id, value)

@@ -2,12 +2,9 @@ import { describe, expect, it } from "bun:test";
 import { matchesPerson, type PersonRow } from "../utils/people";
 
 const person = (uid: string, displayName: string): PersonRow => ({
-  kind: "suggestion",
   uid,
   displayName,
   photoURL: null,
-  attributes: [],
-  request: null,
 });
 
 const SHOWN = [person("ada", "Ada Lovelace"), person("emile", "Émile Zola")];

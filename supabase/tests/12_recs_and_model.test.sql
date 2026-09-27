@@ -97,14 +97,12 @@ select is(
    where table_schema = 'public' and table_name = 'user_model'
      and column_name in ('trust', 'prior_energy', 'effective_dimension', 'fit_at')),
   'none', 'no column that only a learned edge-trust fit would need');
--- `suggestions_at` is the stamp taste search's ten-minute window keys on, which
--- cannot be read off the `suggestions` rows: a viewer with nobody to suggest
--- writes none.
+-- Taste search went in 0011, and its window with it.
 select is(
   (select count(*)::int from information_schema.columns
    where table_schema = 'public' and table_name = 'user_model'
      and column_name = 'suggestions_at'),
-  1, 'and the stamp the on-demand taste search keys on is still here');
+  0, 'and no stamp is left for a taste search that no longer exists');
 select is(
   (select count(*)::int from information_schema.columns
    where table_schema = 'public' and table_name = 'user_model'

@@ -16,11 +16,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::compute::UserResult;
 use crate::ids::{RATABLE_JOIN, Ratable, is_normalized_id};
-use crate::params::Params;
 use crate::priors::PairTallies;
 use crate::sim::{World, WorldConfig};
 use crate::snapshot::Snapshot;
-use crate::suggest::Suggestion;
 
 /// One rating exactly as it arrived, before anything decides whether it is a thumb.
 ///
@@ -211,45 +209,6 @@ pub struct ResultData {
     /// database pools them; nothing else reads them back.
     pub pairs: PairTallies,
     pub scores: BTreeMap<String, ScoreData>,
-}
-
-/// One suggestion at the boundary (DESIGN section 5.1).
-///
-/// Only `uid` reaches a viewer: the caller looks the name and handle up for itself, and the
-/// attributes the two people agree on are asked for separately. `strength` and `overlap` exist so
-/// the caller can log and the checks can assert on what it did. Neither is a number any screen
-/// may render.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-pub struct SuggestionData {
-    pub uid: String,
-    pub strength: f64,
-    pub overlap: f64,
-}
-
-/// The two parameter tables taste search runs at, as the wasm caller gives them.
-///
-/// Both are whole tables and both are optional: the deep walk defaults to the deep budget of
-/// DESIGN section 2.8 and the live one to the on-demand budget, which is the pairing section 5.1
-/// describes. A table that IS given falls back to the on-demand defaults field by field, so a
-/// caller who wants the deep budget with one field moved has to say so.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(default, rename_all = "camelCase"))]
-pub struct SuggestParamsData {
-    pub deep: Option<Params>,
-    pub live: Option<Params>,
-}
-
-impl SuggestParamsData {
-    pub fn deep_params(&self) -> Params {
-        self.deep.unwrap_or_else(Params::deep)
-    }
-
-    pub fn live_params(&self) -> Params {
-        self.live.unwrap_or_default()
-    }
 }
 
 /// A simulated world, ground truth included, as `dump-world` writes it.
@@ -447,18 +406,6 @@ impl Snapshot {
                 })
                 .collect(),
         }
-    }
-
-    /// One viewer's suggestions in the string ids the database stores.
-    pub fn suggestion_data(&self, suggestions: &[Suggestion]) -> Vec<SuggestionData> {
-        suggestions
-            .iter()
-            .map(|suggestion| SuggestionData {
-                uid: self.user_name(suggestion.user).to_string(),
-                strength: suggestion.strength,
-                overlap: suggestion.overlap,
-            })
-            .collect()
     }
 
     /// The ratable a boundary key names, if both halves are known here.

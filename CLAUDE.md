@@ -9,10 +9,10 @@ Read DESIGN §1 before changing any screen.
 
     web/         Next.js app, static export. Bun. The only thing a user touches.
     shared/      Pure TypeScript, zero runtime dependencies, imported where it lives by web/
-                 and by both Edge Functions (Deno reads the TypeScript). No generated copy
+                 and by the Edge Function (Deno reads the TypeScript). No generated copy
                  of it exists anywhere. Bun.
     scripts/     build-wasm.sh — wasm-pack, one target argument: `web` for the Edge
-                 Functions, `nodejs` for `rust/examples/smoke.mjs`, the only thing that
+                 Function, `nodejs` for `rust/examples/smoke.mjs`, the only thing that
                  runs the wasm boundary outside Deno. generate-name-rules.ts — the
                  allow-list for names, from pinned Unicode data, written into
                  `shared/src/name-tables.ts` and a new migration (see "Normalization").
@@ -22,7 +22,6 @@ Read DESIGN §1 before changing any screen.
     supabase/    config.toml (auth providers, redirect URLs — in the repo, not a console),
                  migrations/ (schema, grants, policies, server-only functions, cron),
                  functions/refresh-recs/ (the per-viewer recompute, Deno),
-                 functions/refresh-suggestions/ (DESIGN §5's taste search for the caller),
                  tests/ (pgTAP), seed.sql
     docs/        algorithm-notes.md (the measurements behind the algorithm's constants) and
                  mark.svg (the mark). No code reads any of it except make-icons.mjs, which
@@ -45,8 +44,7 @@ supabase start                   # (docker) Postgres, GoTrue, PostgREST, Realtim
 supabase db reset                # (docker) every migration, then seed.sql, from zero
 supabase db lint                 # (docker) plpgsql_check over the applied migrations
 supabase test db                 # (docker) the pgTAP suites. THE runner: CI uses it.
-supabase functions serve refresh-recs    # (docker) either function against the local stack
-supabase functions serve refresh-suggestions
+supabase functions serve refresh-recs    # (docker) the function against the local stack
 
 # The pgTAP suites without Docker: a throwaway PostgreSQL cluster from initdb, every migration,
 # the same files, about a second. Needs `initdb`, `pg_ctl` and `psql` on PATH. It stands in for a
@@ -89,8 +87,6 @@ cd web && bun run check:recs-function  # the staleness contract: an immediate se
                                        # thumb inside the window does not
 cd web && bun run check:recs-parity    # the stored feed against `compute-user` on the same
                                        # dump, to 1e-9. Needs a Rust toolchain too.
-cd web && bun run check:suggestions    # taste search against a spread-out world. Also wants
-                                       # `supabase functions serve refresh-suggestions`.
 
 cd shared && bun install
 cd shared && bun test            # normalizeId, searchFold, confusable skeletons; entries.ts
@@ -102,17 +98,17 @@ cd rust && cargo test --release --features serde   # and the boundary's own dese
 cd rust && cargo clippy --all-targets -- -D warnings
 cd rust && cargo fmt --check
 
-# From anywhere. `web` writes a copy into each function directory, because `functions deploy`
+# From anywhere. `web` writes a copy into the function's directory, because `functions deploy`
 # uploads one directory and the `.wasm` is read by path, not imported.
 bash scripts/build-wasm.sh nodejs
 bash scripts/build-wasm.sh web
 node rust/examples/smoke.mjs                 # 3-user snapshot through the wasm boundary
 
-# The ONLY thing that compiles the Edge Functions (no tsconfig or biome config covers them, and
+# The ONLY thing that compiles the Edge Function (no tsconfig or biome config covers them, and
 # deploy's esbuild does not typecheck), so a signature change in `shared/src/entries.ts` can be
 # green everywhere else and break only here. Needs the `web` wasm.
-deno check supabase/functions/refresh-recs/index.ts supabase/functions/refresh-suggestions/index.ts
-deno lint  supabase/functions/refresh-recs/index.ts supabase/functions/refresh-suggestions/index.ts
+deno check supabase/functions/refresh-recs/index.ts
+deno lint  supabase/functions/refresh-recs/index.ts
 
 # The world the seed script and `compute-user` share (`check:recs-parity` hands both one file).
 cd rust && cargo run --release --features serde --example dump-world -- --out /tmp/world.json
@@ -252,21 +248,16 @@ cannot be reached at all, because PostgREST does not serve it.
 
 The rules below are the ones that are easy to break:
 
-- **`profiles`**: readable by self, a friend, either party of a pending request (the sender only
-  while the target stays discoverable), and anyone you are suggested to while you stay
-  discoverable (`private.is_discoverable`: `discoverable_by_taste`, also used by the
-  `suggestions` policy and `shared_attributes`, so the switch going off hides you at once). There
-  are no handles and no lookup of a stranger by anything: nothing on this table may become a read
+- **`profiles`**: readable by self and a friend, and nobody else; a link's holder sees a name
+  and photo through `invite_owner`, not this table. There are no handles and no lookup of a stranger by anything: nothing on this table may become a read
   clause that does not name a live relationship. No email or phone column. `display_name`
   defaults to Google's first name, is the owner's to change, and a `CHECK` refuses control
   characters and bidi marks; the table has no INSERT (the `auth.users` trigger creates the row).
 - **`friendships`**: both directions stored; a deferred constraint trigger makes a one-sided
-  friendship impossible at commit, and the core still checks reciprocity. Insert your own edge, or
-  the sender's as the accepter of a pending request; delete from either end.
-- **`connect_requests`**: the key is one pending ask per pair (`on conflict do nothing`). Sending
-  requires the target to be suggested to the sender and still discoverable (`is_suggested_to_me`
-  — knowing a uid is not a route) and spends one write-budget unit, or an insert-delete loop would
-  be a Realtime event at the target per round trip. The sender cannot withdraw an ask, by design.
+  friendship impossible at commit, and the core still checks reciprocity. No client inserts one:
+  `redeem_invite` writes both halves as its owner. Delete from either end. Taste search, the
+  discoverability switch, `user_prefs` and connect requests were dropped by 0011 (DESIGN §5); a
+  link is the only way to a friend.
 - **`invite_links`**: a person's friending link, at most one (`owner_id` is the key), with no
   expiry and no limit on uses. The token is stored as itself so the owner can copy it again:
   `token` and `created_at` are selectable, `owner_id` is not, and the select policy admits the
@@ -276,7 +267,9 @@ The rules below are the ones that are easy to break:
   and spends a write. `invite_owner(text)` answers one exact token with a name and a photo and
   no id, and is **the one thing `anon` may call**: the link is the authority to see them, and
   the welcome screen shows them. `redeem_invite(text)` spends a write even on a miss, then writes
-  both friendship rows as `security definer` and deletes any pending ask between the two.
+  both friendship rows as `security definer`. A dead link — off, replaced, mangled — names
+  nobody and says *invalid or expired*, on the welcome screen before any trip to Google; a
+  malformed token never reaches the server (`isInviteToken`).
   Replacing or turning off a link keeps the friendships it made.
 - **`items`**: the id is what somebody typed, normalized. The CLIENT writes `search_id` from
   `searchFold`, deliberately: a trigger would be a second implementation of the stripping, and a
@@ -294,22 +287,14 @@ The rules below are the ones that are easy to break:
   statement. `feed_hash` stops a same-answer recompute moving `computed_at`. `error` is
   `max(truncation·L, settle_movement)` and deliberately NOT called `truncation`, since either term
   can be the larger; it is here because `user_model` has no client verb and the bar must see it.
-- **`user_model`**: NO client verb; the Edge Functions' bookkeeping. `checked_at` (every
+- **`user_model`**: NO client verb; the Edge Function's bookkeeping. `checked_at` (every
   recompute) is what the ten-minute window keys on; `computed_at` moves only when the feed changed.
-  `suggestions_at` is taste search's window — "written empty" and "never run" look the same in
-  `suggestions` — and a trigger nulls it when `discoverable_by_taste` moves. A rescore carries the
+  A rescore carries the
   whole walk report through unchanged, because it walked nothing. The twelve `pair_*` tallies feed
   DESIGN §2.10's priors via 0005.
-- **`suggestions`**: owner read, written only by `refresh-suggestions` as the service role — a
-  planted row would be a stranger presented as vouched for. Chips come from
-  `public.shared_attributes(uuid)`, `security definer`, `search_path = ''`, stored nowhere; in
-  `public` because a client must call it, `EXECUTE` revoked from `PUBLIC` and granted to
-  `authenticated`. It answers only for someone who asked the viewer or is suggested and still
-  discoverable, and returns an empty list otherwise, since an error would separate "no overlap"
-  from "not allowed to ask".
 - **`private.params`**: the population priors, each field null until its own sample exists and
   merged field by field, so a missing row can only fail to move a number.
-- **`private.write_budget`**: every rating insert or update, item, connect request, link turned
+- **`private.write_budget`**: every rating insert or update, item, link turned
   on, replaced or redeemed (`private.spend_write` for the redeem) and debug event
   spends one of `private.daily_write_limit()` (the ONLY place the number is written) per account per
   UTC day, via `private.count_write` keyed on `auth.uid()`. Deletes are free; connections with no
@@ -327,12 +312,12 @@ The rules below are the ones that are easy to break:
   returns under it.
 - **`security definer` means the function's own rights.** Anything in `private` runs as its owner
   and must take an exact key and return at most one row, or it is an enumeration surface with a
-  friendly name. That applies equally to `public.invite_owner`, `public.redeem_invite` and
-  `public.shared_attributes`, and more so: `public` is served, so the exact key, the `revoke ...
+  friendly name. That applies equally to `public.invite_owner` and `public.redeem_invite`, and
+  more so: `public` is served, so the exact key, the `revoke ...
   from public` and the caller check are the whole of the defence.
 
-**Normalization is one `normalizeId` in `shared/src/index.ts`**, used by the client and both Edge
-Functions:
+**Normalization is one `normalizeId` in `shared/src/index.ts`**, used by the client and the Edge
+Function:
 
     lowercase  →  NFKC  →  collapse every whitespace run to one space  →  trim
 
@@ -381,9 +366,8 @@ two people and two keyboards and does not pretend to stop a determined one.
 ## Conventions worth not rediscovering
 
 - **No server in the request path.** Every user action is a direct PostgREST write under row-level
-  security. The two Edge Functions exist because each reads other people's ratings (DESIGN §4), and
-  each answers only for the authenticated caller; treat a third as a claim to disprove.
-  `accept_connect_request` is a `security invoker` procedure, so every policy still applies. The
+  security. The one Edge Function exists because it reads other people's ratings (DESIGN §4), and
+  answers only for the authenticated caller; treat a second as a claim to disprove. The
   moment `private.neighbourhood` is callable by `authenticated`, a client holds other people's
   ratings.
 - **A fresh-identity cost is not a sybil defence.** Google-only changes nothing in DESIGN §2.1: no
@@ -488,28 +472,7 @@ filler, for a viewer who has rated no attributes.
 The pure half — folding, change detection, sanitizing, which boundary nodes a round takes — is
 `shared/src/entries.ts`, with its own test suite.
 
-## Taste search
-
-`supabase/functions/refresh-suggestions/` recomputes the **caller's own five rows and nobody
-else's**, called by the people screen on open behind a ten-minute window
-(`user_model.suggestions_at`); about 14 ms of search (`docs/algorithm-notes.md` §9). It is a
-function rather than SQL because the deep walk is the wasm core. It loads the neighbourhood at the
-feed's `N_max = 2 000` (the deep budget's 50 000 bounds the walk; what a search costs is egress),
-asks which loaded people may be named, calls `suggestFor`, and replaces the rows in one
-transaction. The candidate filters (overlap `A + D ≥ 20`, `ℓ ≥ 1`, not a friend, not dismissed,
-not already carried by the live feed) are all in `rust/src/suggest.rs`; DESIGN §5.1 is the rest.
-
-- **A row carries no level of agreement**, only the attributes the two agree on against the grain,
-  because "lots in common" is not a reason to accept a stranger. No chips is a normal outcome. Read
-  DESIGN §5.2 before touching it: it is the one thing that widens what is said about somebody else.
-- **Discoverability is reciprocal.** Off means you are named to nobody and your own list is written
-  empty — by the function, before it loads anything. Other viewers' rows naming you stay, hidden by
-  `private.is_discoverable` until you switch back on.
-- **A dismissal is a preference** in `user_prefs`; the screen filters on it at once
-  (`visibleSuggestions`) and the next search honours it.
-- **The default seeded world (40 users, 60 items) suggests nobody**: everyone is within two hops
-  and overlaps are far under twenty. `check:suggestions` seeds a larger, spread-out world (see its
-  `WORLD` flags), which gives about 85 of 150 people somebody.
+## Priors and the schedule
 
 **`κ` and `a₀(d)` are running tallies**: each recompute reports partial sums into `user_model`'s
 `pair_*` columns and 0005 pools them into `private.params` under DESIGN §2.10's `N_min = 200`.
@@ -552,8 +515,7 @@ when the accent or the mark changes.
 The mark is **hex grapes**: six hexagons in a 3-2-1 bunch, no stem, each an outlined hexagon with a
 **same-size** hexagon clipped inside it and pushed toward one vertex, so a rim of even width
 survives on exactly two sides. A *smaller* inner hexagon leaves a rim on three sides and reads as a
-ring. Hexagons have real rounded corners rather than a rounded pen stroke; a notification badge sits
-on a hexagon's upper-right vertex. **Nothing in the mark may be `<text>`**: every renderer that
+ring. Hexagons have real rounded corners rather than a rounded pen stroke. **Nothing in the mark may be `<text>`**: every renderer that
 draws it (a favicon tab, an OS launcher, a PNG converter) has no webfont and substitutes whatever
 grotesque it has.
 
@@ -561,7 +523,8 @@ grotesque it has.
 
 **Status**: the project exists and this checkout is linked to it (the ref is in `supabase/.temp/`,
 not committed); `web/utils/project.ts` carries its URL and anon key. Steps 1–6 are done: the Google
-OAuth client and a `config push`, `pg_cron`, migrations `0001`–`0007`, both Edge Functions. **Step 7
+OAuth client and a `config push`, `pg_cron`, migrations `0001`–`0007`, and `refresh-recs`.
+`refresh-suggestions` has been deleted from the project by hand. **Step 7
 is not**, and waits on the repository. Until the first `web.yml` run pushes `config.toml` again, the
 project differs from the file in three ways: the redirect list is `http://localhost:*/**`, the phone
 provider is on, and `site_url` is not `grapevine.hafa.cc`. `supabase config diff` shows all three.
@@ -592,7 +555,8 @@ by hand in the Google Cloud console. Nothing below is needed to run against the 
    pushed to production, so it names the one port somebody signs in on (`bun run dev`);
    `dev:local` needs none, because local sessions are minted.
 5. **`pg_cron` must be enabled** for `0005` to apply.
-6. **Realtime** carries `user_recs`, `connect_requests` and `friendships`, added to the publication
+6. **Realtime** carries `user_recs` and `friendships` (and carried `connect_requests` until 0011
+   dropped it), added to the publication
    by `0006`, which also restricts it to `insert, update` (a DELETE event cannot be bounded by RLS;
    0006 says why). RLS applies to Realtime, so nobody receives another viewer's row.
 7. **Repository secrets and one variable** — the whole of what the deploy is given:
@@ -653,12 +617,12 @@ A GitHub Release deploys nothing: it would run on its tag, and the `github-pages
 accepts main only, so migrations would apply and the Pages job would then be refused.
 
 **The database goes first**, so the site never publishes a frontend expecting a policy or function
-that is not live; if that job fails, Pages never runs. Migrations and both functions deploy every
+that is not live; if that job fails, Pages never runs. Migrations and `refresh-recs` deploy every
 time. **And `bun export` runs in the gate too**: otherwise a build failure would land after `db
 push` had applied forward-only migrations, leaving the database ahead of a site stuck on the last
 good version, with nothing on the free tier to roll back with. The deploy job builds the `web` wasm
 itself rather than downloading anything. `supabase functions deploy` uploads only the modules an
-entry point imports; the `.wasm` ships because `config.toml`'s `static_files` names it for each
+entry point imports; the `.wasm` ships because `config.toml`'s `static_files` names it for the
 function.
 
 `automerge.yml` merges Dependabot pull requests once `ci.yml` passes; it deploys nothing.
@@ -676,11 +640,11 @@ one that drops or rewrites a column is reviewed as the irreversible thing it is,
 reset` belongs nowhere near the project.
 
 `ci.yml`'s `database` job fails a push or pull request that modifies, deletes or renames an
-existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0010` are not, and
-the next deploy applies all three. One of them destroys data on the project, irreversibly:
+existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0011` are not, and
+the next deploy applies all four. Two of them destroy data on the project, irreversibly:
 `0009_invite_links.sql` drops `username` and `searchable` (every claimed handle; none had been
-claimed when it was written). `0010_invite_only.sql` locks every account with no connection and
-deletes its link.
+claimed when it was written), and `0011_remove_taste_search.sql` drops taste search's tables.
+`0010_invite_only.sql` locks every account with no connection and deletes its link.
 
 ### The domain (do once, by hand)
 
@@ -744,8 +708,8 @@ From the repo root, the gate in the order CI runs it, then the published artifac
 (cd rust && cargo test --release && cargo test --release --features serde)
 bash scripts/build-wasm.sh nodejs && node rust/examples/smoke.mjs
 bash scripts/build-wasm.sh web
-deno check supabase/functions/refresh-recs/index.ts supabase/functions/refresh-suggestions/index.ts
-deno lint  supabase/functions/refresh-recs/index.ts supabase/functions/refresh-suggestions/index.ts
+deno check supabase/functions/refresh-recs/index.ts
+deno lint  supabase/functions/refresh-recs/index.ts
 supabase start && supabase db lint && supabase test db   # (docker); else run-local.sh, weaker
 (cd shared && bun install --frozen-lockfile && bun run lint && bun test)
 (cd web && bun install --frozen-lockfile && bun run lint && bun run test)
@@ -753,9 +717,9 @@ supabase start && supabase db lint && supabase test db   # (docker); else run-lo
 (cd web && bun run check:signin && bun run check:feed)   # (docker + chrome), dev:local up
 ```
 
-**The checks nobody runs.** Of the seven check scripts in `web/scripts/`, only `check:pwa` needs
+**The checks nobody runs.** Of the six check scripts in `web/scripts/`, only `check:pwa` needs
 no stack, so it is the only one run here, and CI runs none. So `check:recs-parity`,
-`check:recs-function`, `check:suggestions` and `check:feed` run on no machine that exists. A
+`check:recs-function` and `check:feed` run on no machine that exists. A
 `checks` job in `ci.yml` is writable (the `database` job already runs Docker), but nobody here can
 run it once before committing it; closing the gap is that job, watched through its first green run
 by whoever has Docker.

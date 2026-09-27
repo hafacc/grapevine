@@ -159,11 +159,3 @@ static_files = ["./functions/refresh-recs/core-wasm/*.wasm"]
 # query runs.
 verify_jwt = false
 
-# Taste search for whoever is calling, and nobody else (DESIGN §5.1, §3.7). It
-# is a second function rather than a `security definer` SQL one because the deep
-# walk is the wasm core and a SQL function cannot host it.
-[functions.refresh-suggestions]
-enabled = true
-static_files = ["./functions/refresh-suggestions/core-wasm/*.wasm"]
-# Same reason as above: the function checks the bearer token itself.
-verify_jwt = false

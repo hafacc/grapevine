@@ -60,10 +60,7 @@ A Google photo is clipped to that hexagon; with no photo it is `accent-soft` wit
 person's initials in the display face. Sizes: 36 in a bar, 40 in a people row, 48 on the
 viewer's own row.
 
-**A notification badge sits on a hexagon's upper-right vertex** — not the corner of a
-bounding box that is not there. In practice the badge is centred on `(57.98, 17)` of the 64
-box, `left: calc(90.6% − 7.5px)`, `top: calc(26.6% − 7.5px)`: a 15 px filled hexagon with a 4 px `surface`-coloured stroke punching it out of the photo. There
-is exactly one badge in the product, and it means a connect request is waiting.
+There is no notification badge: nothing in the product waits for the viewer.
 
 ## Space
 
@@ -94,7 +91,7 @@ Fallback stack: `"Barlow", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sa
 | 22 | display 600 | wordmark, screen title, a thing's name in its title bar |
 | 19 | text 500 | the viewer's own name |
 | 17 | text 500 | a row's name; body copy; display 600 for a button label |
-| 16 | text 400 | the search field, the link line, the suggestions switch line, the install line, the "nobody here by that name" note; text 500 for a name in a people row |
+| 16 | text 400 | the search field, the link line, the install line, the "nobody here by that name" note; text 500 for a name in a people row |
 | 15 | display 500 | chips, section headings (600, `.06em` tracking, muted); text 400 for the sheets' notes |
 
 Body line-height 1.5; the empty state 1.55. Nothing is smaller than 14, and nothing between
@@ -245,28 +242,17 @@ not a rating, each button carries its word and the same icon at 16 px instead (d
 *turn on* alone, or *turn off* and *new link*. They replace the swipe and nothing else: the rest
 of the desktop is the phone layout in a 720 px column.
 
-**Switch lines** — the suggestions line on the people screen, the one switch there is, full width,
-`px-4 py-3`, text 400 at 16, one sentence each, swiped like any row. On: `accent-soft` with
-`accent-ink`. Off: `surface-muted` with `muted`, and the sentence says which way to swipe. No
-toggle control is drawn: the line **is** the switch. Off, it swipes right only; on, either way
-turns it off. At desktop width it is one full-width button with switch semantics rather than a
-row between two side buttons — a no side on an off switch would be a button that does nothing.
-
 **Section heading** — display 600 at 15, `.06em` tracking, `muted`, on the canvas rather than
-in a bar: *wants to connect*, *your vine*, *similar taste*, *suggested*. It names a group and
-claims nothing about it — *suggested* in particular never becomes "people like you use these"
+in a bar: *your vine* on the people screen, *suggested* over a thing's rail. It names a group
+and claims nothing about it — *suggested* in particular never becomes "people like you use these"
 (DESIGN §4).
 
 **First-run hint** — one line over the list's first row, on the canvas: text 400 at 15 in
 `muted`, a bottom rule, and a close icon button at the right. Shown once per viewer on a device
 (`utils/first-run.ts`); closing it or rating anything puts it away.
 
-**People row** — 10 × 16, hexagonal avatar at 40, name at 16, and beneath it the attributes you agree on as plain chips — **at most three**, server-chosen, in the
-order the server gave them (DESIGN §5.1: the attributes where the two of you went against what
-your network thinks). No bar: a person does not have a score. A row with **no** chips is
-normal and is drawn without them — no placeholder, no "nothing in common", no empty chip rail
-— because having nothing to show is an ordinary outcome of that definition rather than missing
-data.
+**People row** — 10 × 16, hexagonal avatar at 40, name at 16. No bar: a person does not have
+a score, and nothing else is said about them.
 
 **Buttons** — 44 px, 4 px radius, display 600 at 17. *primary* is `accent` fill with
 `accent-on`; *soft* is `accent-soft` with `accent-ink` and an `accent` border; *muted* is
@@ -283,17 +269,16 @@ name*.
 ## Layout
 
 - **Phone (the design).** Top bar 56 px: the mark and the wordmark on the left, the avatar
-  (44 px tap target, with the request badge) on the right. Then the list, scrolling. Then the
+  (44 px tap target) on the right. Then the list, scrolling. Then the
   bottom bar, pinned: the add button if there is a query, then the field and the eye. The other
   two screens swap the top bar for a **title bar**, 56 px, and keep the bottom bar with a
   different field:
-  - **A thing**: back arrow, the thing's name, its bar, and the avatar with its badge
-    (`components/avatar-button.tsx`, the same button the top bar uses), so an incoming request
-    is visible from every screen that is not the one it leads to. The whole bar is the thing's
-    rating row.
+  - **A thing**: back arrow, the thing's name, its bar, and the avatar
+    (`components/avatar-button.tsx`, the same button the top bar uses). The whole bar is the
+    thing's rating row.
   - **People**: back arrow and *you and your vine*, and **no avatar** — this is where the
-    avatar leads. Under it, in order: the viewer's own row, the link row, the suggestions line,
-    the install line, then the sections — *wants to connect*, *your vine*, *similar taste*.
+    avatar leads. Under it, in order: the viewer's own row, the link row, the install line,
+    then *your vine*.
 - **Desktop (deferred).** The whole phone in a 720 px column centred on `bg`, with a rule down
   each side from the top of the screen to the bottom: top or title bar, list, bottom bar, and
   every screen alike — the list, a thing and people share the one column, set once around

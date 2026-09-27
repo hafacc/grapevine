@@ -2,7 +2,7 @@ name: deploy web
 
 # By hand, from main, and nothing else. Not on a published Release: a release
 # runs on its tag, and the `github-pages` environment accepts deploys from main
-# only, so the run would apply the migrations and replace both functions, and
+# only, so the run would apply the migrations and replace the function, and
 # then be refused at the last job, leaving the database ahead of a site stuck
 # on the last good version.
 on:
@@ -75,9 +75,9 @@ jobs:
         with:
           version: 2.117.0
 
-      # Each Edge Function reads the core's `.wasm` from beside its entry point,
+      # The Edge Function reads the core's `.wasm` from beside its entry point,
       # and `functions deploy` uploads it only because `config.toml`'s
-      # `static_files` names it per function — it is read, not imported, so the
+      # `static_files` names it — it is read, not imported, so the
       # bundler would not find it on its own. The `web` target is built here
       # rather than downloaded, because a stale core is worse than the minute
       # this costs.
@@ -120,8 +120,6 @@ jobs:
       # no Docker does; without it the runner's Docker would bundle them a
       # second, untried way.
       - run: supabase functions deploy refresh-recs --use-api --project-ref "$SUPABASE_PROJECT_REF"
-
-      - run: supabase functions deploy refresh-suggestions --use-api --project-ref "$SUPABASE_PROJECT_REF"
 
   build:
     needs: supabase

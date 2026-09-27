@@ -1,18 +1,15 @@
-//! The WebAssembly boundary the Edge Functions call.
+//! The WebAssembly boundary the Edge Function calls.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 use crate::compute::{WalkReport, compute_user, rescore_user};
-use crate::data::{SnapshotData, SuggestParamsData};
+use crate::data::SnapshotData;
 use crate::error::CoreError;
-use crate::ids::UserId;
 use crate::params::Params;
 use crate::priors::PriorEstimate;
-use crate::snapshot::Snapshot;
-use crate::suggest::suggest;
 
 /// The parameter table a caller gave, or the shipped one.
 fn table_of(params: JsValue) -> Result<Params, JsValue> {
@@ -153,17 +150,6 @@ pub fn rescore_user_js(
         .map_err(|error| JsValue::from_str(&error.to_string()))
 }
 
-/// The ids a name list picks out, silently dropping the ones this snapshot does not hold.
-///
-/// Both lists taste search takes are read out of stored rows that can name somebody who has
-/// since gone, so an unknown name is a stale reference rather than a caller's mistake.
-fn known_ids(snapshot: &Snapshot, names: &[String]) -> BTreeSet<UserId> {
-    names
-        .iter()
-        .filter_map(|name| snapshot.user_id(name))
-        .collect()
-}
-
 fn unknown_user(name: &str) -> JsValue {
     JsValue::from_str(
         &CoreError::UnknownUser {
@@ -171,70 +157,4 @@ fn unknown_user(name: &str) -> JsValue {
         }
         .to_string(),
     )
-}
-
-/// `{ deep, live }` as the two validated tables, or `null` for the pairing DESIGN section 5.1
-/// names: the deep walk at the deep budget, the "do they already reach you" test at the
-/// on-demand one.
-fn suggest_params(params: JsValue, priors: JsValue) -> Result<(Params, Params), JsValue> {
-    let tables: SuggestParamsData = if params.is_null() || params.is_undefined() {
-        SuggestParamsData::default()
-    } else {
-        serde_wasm_bindgen::from_value(params)
-            .map_err(|error| JsValue::from_str(&error.to_string()))?
-    };
-    // One estimate over both tables: the deep walk and the "do they already reach you" test are
-    // the same algorithm at two budgets, and a prior that differed between them would make the
-    // second a question the first never asked.
-    let estimate = estimate_of(priors)?;
-    let deep = estimate.merge(&tables.deep_params());
-    let live = estimate.merge(&tables.live_params());
-    deep.validate()
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    live.validate()
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    Ok((deep, live))
-}
-
-/// Taste search for one viewer (DESIGN section 5.1).
-///
-/// `snapshot` is the same `SnapshotData` `computeUser` takes: the caller's neighbourhood, read
-/// once and walked twice. `discoverable` and `dismissed` are arrays of uids; `params` is
-/// `{ deep, live }`, or `null` for the deep budget paired with the on-demand one.
-///
-/// Returns at most five `SuggestionData` objects, strongest first.
-#[wasm_bindgen(js_name = suggestFor)]
-pub fn suggest_for_js(
-    snapshot: JsValue,
-    viewer: &str,
-    discoverable: JsValue,
-    dismissed: JsValue,
-    params: JsValue,
-    priors: JsValue,
-) -> Result<JsValue, JsValue> {
-    let data: SnapshotData = serde_wasm_bindgen::from_value(snapshot)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    let discoverable: Vec<String> = serde_wasm_bindgen::from_value(discoverable)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    let dismissed: Vec<String> = serde_wasm_bindgen::from_value(dismissed)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    let (deep, live) = suggest_params(params, priors)?;
-
-    let snapshot = data.to_snapshot();
-    let Some(viewer_id) = snapshot.user_id(viewer) else {
-        return Err(unknown_user(viewer));
-    };
-    let suggestions = suggest(
-        &snapshot,
-        viewer_id,
-        &known_ids(&snapshot, &discoverable),
-        &known_ids(&snapshot, &dismissed),
-        &deep,
-        &live,
-    )
-    .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    snapshot
-        .suggestion_data(&suggestions)
-        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
-        .map_err(|error| JsValue::from_str(&error.to_string()))
 }

@@ -97,24 +97,6 @@ export type RefreshResult = {
   readonly settleMovement: number | null;
 };
 
-/**
- * What `refresh-suggestions` answers with, declared beside `RefreshResult` for
- * the same reason: the Edge Function that writes it and the screen that reads it
- * are two packages apart.
- *
- * `suggested` is the uids in rank order, strongest first — the rows the call
- * just wrote, so the common path needs no second read — and is null when the
- * list was already current and nothing was written. An empty array is a real
- * answer: nobody far enough away agrees with you enough, or you have taste
- * discovery turned off, and neither is an error.
- */
-export type SuggestionsResult = {
-  /** When the search behind this list ran, in epoch milliseconds. */
-  readonly suggestedAt: number;
-  readonly recomputed: boolean;
-  readonly suggested: readonly string[] | null;
-};
-
 // Far finer than any step the bar can draw, so two results a viewer could tell
 // apart are never called equal, and coarse enough that the last bits of a float
 // do not rewrite the feed on a recompute that found nothing new.
@@ -360,49 +342,6 @@ function finite(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
     : 0;
-}
-
-/** A `user_prefs` row, as the client and `refresh-suggestions` both read it. */
-export type Prefs = {
-  /** DESIGN §5.1: default OFF, and on is one tap. */
-  readonly discoverableByTaste: boolean;
-  /** Suggestions this person has waved away, never shown again. */
-  readonly dismissedSuggestions: readonly string[];
-};
-
-/**
- * What an account that has never opened Settings is, and what a missing row
- * reads as.
- *
- * The switch ships off, so only an explicit yes turns it on: taste search is the
- * one channel that names you to somebody you have no edge to, and nobody is in
- * it until they say so.
- */
-export const DEFAULT_PREFS: Prefs = {
-  discoverableByTaste: false,
-  dismissedSuggestions: [],
-};
-
-/**
- * The row as it comes back, in the column names PostgREST and the service role
- * both use.
- *
- * `discoverable_by_taste` is `not null default false`, which makes most of this
- * unreachable and none of it wrong: the defaults have to exist anyway for the
- * account that has no row at all.
- */
-export function sanitizePrefs(stored: unknown): Prefs {
-  if (typeof stored !== "object" || stored === null) return DEFAULT_PREFS;
-  const data = stored as Record<string, unknown>;
-  const dismissed = Array.isArray(data.dismissed_suggestions)
-    ? data.dismissed_suggestions.filter(
-        (uid): uid is string => typeof uid === "string" && uid.length > 0,
-      )
-    : [];
-  return {
-    discoverableByTaste: data.discoverable_by_taste === true,
-    dismissedSuggestions: dismissed,
-  };
 }
 
 /**
