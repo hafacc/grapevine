@@ -5,7 +5,7 @@ a field at the bottom, a swipe to rate; this file says what it is made of. Where
 disagree, §1 wins.
 
 The direction is an instrument panel: one saturated teal, rules instead of shadows, the
-hex-grapes mark and the swipe. The comps are [`docs/mockups/`](../docs/mockups/).
+hex-grapes mark and the swipe.
 
 ## Voice
 

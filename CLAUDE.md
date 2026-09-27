@@ -3,7 +3,7 @@
 [DESIGN.md](./DESIGN.md) is the source of truth for *what* is built and *why*. This file is what a
 person or an agent needs to run and check things, and the rules that are easy to break.
 
-Read DESIGN §1 before changing any screen, and `docs/mockups/` for what it looks like.
+Read DESIGN §1 before changing any screen.
 
 ## Layout
 
@@ -22,9 +22,9 @@ Read DESIGN §1 before changing any screen, and `docs/mockups/` for what it look
                  functions/refresh-recs/ (the per-viewer recompute, Deno),
                  functions/refresh-suggestions/ (DESIGN §5's taste search for the caller),
                  tests/ (pgTAP), seed.sql
-    docs/        algorithm-notes.md (the measurements behind the algorithm's constants),
-                 mockups/ (static comps of the one view) and mark.svg (the mark). No code
-                 reads any of it except make-icons.mjs, which reads mark.svg.
+    docs/        algorithm-notes.md (the measurements behind the algorithm's constants) and
+                 mark.svg (the mark). No code reads any of it except make-icons.mjs, which
+                 reads mark.svg.
 
 `supabase/` lives at the repo root because the web app and every check point at the one local
 stack, and `supabase db push` and `supabase functions deploy` read that directory.
