@@ -32,7 +32,8 @@ export async function fetchReportedNames(): Promise<ReportedName[]> {
   );
 }
 
-// Deletes every thumb naming it and blocks it for good (`private.remove_name`).
+// Blocks it for good and takes it off every screen; its thumbs are deleted
+// in the background (`private.remove_name`, 0017).
 export async function removeReportedName(itemId: string): Promise<void> {
   const { error } = await supabase().rpc("remove_reported_name", {
     p_id: itemId,

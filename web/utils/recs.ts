@@ -113,13 +113,17 @@ function apply(uid: string, feed: CachedFeed): void {
   writeCache(uid, feed);
 }
 
-/** The stored feed, which is one row and one request. */
+/**
+ * The stored feed, which is one row and one request.
+ *
+ * Through `my_feed` rather than the table: a feed computed before a name was
+ * removed still holds it until the viewer's next recompute, and `my_feed`
+ * leaves out every name removed since (0017). What it answers is what the
+ * cache below keeps, so first paint shows a removed name only when it was
+ * removed after this browser last read the feed.
+ */
 async function loadStored(uid: string): Promise<void> {
-  const { data, error } = await supabase()
-    .from("user_recs")
-    .select("computed_at,entries")
-    .eq("user_id", uid)
-    .maybeSingle();
+  const { data, error } = await supabase().rpc("my_feed").maybeSingle();
   if (error) throw error;
   if (!data) {
     // Nobody has run the recompute for this account yet. That is an answer — an

@@ -77,8 +77,8 @@ select results_eq(
 select is(public.dismiss_reports('fine name'), 1, 'dismissing deletes the name''s reports');
 select is((select count(*)::int from public.items where id = 'fine name'), 1,
   'and keeps the name');
-select is(public.remove_reported_name('bad name'), 2,
-  'removing answers with the thumbs it deleted');
+select lives_ok($$select public.remove_reported_name('bad name')$$,
+  'an admin removes a name');
 select is((select count(*)::int from public.reported_names()), 0, 'and the queue is empty');
 
 set local role postgres;

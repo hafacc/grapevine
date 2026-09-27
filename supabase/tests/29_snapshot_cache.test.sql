@@ -1,7 +1,7 @@
 -- The neighbourhood cache (0016, DESIGN §3.4a): nobody but the service role can
 -- reach it, the delta returns exactly what changed since the cache was written
 -- — clears and friend lists included — and the purges leave no copy of a
--- deleted account or a removed name behind.
+-- deleted account behind.
 --
 -- Everything in one transaction reads one `now()`, so "before the cache" is
 -- made by moving the stamps an hour back, and "after" is anything written
@@ -285,15 +285,14 @@ select ok(private.save_snapshot_cache(
   'and one with the current epoch writes');
 reset role;
 
--- Removing a name drops every cache, and every tombstone naming it.
-insert into public.ratings (user_id, item_id, tag, value) values
-  ('44444444-4444-4444-4444-444444444444', 'banned', '', 1);
-delete from public.ratings where user_id = '44444444-4444-4444-4444-444444444444' and item_id = 'banned';
+-- Removing a name drops no cache and bumps no epoch: the delta names the
+-- removal instead (0017, and 31_lazy_removal).
+create temp table epoch_at_removal as select epoch from private.snapshot_epoch;
 select private.remove_name('banned');
-select is((select count(*)::int from private.snapshot_cache), 0,
-  'removing a name drops every cache');
-select is((select count(*)::int from private.ratings_cleared where item_id = 'banned'), 0,
-  'and every tombstone that names it');
+select is((select count(*)::int from private.snapshot_cache), 1,
+  'removing a name drops no cache');
+select is((select epoch from private.snapshot_epoch), (select epoch from epoch_at_removal),
+  'and bumps no epoch');
 
 select * from finish();
 rollback;

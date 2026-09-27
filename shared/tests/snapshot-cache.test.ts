@@ -2,7 +2,7 @@
 // cached one patched with a delta equals a fresh load. The second is checked
 // against a model of the database — friend lists, thumbs with the time they
 // were given, tombstones, the two clocks — whose `neighbourhood` and `delta`
-// say in TypeScript what 0015 and 0016 say in SQL; the pgTAP suite
+// say in TypeScript what 0015, 0016 and 0017 say in SQL; the pgTAP suite
 // `29_snapshot_cache` checks the SQL says it.
 
 import { describe, it } from "bun:test";
@@ -63,6 +63,8 @@ class Database {
   readonly cleared = new Map<string, Map<string, number>>();
   readonly changedAt = new Map<string, number>();
   readonly friendsChangedAt = new Map<string, number>();
+  // Removed names, and when (0017).
+  readonly removedAt = new Map<string, number>();
 
   constructor(
     readonly maxNodes: number,
@@ -80,7 +82,25 @@ class Database {
     return this.now;
   }
 
+  /** Whether a key names a removed name, which no reader returns. */
+  hidden(key: string): boolean {
+    const [itemId, tag] = halves(key);
+    return this.removedAt.has(itemId) || this.removedAt.has(tag);
+  }
+
+  removeName(name: string): void {
+    if (!this.removedAt.has(name)) this.removedAt.set(name, this.tick());
+  }
+
+  /** 0017's purge: the thumbs go, with no stamp and no tombstone. */
+  purge(): void {
+    for (const own of this.ratings.values()) {
+      for (const key of [...own.keys()]) if (this.hidden(key)) own.delete(key);
+    }
+  }
+
   rate(person: string, key: string, value: number): void {
+    if (this.hidden(key)) return;
     const own = this.ratings.get(person) as Map<string, Thumb>;
     const before = own.get(key);
     if (before?.value === value) return;
@@ -173,7 +193,7 @@ class Database {
     const mine = this.ratings.get(viewer) as Map<string, Thumb>;
     const nested: Record<string, Record<string, number>> = {};
     for (const [key, thumb] of this.ratings.get(person) ?? []) {
-      if (!keep(key, thumb)) continue;
+      if (this.hidden(key) || !keep(key, thumb)) continue;
       const [itemId, tag] = halves(key);
       const later = (mine.get(key)?.at ?? Number.POSITIVE_INFINITY) < thumb.at;
       const forItem = nested[itemId] ?? {};
@@ -246,6 +266,19 @@ class Database {
             thumb.at > since || (tombstones.get(key) ?? 0) > since,
         ),
         cleared,
+      });
+    }
+    const names = [...this.removedAt]
+      .filter(([, at]) => at > since)
+      .map(([name]) => name)
+      .sort();
+    if (names.length > 0) {
+      rows.push({
+        state: "names",
+        id: viewer,
+        friend_ids: null,
+        ratings: null,
+        cleared: names,
       });
     }
     return rows;
@@ -397,6 +430,26 @@ describe("applyDelta", () => {
     assert.deepEqual(patched?.get(other)?.ratings, { x: -1, y: 2 });
   });
 
+  it("drops every thumb naming a removed name, as a thing or an attribute", () => {
+    const viewer = uuid(1);
+    const other = uuid(2);
+    const cached = new Map<string, CachedNode>([
+      [viewer, { friendIds: [other], ratings: { bad: 1, [`x${JOIN}bad`]: 2 } }],
+      [other, { friendIds: [viewer], ratings: { bad: -2, x: 1, bade: 1 } }],
+    ]);
+    const patched = applyDelta(cached, viewer, [
+      {
+        state: "names",
+        id: viewer,
+        friend_ids: null,
+        ratings: null,
+        cleared: ["bad"],
+      },
+    ]);
+    assert.deepEqual(patched?.get(viewer)?.ratings, {});
+    assert.deepEqual(patched?.get(other)?.ratings, { x: 1, bade: 1 });
+  });
+
   it("refuses a delta that names a kept person the cache never held", () => {
     const cached = new Map<string, CachedNode>([
       [uuid(1), { friendIds: [], ratings: {} }],
@@ -442,6 +495,7 @@ describe("a patched neighbourhood equals a fresh load", () => {
   for (const seed of [1, 2, 3, 4, 5, 6]) {
     it(`over generated events, seed ${seed}`, async () => {
       const { database, ids, random, pick } = world(seed, 80, 30);
+      const removals = generator(seed + 1000);
       const viewer = ids[0] as string;
       let alive = [...ids];
       let cached: CachedNeighbourhood = neighbourhoodFromRows(
@@ -458,7 +512,7 @@ describe("a patched neighbourhood equals a fresh load", () => {
           const person = random() < 0.1 ? viewer : pick(alive);
           const own = [
             ...(database.ratings.get(person) as Map<string, Thumb>).keys(),
-          ];
+          ].filter((key) => !database.hidden(key));
           if (roll < 0.45) {
             database.rate(
               person,
@@ -492,6 +546,16 @@ describe("a patched neighbourhood equals a fresh load", () => {
           }
         }
 
+        // From a stream of their own, so adding them left the events above
+        // as they were.
+        if (removals() < 0.08) {
+          const names = [...ITEMS, "loud", "cheap"];
+          database.removeName(
+            names[Math.floor(removals() * names.length)] as string,
+          );
+        }
+        if (removals() < 0.2) database.purge();
+
         const fresh = neighbourhoodFromRows(database.neighbourhood(viewer));
         let next: CachedNeighbourhood = fresh;
         if (!dropped) {
@@ -518,6 +582,7 @@ describe("a patched neighbourhood equals a fresh load", () => {
         database.tick();
       }
       assert.ok(patches > 40);
+      assert.ok(database.removedAt.size > 0);
     });
   }
 });
