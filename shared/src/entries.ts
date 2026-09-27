@@ -27,7 +27,7 @@ import { isNormalizedId } from "./index.ts";
  * never queried, never shown. The database keys a rating by its columns and
  * every client shape is nested.
  */
-const RATABLE_JOIN = String.fromCodePoint(0);
+export const RATABLE_JOIN = String.fromCodePoint(0);
 
 // The wasm-boundary shapes the folding touches, declared here so that the pure
 // half depends on no build output.

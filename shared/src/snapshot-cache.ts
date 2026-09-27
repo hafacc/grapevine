@@ -7,7 +7,7 @@
 // sequences, and every `RELOAD_EVERY`th refresh checks it again against a full
 // load.
 
-import { sanitizeFriendIds, sanitizeRatings } from "./entries.ts";
+import { RATABLE_JOIN, sanitizeFriendIds, sanitizeRatings } from "./entries.ts";
 
 /**
  * The codec and the patch rules below. `private.snapshot_delta` patches only a
@@ -15,7 +15,7 @@ import { sanitizeFriendIds, sanitizeRatings } from "./entries.ts";
  * cache reload once. Bump it with any change to either, or to `N_max` or the
  * depth backstop.
  */
-export const CACHE_VERSION = 1;
+export const CACHE_VERSION = 2;
 
 /**
  * A full load, and a comparison against the patch, every this many refreshes:
@@ -97,6 +97,8 @@ function clearedKeys(cleared: unknown): string[] {
  *   cleared since, every such thumb was given before `since` and so before the
  *   viewer's: plain `±1`, never `±2`. Thumbs the delta carries came with their
  *   bit computed against the viewer's current thumb and are left alone.
+ * - A `names` row lists names removed since (0017): every key naming one, as a
+ *   thing or as an attribute, goes from everybody.
  */
 export function applyDelta(
   cached: CachedNeighbourhood,
@@ -107,9 +109,15 @@ export function applyDelta(
   const fresh = new Set<string>();
   const written = new Map<string, Set<string>>();
   let viewerMoved: string[] = [];
+  const removedNames = new Set<string>();
 
   for (const row of rows) {
-    if (row.state === "removed") {
+    if (row.state === "names") {
+      if (Array.isArray(row.cleared)) {
+        for (const name of row.cleared)
+          if (typeof name === "string") removedNames.add(name);
+      }
+    } else if (row.state === "removed") {
       nodes.delete(row.id);
     } else if (row.state === "added") {
       nodes.set(row.id, nodeOf(row));
@@ -150,7 +158,25 @@ export function applyDelta(
       if (ratings) nodes.set(id, { friendIds: node.friendIds, ratings });
     }
   }
+
+  if (removedNames.size > 0) {
+    for (const [id, node] of nodes) {
+      const kept = Object.fromEntries(
+        Object.entries(node.ratings).filter(
+          ([key]) => !namesRemoved(key, removedNames),
+        ),
+      );
+      if (Object.keys(kept).length !== Object.keys(node.ratings).length)
+        nodes.set(id, { friendIds: node.friendIds, ratings: kept });
+    }
+  }
   return nodes;
+}
+
+// Whether a key (`item`, or `item`, the join and a tag) names a removed name.
+function namesRemoved(key: string, removed: ReadonlySet<string>): boolean {
+  const [itemId = "", tag = ""] = key.split(RATABLE_JOIN);
+  return removed.has(itemId) || removed.has(tag);
 }
 
 /**

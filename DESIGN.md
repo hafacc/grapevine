@@ -1270,7 +1270,7 @@ private.snapshot_cache  (user_id pk, version, since, members uuid[],
 private.snapshot_epoch  (one row: epoch)                              -- bumped by every purge
 private.write_budget  (user_id, day) pk, writes                       -- trigger-written
 private.deleted_identities (fingerprint pk, day, writes)             -- §4, swept daily
-private.removed_names (id pk, removed_at)                             -- the owner's, §4
+private.removed_names (id pk, removed_at, purged_at)                  -- the owner's, §4
 private.admins        (user_id pk, added_at)                          -- written by hand, §4
 ```
 
@@ -1516,7 +1516,8 @@ over, and the caller by saying yes), `record_debug_event(text, text)`, which is 
 verb on a table in `private` and supplies none of the three columns it stamps, an INSERT of
 one name into `reports` (§4), `account_locked()` (§3.6; whether the caller has no connection),
 `account_is_admin()`, `reported_names()`, `remove_reported_name(text)` and `dismiss_reports(text)`
-(§4; each answers only an admin),
+(§4; each answers only an admin), `my_feed()` (the caller's own `user_recs` row, less any name
+removed since it was computed, §4),
 and `delete_account()` (§4), which takes no argument and deletes the caller's own `auth.users` row.
 
 Two triggers complete the schema and neither is callable: `handle_new_user()` on `auth.users`
@@ -1777,10 +1778,12 @@ cannot see two:
             tombstone (cleared and given again), with the order bit
           tombstones with cleared_at > since - margin and no row now
           the friend list, if friends_changed_at > since - margin
+        the names removed since - margin (§4)
+        and nowhere a thumb on a name awaiting its purge
     no rows, a blob that does not decode, or a delta naming someone the blob lacks
         -> private.neighbourhood (a full load)
     patch: drop tombstoned thumbs, upsert written ones, replace changed friend lists, drop and add
-        members; on every thing whose viewer thumb was written or cleared since, set the order bit
+        members, drop every thumb naming a removed name; on every thing whose viewer thumb was written or cleared since, set the order bit
         of every thumb not rewritten since to "before" (it was given before `since`, so before
         the viewer's new thumb)
     reloads_in = 0 -> also load in full, compare (below), and use the full load
@@ -1807,7 +1810,7 @@ one whose cost approaches a full load's.
   at a thousand users the checks run about six times a day, and the first mismatch is the alarm. The
   price is that one viewer's patched feed can sit on a bug for up to a hundred of their refreshes —
   about a month for the most active — and a cache unused for a week reloads in full anyway;
-- `remove_name` and account deletion drop caches (below).
+- account deletion drops caches (below). A removed name does not: the delta names it (§4).
 
 **Exactness.** A patched snapshot equals a fresh load when every change after the watermark is seen.
 Measured: 160 patches (two seeds, 20 viewers each over a 5 000-person world cut at 2 000, 10 to 2 000
@@ -1829,7 +1832,7 @@ break it, and the guard:
   database — thumbs, flips, clears, clears given again, the viewer's own, connections made and
   removed, account deletions — patching the decoded blob each time and comparing it with a fresh
   load, and `supabase/tests/29_snapshot_cache` checks the SQL delta returns what the model assumes.
-- *A refresh that read before a purge and writes after it*: an account deletion or a removed name
+- *A refresh that read before a purge and writes after it*: an account deletion
   deletes caches, but a refresh already holding the old data would write it back. Every purge bumps
   `private.snapshot_epoch` under an exclusive advisory lock; the save takes the lock shared and
   writes only when the epoch is the one the refresh read before any data. A purge waits for saves in
@@ -1900,7 +1903,7 @@ milliseconds of work over data already in memory.
   largest thing stored per viewer, more than the feed. Plus tombstones for 8 days.
 - **Complexity**: a table, a tombstone table and trigger, a clock column, the cut as its own
   function, one SQL delta function, a save and an epoch, a codec and a patch in `shared/` with
-  tests, a check path, two cron sweeps, drops on account deletion and in `remove_name`, and a rule
+  tests, a check path, two cron sweeps, drops on account deletion, and a rule
   every future migration must respect (a write to `ratings` or `friendships` with the triggers off
   ends with `delete from private.snapshot_cache`). The core does not change.
 - **Privacy — the real cost.** Without the cache the recompute would hold other people's thumbs for
@@ -1913,8 +1916,8 @@ milliseconds of work over data already in memory.
   - in `private`, readable by `service_role` only, never returned to a client;
   - **deleting an account deletes every cache whose `members` contains the account or any of its
     friends** (a `before delete` trigger on `profiles`, a scan of one row per viewer): the first holds
-    its thumbs, the second its id in a friend list, so neither survives in any copy. `remove_name`
-    drops every cache and every tombstone naming it (they rebuild on the next open);
+    its thumbs, the second its id in a friend list, so neither survives in any copy. A removed name
+    stays in a cache until that viewer's next refresh patches it out, or the 7-day sweep;
   - someone who leaves a viewer's reach stays in that cache until the viewer's next refresh; a cron
     statement deletes caches not refreshed for 7 days, which bounds it;
   - once backups exist (see `CLAUDE.md`), the caches are in them, encrypted, for their 30 days;
@@ -2202,14 +2205,24 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   reported it, never who. `reported_names()`, `remove_reported_name(text)` and
   `dismiss_reports(text)` check `private.is_admin()` before anything else and answer anybody
   else nothing or a refusal. Dismissing deletes a name's reports and keeps the name. Removing
-  calls `private.remove_name(text)`, which no client can call directly: it deletes every thumb
-  that names it,
-  as a thing or as an attribute, its catalog row and its reports, strips it from every stored
-  feed, and adds it to `private.removed_names`, which restrictive insert policies on `items`,
-  `ratings` and `reports` check so it cannot be typed back or reported again. Removal rather than a hidden flag the client
-  filters: a flag would still ship the name in every feed that carries it, readable to anyone
-  with DevTools, and leave thumbs pointing at it; a report is about text that should not be
-  served at all. The same path is the remedy for a homograph of an existing name, which §3.2
+  calls `private.remove_name(text)`, which no client can call directly: it adds the name to
+  `private.removed_names`, which restrictive insert policies on `items`, `ratings` and `reports`
+  check so it cannot be typed back or reported again, and deletes its catalog row and its reports.
+  That is all it does, in about a millisecond; rewriting every stored feed that held the name took
+  4–5 s at 5 000 people, against the 8 s a signed-in request is allowed. From that moment every
+  reader leaves the name out, on the server: a recompute's loads skip every thumb naming it, as a
+  thing or as an attribute, so a new feed never holds it; a patched neighbourhood cache drops it,
+  because the delta names every removal since the cache was written; a signed-in read of
+  `ratings` hides the viewer's own thumbs on it (a restrictive `SELECT` policy); and the app reads
+  a stored feed through `my_feed()`, which strips names removed since that feed was computed. The
+  thumbs themselves are deleted by a cron job, a batch of 5 000 a minute, without stamping anyone
+  or leaving tombstones, since nothing anybody was served changes when they go; the name counts as
+  purged once a run finds none left, ten minutes or more after the removal. What lags: a stored
+  `user_recs` row keeps the name until its viewer's next recompute, where only that viewer can read
+  the table directly, and a page already open keeps it until its next refresh. Removal rather than
+  a hidden flag the client filters: a flag would still ship the name in every feed that carries
+  it, readable to anyone with DevTools, and leave thumbs pointing at it; a report is about text
+  that should not be served at all. The same path is the remedy for a homograph of an existing name, which §3.2
   says is bounded rather than prevented.
 - Agreements are never shown, so there is no way to learn "the app thinks you and X
   disagree". The recompute keeps no per-friend trust map between calls — no reliability, agreement
@@ -2230,7 +2243,8 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   next refresh reads only what changed. It is not a new kind of data, only a second copy of what
   `ratings` and `friendships` hold; it is in `private`, readable by the server's own role and
   written only through one function, and never returned to a client. It is rewritten on each of the
-  viewer's refreshes, deleted after a week unused, and all of it is deleted when a name is removed.
+  viewer's refreshes and deleted after a week unused; a removed name leaves it at the viewer's next
+  refresh.
   Someone who leaves a viewer's reach stays in that copy until the viewer's next refresh.
 - Nothing about another user is ever computed on a client. Whatever a client is served it can
   read — with DevTools, a modified bundle or a plain HTTP call — so serving another person's

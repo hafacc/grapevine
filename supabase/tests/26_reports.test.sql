@@ -1,7 +1,7 @@
--- Reporting a thing's name, and the owner removing one (0013).
+-- Reporting a thing's name, and the owner removing one (0013, 0017).
 
 begin;
-select plan(23);
+select plan(24);
 
 insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'reporter@example.com', now()),
@@ -64,18 +64,20 @@ select ok(
   not has_table_privilege('anon', 'public.reports', 'insert'),
   'signed out, there is nothing to report with');
 
-select is(private.remove_name('bad name'), 3,
-  'removing the name deletes every thumb that names it, as a thing or an attribute');
+select lives_ok($$select private.remove_name('bad name')$$, 'the owner removes a name');
 select is((select count(*)::int from public.items where id = 'bad name'), 0,
-  'and its catalog row');
+  'and its catalog row goes');
 select is((select count(*)::int from public.reports), 0, 'and its reports');
+select is(private.purge_removed_names(), 3,
+  'the purge deletes every thumb that names it, as a thing or an attribute');
 select is((select count(*)::int from public.ratings), 1,
   'and nothing else: the other attribute''s thumb stays');
+set local role authenticated;
 select is(
-  (select entries from public.user_recs
-    where user_id = '11111111-1111-1111-1111-111111111111'),
+  (select entries from public.my_feed()),
   '[{"itemId":"café bleu","score":0.2,"conf":1,"tags":{"coffee":0.3}}]'::jsonb,
-  'and it is gone from stored feeds, as a thing and as an attribute, with any entry it was the only reason for');
+  'and a stored feed reads without it, as a thing and as an attribute, and without any entry it was the only reason for');
+set local role postgres;
 select lives_ok($$select private.remove_name('bad name')$$, 'removing twice is harmless');
 
 set local role authenticated;

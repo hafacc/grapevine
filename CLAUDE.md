@@ -295,21 +295,25 @@ The rules below are the ones that are easy to break:
   UPDATE or DELETE for anyone. No url (a phishing surface) and no tag list. Both
   `text_pattern_ops` indexes are needed: the collation is not `C`. `created_by` is readable by
   nobody and is the ONE person reference that does not cascade (`on delete set null`), or deleting
-  an account would be impossible.
+  an account would be impossible; its partial index (0017) keeps that set-null off a catalog scan.
 - **`reports`**: a signed-in person reports a thing's name from its screen. INSERT of
   `item_id` only (`user_id` defaults to the caller), one per person per name, one write spent,
   no SELECT/UPDATE/DELETE for any client — see "Reports" for review and removal.
 - **`private.admins`**: one row per admin, no client grant, written by hand ("Admins").
-- **`ratings`**: key `(user_id, item_id, tag)`, owner-only; `tag = ''` is the thing itself.
+- **`ratings`**: key `(user_id, item_id, tag)`, owner-only, less thumbs on a removed name awaiting
+  the purge (see "Reports"); `tag = ''` is the thing itself.
   `rated_at` leaves the database only as the order bit (below), and is not the staleness probe
   — `max(rated_at)` cannot see a flip or a clear, which is what `private.ratings_changed` is for.
   `private.neighbourhood` and `private.load_nodes(viewer, ids)` return ratings nested, item to tag
   to value — `±2` for a thumb given after the viewer's own on the same thing (0015) — and must not
-  build a joined key: text cannot hold the NUL the core joins with.
+  build a joined key: text cannot hold the NUL the core joins with. `load_nodes` aggregates `json`
+  and casts to `jsonb` once, with merge joins off so the viewer's own thumbs are hashed once
+  (0017): nested `jsonb_object_agg` was two thirds of a full load.
 - **`user_recs`**: owner read, written only by `refresh-recs` as the service role, one row in one
   statement: `computed_at`, `entries`, `feed_hash`. `feed_hash` stops a same-answer recompute
   moving `computed_at`. An entry is a score and a certainty (`conf`, DESIGN §2.6's `W`), stored
   apart, for every rated thing in reach; the client combines them (see "UI design language").
+  The app reads it through `public.my_feed()`, never the table, so a removed name is left out.
 - **`user_model`**: NO client verb; the Edge Function's bookkeeping: `computed_at`, `checked_at`,
   `nodes_touched`, `rating_count`, `recomputed`, `priors_at` and the twelve `pair_*` tallies.
   `checked_at` (every recompute) is what the ten-minute window keys on; `computed_at` moves only
@@ -488,7 +492,7 @@ is empty, never filler, for a viewer who has rated no attributes.
   open. Every stamp is the database's `now()` read *before* the neighbourhood, or a thumb given
   mid-recompute would be dated as already read.
 - **The feed comes back inline, and the row is the fallback** for a cold start and an offline
-  open; one Realtime channel carries the case where something other than this tab rewrote it.
+  open, read through `my_feed()` (see "Reports"); one Realtime channel carries the case where something other than this tab rewrote it.
   Nothing but a viewer's own open writes that row. First paint is `localStorage`, in a try/catch,
   under a per-viewer key.
 - **The neighbourhood is cached and patched** (DESIGN §3.4a). One call,
@@ -507,8 +511,7 @@ is empty, never filler, for a viewer who has rated no attributes.
     with the triggers off (a restore under `session_replication_role = replica`, a bulk rewrite)
     must be followed by `delete from private.snapshot_cache`; a change to the codec, the patch
     rules, `N_max` or the depth bumps `CACHE_VERSION`.
-  - **The epoch.** Every purge (`private.drop_snapshot_caches`: account deletion, `remove_name`)
-    bumps `private.snapshot_epoch` under an exclusive advisory lock; the save takes it shared and
+  - **The epoch.** Every purge (`private.drop_snapshot_caches`, on account deletion) bumps `private.snapshot_epoch` under an exclusive advisory lock; the save takes it shared and
     refuses when the epoch it was handed (read in `readStamps`, before any data) is stale. Without
     it a refresh that read before a deletion would write the deleted person back.
   - The delta reads from `since` less a minute, because `now()` is a transaction's start; a change
@@ -517,6 +520,8 @@ is empty, never filler, for a viewer who has rated no attributes.
     result as text, so a bytea comes back as hex, twice its size, and the blob is most of a
     refresh's egress.
   - The boundary rounds are not cached: they depend on the core's answer and are read every time.
+  - **A removed name drops no cache.** The delta's last row, `names`, lists every name removed
+    since `since` less the minute, and `applyDelta` drops every key naming one.
 - **Up to three boundary rounds follow** the neighbourhood, each `private.load_nodes(uid, ids)` on
   the (up to 200) boundary nodes with the greatest `strength` (the chain that would reach them),
   while `N_max` has room and some strength is above zero. `N_max` counts every node loaded, the
@@ -546,21 +551,39 @@ checking `private.is_admin()` first: `reported_names()` answers anybody else not
 `remove_reported_name(text)` and `dismiss_reports(text)` refuse with `42501`.
 
 A name that is abuse, a private person's name or spam is **removed**, not hidden.
-`remove_reported_name` calls `private.remove_name`, which answers with the number of thumbs it
-deleted. It deletes every rating naming the id (as a thing or an attribute), its `items` row and
-its reports, strips it from every `user_recs.entries`, and adds it to `private.removed_names`,
-which restrictive insert policies on `items`, `ratings` and `reports` check, so it cannot be
-created or reported again.
-Irreversible, like any delete here: the thumbs are gone. **Dismissing** deletes the name's
-reports and keeps the name; anyone may report it again. Both still work from this checkout with
-no admin account:
+`remove_reported_name` calls `private.remove_name` (0017), which only records the removal in
+`private.removed_names` (`removed_at`), deletes the `items` row and the reports, and returns
+nothing, in about a millisecond. The restrictive insert policies on `items`, `ratings` and
+`reports` check that table, so the name cannot be created or reported again. Everything else is
+lazy, and every reader of a name has to honour it:
+
+- **The thumbs** stay until `private.purge_removed_names`, a cron job every minute, deletes them,
+  5 000 a run (one scan of `ratings` each: there is no index on `item_id` or `tag`). Until then
+  `private.unpurged_names()` lists the name, and `load_nodes`, `snapshot_delta` and a signed-in
+  read of `ratings` (policy `ratings_not_removed_read`) leave those thumbs out. A name is marked
+  `purged_at` once a run finds none left and it was removed over ten minutes ago, because an insert
+  that passed the policy just before the removal can still commit.
+- **The purge stamps nobody and leaves no tombstone**: the rating delete triggers skip a row naming
+  a removed name, since no reader saw it. A purge that stamped every rater made the next patched
+  refresh cost twice a full load.
+- **A stored feed** keeps the name until its viewer's next recompute. The app reads it through
+  `public.my_feed()`, which strips names removed after `computed_at` less a minute, and caches
+  only what that returns; a direct read of `user_recs` still shows the viewer's own feed as
+  computed.
+- **Caches** drop it through the delta's `names` row (above).
+- Anything new that reads `ratings` or a name from a feed must leave removed names out the same way.
+
+Irreversible: the thumbs go. **Dismissing** deletes the name's reports and keeps the name; anyone
+may report it again. Both still work from this checkout with no admin account:
 
 ```sh
 supabase db query --linked "select private.remove_name('the exact id')"
 ```
 
 The id must be exact (`normalizeId` of what is shown). Unblocking is `delete from
-private.removed_names where id = '…'`, which brings nothing back.
+private.removed_names where id = '…'`, which brings nothing back; do it only once `purged_at` is
+set, or thumbs the purge has not reached reappear to every reader while the caches that dropped
+them never learn it (then also `delete from private.snapshot_cache`).
 
 ## Admins
 
@@ -754,14 +777,15 @@ one that drops or rewrites a column is reviewed as the irreversible thing it is,
 reset` belongs nowhere near the project.
 
 `ci.yml`'s `database` job fails a push or pull request that modifies, deletes or renames an
-existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0016` are not, and
-the next deploy applies all nine. Three of them destroy data on the project, irreversibly:
+existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0017` are not, and
+the next deploy applies all ten. Three of them destroy data on the project, irreversibly:
 `0009_invite_links.sql` drops `username` and `searchable` (every claimed handle; none had been
 claimed when it was written), `0011_remove_taste_search.sql` drops taste search's tables, and
 `0015_witness.sql` drops `user_recs.error` and `user_model`'s `settle_movement`, `passes`,
 `settled`, `truncation`, `boundary_residual`, `reach`, `reach_hash` and `reach_reuses`, which the
 witness model does not produce. `0016_snapshot_cache.sql` adds the neighbourhood cache and its two
-sweeps. `0010_invite_only.sql` locks every account with no connection and deletes its link, so the
+sweeps, and `0017_faster_queries_and_lazy_removal.sql` the purge of removed names' thumbs.
+`0010_invite_only.sql` locks every account with no connection and deletes its link, so the
 owner's own account needs a connection or the admin row ("Admins") before it can make a link again.
 
 ### The domain (do once, by hand)
