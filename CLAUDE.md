@@ -270,6 +270,15 @@ The rules below are the ones that are easy to break:
   both friendship rows as `security definer`. A dead link — off, replaced, mangled — names
   nobody and says *invalid or expired*, on the welcome screen before any trip to Google; a
   malformed token never reaches the server (`isInviteToken`).
+- **Deleting an account is `public.delete_account()`** (0012): no argument, deletes the
+  caller's `auth.users` row, and the cascade does the rest (17 and 24 pin it). Anything new that
+  names a person needs `on delete cascade` from `profiles`, or deletion either fails or leaves
+  it behind; a uuid kept outside a foreign key (an array, a column with no FK like
+  `debug_events.user_id`) needs clearing in that function by hand. It also leaves
+  `private.deleted_identities`: an HMAC of each identity's `provider:provider_id` under the
+  Vault secret `identity_fingerprint_key`, with that UTC day's spent budget, which a trigger on
+  `auth.identities` hands to a new account from the same identity that day (25 pins it). Swept
+  after its day. `run-local.sh` stands in a plain-text Vault.
   Replacing or turning off a link keeps the friendships it made.
 - **`items`**: the id is what somebody typed, normalized. The CLIENT writes `search_id` from
   `searchFold`, deliberately: a trigger would be a second implementation of the stripping, and a
@@ -479,8 +488,9 @@ The pure half — folding, change detection, sanitizing, which boundary nodes a 
 `rust/src/priors.rs::estimate_priors` is the batch version the simulator uses, and
 `rust/tests/priors.rs` checks the tallies agree with it.
 
-**Three statements run on a schedule, all inside the database (0005), and nothing else anywhere
-does**: the priors pooling, the diagnostics TTL sweep and the write-budget sweep. The last two are
+**Four statements run on a schedule, all inside the database (0005, and 0012's fingerprint
+sweep), and nothing else anywhere does**: the priors pooling, the diagnostics TTL sweep, the
+write-budget sweep and the deleted-identity sweep. The two 0005 sweeps are
 not optional: they are what stops a free project pausing after seven days without database
 activity. There is deliberately no scheduled GitHub workflow — GitHub disables one after 60 days of
 repository inactivity and nothing goes red.
@@ -640,8 +650,8 @@ one that drops or rewrites a column is reviewed as the irreversible thing it is,
 reset` belongs nowhere near the project.
 
 `ci.yml`'s `database` job fails a push or pull request that modifies, deletes or renames an
-existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0011` are not, and
-the next deploy applies all four. Two of them destroy data on the project, irreversibly:
+existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0012` are not, and
+the next deploy applies all five. Two of them destroy data on the project, irreversibly:
 `0009_invite_links.sql` drops `username` and `searchable` (every claimed handle; none had been
 claimed when it was written), and `0011_remove_taste_search.sql` drops taste search's tables.
 `0010_invite_only.sql` locks every account with no connection and deletes its link.

@@ -3,6 +3,7 @@
 import { type ReactElement, useState } from "react";
 import { heldLink } from "../utils/invites";
 import { useGrapevine } from "../utils/store";
+import DeleteAccountLine from "./delete-account";
 import SiteFooter from "./site-footer";
 import ThemeButton from "./theme-button";
 import Button from "./ui/button";
@@ -76,6 +77,9 @@ export default function LockedScreen(): ReactElement {
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-5 px-6 text-center">
         {content}
       </main>
+      <div className="mx-auto w-full max-w-md">
+        <DeleteAccountLine />
+      </div>
       <SiteFooter className="px-4 pt-6 pb-8" />
     </div>
   );

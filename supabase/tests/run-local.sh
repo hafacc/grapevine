@@ -11,9 +11,9 @@
 #   bash supabase/tests/run-local.sh              # all of them
 #   bash supabase/tests/run-local.sh 09_items     # one, by prefix
 #
-# One thing stands in for the platform, named where it is created below: a
+# Two things stand in for the platform, named where they are created below: a
 # minimal `auth` schema (GoTrue's, cut down to what the migrations and the
-# tests actually touch). pgTAP is the real one wherever it can be had — see
+# tests actually touch), and Supabase Vault, reduced to one view and one call.
 # above the suite loop — and a stand-in only offline. Under `supabase test db`
 # neither stand-in exists — the real `auth` schema and the real extension are
 # already there — so a suite that passes here and fails there is a suite that
@@ -116,7 +116,8 @@ create table auth.identities (
   provider       text not null,
   provider_id    text not null,
   user_id        uuid not null references auth.users (id) on delete cascade,
-  identity_data  jsonb not null default '{}'::jsonb,
+  -- No default, as on the platform: a suite that leaves it out fails here too.
+  identity_data  jsonb not null,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),
   primary key (provider, provider_id)
@@ -152,6 +153,28 @@ $$;
 grant usage on schema auth to anon, authenticated, service_role;
 grant execute on function auth.uid(), auth.role(), auth.jwt() to anon, authenticated, service_role;
 grant select on auth.users, auth.identities to service_role;
+
+-- Supabase Vault, cut to the view and the call 0012 uses. The real one keeps
+-- the secret encrypted under a key outside the database; this keeps it plain,
+-- which changes nothing a suite can observe.
+create schema vault;
+create table vault.secrets (
+  id           uuid primary key default gen_random_uuid(),
+  name         text unique,
+  description  text not null default '',
+  secret       text not null
+);
+create view vault.decrypted_secrets as
+  select id, name, description, secret as decrypted_secret from vault.secrets;
+create function vault.create_secret(
+  new_secret text, new_name text default null, new_description text default '',
+  new_key_id uuid default null) returns uuid
+  language sql
+as $$
+  insert into vault.secrets (secret, name, description)
+  values (new_secret, new_name, new_description)
+  returning id;
+$$;
 
 -- `0005_cron.sql` schedules three statements. pg_cron is a compiled extension and
 -- is not installed here; a suite that needs a statement runs its text by hand,

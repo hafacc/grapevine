@@ -122,6 +122,10 @@ the avatar in the corner. Everything user-facing is lower case.
    &lt;name&gt; from your vine?*, *you'll no longer shape each other's lists. to undo it, one of you
    has to send a link.* — and on *remove* removes both rows. On desktop the row keeps
    only its left button.
+   Below every section, last on the screen and hidden while the field filters, a quiet line
+   reads *delete your account*, tinted the red of a no-rated row. It opens a sheet saying what
+   goes and what stays (§4), and its delete button stays disabled until the word *delete* is
+   typed: the shared confirm confirms on Enter, and two taps in one place are one fumble.
 6. **Making a friend is sending a link.** Each person has **at most one link** —
    `https://grapevine.hafa.cc/#/invite/<token>` — with no expiry and no limit on uses, managed
    from the link row (item 5). The link can be copied again at any time, from any device the
@@ -166,7 +170,7 @@ the avatar in the corner. Everything user-facing is lower case.
    have joined sign in there. An account that trusts nobody is locked; the question above,
    when it holds a live link, is how it unlocks. Otherwise, or on *not now*, it sees *your
    account is locked* and *it unlocks when you add someone to your vine with their link. ask
-   someone for theirs.*, with *sign out*. Removing the last person
+   someone for theirs.*, with *sign out* and *delete your account*. Removing the last person
    asks first: *they're the last person in your vine. your account will be locked until
    someone sends you a link.*
 7. **The first list, and nothing to show.** Everyone arrives through a link, so their first
@@ -1485,7 +1489,8 @@ whether or not the token matches, then writes both friendship rows — `security
 because it writes the owner's half of the edge, which the owner authorized by handing the link
 over, and the caller by saying yes), `record_debug_event(text, text)`, which is the only write
 verb on a table in `private` and supplies none of the three columns it stamps, and
-`account_locked()` (§3.6; whether the caller has no connection).
+`account_locked()` (§3.6; whether the caller has no connection), and `delete_account()` (§4),
+which takes no argument and deletes the caller's own `auth.users` row.
 
 Two triggers complete the schema and neither is callable: `handle_new_user()` on `auth.users`
 creates the profile row in the same transaction as the account, so "the profile is missing"
@@ -1772,8 +1777,8 @@ Google into either, and the token lives in the browser's `sessionStorage`, where
 looks. So every Google sign-in creates an account, and the gate is on what the account can do:
 
 - **Locked means no connection.** Nothing stores the lock: `private.is_unlocked()` reads
-  `friendships`, so an account that never joined and one that removed its last connection
-  are locked by one rule. `private.count_write`,
+  `friendships`, so an account that never joined and one that removed its last connection, or
+  whose last connection deleted their account, are locked by one rule. `private.count_write`,
   the trigger every counted write already goes through — a rating, an item, a link, a
   diagnostic — refuses a locked caller before it spends anything, and a second trigger
   refuses the two client writes it does not see, a name update and clearing a thumb, with the
@@ -1785,8 +1790,8 @@ looks. So every Google sign-in creates an account, and the gate is on what the a
 - **No link while locked.** Losing the last connection deletes the account's link (a trigger on
   `friendships`), and a locked account cannot make one (the link's insert goes through the
   trigger), so a link's owner is never locked.
-- **Nothing is deleted.** A locked account keeps its ratings, and can sign out and answer a
-  link. Every account with no connection when `0010` applies is locked like any
+- **Nothing is deleted.** A locked account keeps its ratings, and can sign out, delete itself
+  and answer a link. Every account with no connection when `0010` applies is locked like any
   other.
 - **A Google account with no name is called *unknown***, rather than asked: there is no name
   screen, and the name is changed on the people screen like any other.
@@ -1795,9 +1800,10 @@ What this does not change: an account is still a Google sign-in away, and it can
 write guessing a token. What it removes is an account that can rate, name things or make a link
 without anyone having vouched for it.
 
-### 3.7 Nothing runs on a schedule except three statements in the database
+### 3.7 Nothing runs on a schedule except four statements in the database
 
-Three `pg_cron` statements, in migration `0005`, are the only scheduled work in the project:
+Four `pg_cron` statements, three in migration `0005` and one in `0012`, are the only scheduled
+work in the project:
 
 - **`κ` and `a₀(d)` pooling** (§2.10). A recompute already computes an alignment for every pair
   in reach at a hop distance it already knows, so it reports its partial sums — count, sum, sum
@@ -1806,8 +1812,9 @@ Three `pg_cron` statements, in migration `0005`, are the only scheduled work in 
   `private.params` under the `N_min = 200` guard. Nothing reads the whole graph to estimate them.
 - **The diagnostics sweep**, which deletes expired `debug_events`.
 - **The write-budget sweep**, which deletes past days from `private.write_budget`.
+- **The fingerprint sweep**, which deletes past days from `private.deleted_identities` (§4).
 
-The two sweeps are load-bearing twice over: besides their own jobs, they are what keeps a free
+The sweeps are load-bearing twice over: besides their own jobs, they are what keeps a free
 project from pausing after seven days without database activity, so deleting the last of them
 would do something nobody would guess.
 
@@ -1923,6 +1930,27 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   client that walks while the server scores all hand that person's ratings to the client in some
   encoding. The only per-viewer artefact that survives is the one the server already writes: the
   viewer's own feed.
+- **An account can be deleted by its owner, from the app, and by nobody else.**
+  `delete_account()` is `security definer` with no argument, so the only account it can reach is
+  `auth.uid()`; it deletes that `auth.users` row and the rest is the schema's own cascade:
+  profile, ratings, both halves of every friendship, the link, the feed, the model row, the
+  ratings clock, the write budget, and GoTrue's identity and sessions. By hand it also drops the
+  person's diagnostics, which carry no foreign key. Items they named stay, with `created_by`
+  null (§3.2). It is a function rather than a second Edge Function because it is one
+  statement under the caller's own identity. Friends see the person gone on their next read
+  (Realtime publishes no deletes), and the friendship trigger stamps each friend's ratings
+  clock, so their next open recomputes. Signing in again with the same Google account makes a
+  new, empty account with a new uuid — **but not a fresh write budget.** Deleting keeps, until
+  the end of that UTC day, a one-way fingerprint of each identity the account signed in with
+  beside the day's spent budget, and an account created from the same identity that day starts
+  from it, so deleting cannot be used to reset the limit. The fingerprint is HMAC-SHA256 of
+  `provider:provider_id` (Google's stable subject id) under a random key kept in Supabase Vault:
+  keyed, so knowing somebody's subject id is not enough to confirm they deleted an account; in
+  Vault, so the key is encrypted at rest and absent from any dump of `public`, `private` and
+  `auth`. No email, name or uuid is kept, and a scheduled statement deletes it after its day. One
+  day is enough because the budget is the only per-account allowance and it resets at midnight;
+  a limit with a longer window would need the fingerprint kept as long. A second Google account
+  still buys a fresh budget, which no fingerprint can stop.
 - Diagnostic records carry an `expires` field and nobody reads one back. What deletes them
   is a scheduled statement in a migration, in the repo and applied by the deploy, rather
   than a console setting somebody has to remember to make and whose absence is silent.

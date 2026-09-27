@@ -52,3 +52,17 @@ export function authErrorMessage(error: unknown): string {
       return "something went wrong. try again.";
   }
 }
+
+// The word the delete sheet asks for. A word rather than a second tap: two taps
+// on the same spot are one fumble, and typing is not.
+export const DELETE_WORD = "delete";
+
+export function confirmsDeletion(typed: string): boolean {
+  return typed.trim().toLowerCase() === DELETE_WORD;
+}
+
+// `delete_account` (0012) takes no argument: the account is the session's.
+export async function deleteAccount(): Promise<void> {
+  const { error } = await supabase().rpc("delete_account");
+  if (error) throw error;
+}
