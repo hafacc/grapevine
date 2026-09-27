@@ -7,6 +7,7 @@ import {
 } from "grapevine-shared/suggest-attributes";
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import { LuChevronLeft } from "react-icons/lu";
+import { cautiousScore } from "../utils/bar";
 import {
   type Attribute,
   attributesOf,
@@ -90,7 +91,7 @@ export default function EntityView({
 }): ReactElement {
   const { back } = useGrapevine();
   const { ratings, failed: ratingsFailed } = useMyRatings();
-  const { byItemId, error, failed: feedFailed } = useMyRecs();
+  const { byItemId, failed: feedFailed } = useMyRecs();
   const run = useAction();
   const { confirm, alert } = useDialog();
   const [query, setQuery] = useState("");
@@ -159,17 +160,6 @@ export default function EntityView({
 
   const entry = byItemId.get(itemId);
   const own = ratingOf(ratings, itemId, "");
-
-  // DESIGN §1 "The bar": `user_recs.error` is already on the score's own scale
-  // and the bar maps a width of 2 onto a width of 1, so the step the fill may
-  // move in is half of it. Null is no feed to quantize against, which the bar
-  // draws as nothing known yet rather than picking a step of its own.
-  const quantum = error === null ? null : error / 2;
-
-  // An entry with `conf: 0` is one carried only by an attribute of it — its
-  // chips are why it is in the feed at all, and the thing's own score behind
-  // them is supported by nothing, so the title's bar says nothing known yet.
-  const itemQuantum = entry !== undefined && entry.conf > 0 ? quantum : null;
 
   const attributes = useMemo(() => {
     const listed = attributesOf(itemId, entry, ratings);
@@ -283,8 +273,7 @@ export default function EntityView({
           {ownSaid ? <span className="sr-only">{ownSaid}</span> : null}
           <Bar
             subject={itemId}
-            score={entry?.score ?? 0}
-            quantum={itemQuantum}
+            score={cautiousScore(entry?.score ?? null, entry?.conf ?? null)}
           />
           <AvatarButton onAccent={own === 1} />
         </RateRow>
@@ -321,11 +310,7 @@ export default function EntityView({
                   {attribute.tag}
                 </span>
                 {said ? <span className="sr-only">{said}</span> : null}
-                <Bar
-                  subject={attribute.tag}
-                  score={attribute.score ?? 0}
-                  quantum={attribute.score === null ? null : quantum}
-                />
+                <Bar subject={attribute.tag} score={attribute.score} />
               </RateRow>
             );
           })}

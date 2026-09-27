@@ -51,10 +51,10 @@ select ok(
   not has_function_privilege('authenticated', 'private.neighbourhood(uuid, int, int)', 'execute'),
   'nor for authenticated');
 select ok(
-  not has_function_privilege('anon', 'private.load_nodes(uuid[])', 'execute'),
+  not has_function_privilege('anon', 'private.load_nodes(uuid, uuid[])', 'execute'),
   'and neither does the boundary-round loader, for anon');
 select ok(
-  not has_function_privilege('authenticated', 'private.load_nodes(uuid[])', 'execute'),
+  not has_function_privilege('authenticated', 'private.load_nodes(uuid, uuid[])', 'execute'),
   'nor for authenticated');
 select ok(
   has_function_privilege('service_role', 'private.neighbourhood(uuid, int, int)', 'execute'),
@@ -119,7 +119,7 @@ select throws_ok(
   $$select private.neighbourhood('11111111-1111-1111-1111-111111111111')$$, '42501', null,
   'and so is the loader, which is behind both locks');
 select throws_ok(
-  $$select private.load_nodes(array['11111111-1111-1111-1111-111111111111']::uuid[])$$, '42501', null,
+  $$select private.load_nodes('11111111-1111-1111-1111-111111111111', array['11111111-1111-1111-1111-111111111111']::uuid[])$$, '42501', null,
   'and its boundary-round twin');
 
 -- A column absent from an insert grant takes its DEFAULT and is therefore

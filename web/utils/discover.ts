@@ -14,6 +14,7 @@ import {
   type TagRelation,
   type TermMatch,
 } from "grapevine-shared/search";
+import { cautiousScore } from "./bar";
 import type { Item, Ratings, RatingValue, RecsEntry } from "./types";
 
 export { foldQuery };
@@ -107,15 +108,15 @@ export type FeedRow = {
   // The id IS what is drawn: it is the text somebody typed, folded, and there is
   // no name to look up (DESIGN §3.2).
   readonly itemId: string;
-  // §2.6's `s_u(i)`, null for a thing nobody in reach has rated. What the list
-  // is ranked by with an empty field, and never drawn.
+  // The thing's `cautiousScore`, what the list is ranked by with an empty
+  // field. Null for a thing nothing in reach has scored.
   readonly score: number | null;
-  // `W_u(i)`, what a query ranks by. Never drawn either: a support figure is the
+  // `W`, the tie-break after the score. Never drawn: a support figure is the
   // kind of count DESIGN §4 keeps off every screen.
   readonly conf: number | null;
   // What this row's bar draws: the score of `matchedTag` when there is one,
-  // the thing's own otherwise (DESIGN §1). Null is "nothing known yet", which
-  // the bar has a state for.
+  // `score` otherwise (DESIGN §1). Null is "nothing known yet", which the bar
+  // has a state for.
   readonly barScore: number | null;
   // Of the attributes the query matched, the one the network is least sure
   // the thing has, which is what limits how well it fits. Null when only the
@@ -156,9 +157,9 @@ export const UNKNOWN_PRESENCE = 0.5;
  * How present an attribute is on a thing, in `[0, 1]`: the viewer's own thumb
  * when there is one, 1 or 0; otherwise §2.6's score read as a probability.
  *
- * `s_u(i,t)` is a shrunk estimate of the mean thumb, and a thumb is `±1`, so
- * `(1 + s) / 2` is the estimated chance a rater says yes. No evidence shrinks
- * `s` to 0, which is exactly `UNKNOWN_PRESENCE`: the mapping needs no constant.
+ * `s_u(i,t)` is `2·P(yes) − 1` for the viewer's own thumb, so `(1 + s) / 2` is
+ * the chance they would say yes. No evidence leaves `s` at 0, which is exactly
+ * `UNKNOWN_PRESENCE`: the mapping needs no constant.
  */
 export function presence(attribute: Attribute): number {
   if (attribute.own !== null) return (1 + attribute.own) / 2;
@@ -188,6 +189,8 @@ type Candidate = {
   readonly entry: RecsEntry | undefined;
   readonly attributes: readonly Attribute[];
   readonly own: RatingValue | null;
+  // The thing's `cautiousScore`.
+  readonly score: number | null;
   // The thing's own presence, what a piece of the query that reads as its
   // name contributes: how good it is, on the scale an attribute uses.
   readonly presence: number;
@@ -370,12 +373,10 @@ function toRow(candidate: Candidate, readings: readonly Reading[]): FeedRow {
   const matchedTag = limiting?.tag ?? null;
   return {
     itemId: candidate.itemId,
-    score: entry?.score ?? null,
+    score: candidate.score,
     conf: entry?.conf ?? null,
     barScore:
-      matchedTag === null
-        ? (entry?.score ?? null)
-        : (entry?.tags[matchedTag] ?? null),
+      matchedTag === null ? candidate.score : (entry?.tags[matchedTag] ?? null),
     matchedTag,
     matchedTags: [
       ...new Set(
@@ -393,16 +394,14 @@ function toRow(candidate: Candidate, readings: readonly Reading[]): FeedRow {
  * The one list: the viewer's feed with the field empty, and what the query
  * matches otherwise (DESIGN §1 "Search").
  *
- * With no word to find it is §2.6's ranking over the viewer's own feed plus
- * everything the viewer has rated. An entry with `conf: 0` is one carried only
- * by an attribute of it (DESIGN §3.4) — it exists so a thing's screen has its
- * chips, and unless the viewer rated it, it is left out here rather than
- * sorted into the middle of the ranking on a score nothing supports.
+ * With no word to find it is every entry of the viewer's feed — every rated
+ * thing in reach (DESIGN §2.6: nothing is hidden) — plus everything the viewer
+ * has rated, ranked by `cautiousScore`, then by `conf`.
  *
  * With words, a thing is on the list when any part of the query reads as its
  * name or one of its attributes, and is ranked by its strength: the geometric
- * mean, per typed word, of what each term contributes — the thing's own score
- * for a piece read as its name, the attribute's presence for one read as an
+ * mean, per typed word, of what each term contributes — the thing's
+ * `cautiousScore` for a piece read as its name, the attribute's presence for one read as an
  * attribute, both as `presence` reads them and discounted by how well they were
  * spelled, one minus that for a piece typed with `!`, and `UNKNOWN_PRESENCE`
  * for a word the thing says nothing about — under whichever split of the
@@ -434,10 +433,7 @@ export function searchFeed(
     const own = ownRating(ratings, itemId, "");
     if (filter.hideRated && own !== null) continue;
     const entry = byItemId.get(itemId);
-    if (words.length === 0) {
-      const rated = Object.keys(ratings[itemId] ?? {}).length > 0;
-      if (!rated && (!entry || entry.conf <= 0)) continue;
-    }
+    const score = cautiousScore(entry?.score ?? null, entry?.conf ?? null);
     const attributes = attributesOf(itemId, entry, ratings);
     for (const attribute of attributes) tags.add(attribute.tag);
     candidates.push({
@@ -445,7 +441,8 @@ export function searchFeed(
       entry,
       attributes,
       own,
-      presence: presence({ tag: "", score: entry?.score ?? null, own }),
+      score,
+      presence: presence({ tag: "", score, own }),
     });
   }
 
@@ -455,6 +452,9 @@ export function searchFeed(
       const leftScore = left.score ?? 0;
       const rightScore = right.score ?? 0;
       if (leftScore !== rightScore) return rightScore - leftScore;
+      const leftConf = left.conf ?? 0;
+      const rightConf = right.conf ?? 0;
+      if (leftConf !== rightConf) return rightConf - leftConf;
       else return left.itemId.localeCompare(right.itemId);
     });
     return { rows, unmatched: [] };

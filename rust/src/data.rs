@@ -1,24 +1,24 @@
 //! The boundary form of everything: string ids, plain maps, one JSON document.
 //!
-//! The core works in interned integers; callers — the two Edge Functions, the examples, the
+//! The core works in interned integers; callers — the Edge Function, the examples, the
 //! seeding scripts — work in the string ids the database stores.
 //!
 //! This is also where a snapshot is *sanitized*. The `ratings` row constraints refuse most of
 //! what follows, but a schema is a thing that changes, and a crafted `1.5`, `true` or a key with
 //! a control character in it must not fail the recompute of every viewer within reach of its
-//! author. So nothing here refuses: a value that is not exactly `±1` and a key whose halves are
-//! not usable ids are dropped, and the rest of the snapshot computes.
+//! author. So nothing here refuses: a value that is not exactly `±1` or `±2` (the order bit)
+//! and a key whose halves are not usable ids are dropped, and the rest of the snapshot computes.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::compute::UserResult;
-use crate::ids::{RATABLE_JOIN, Ratable, is_normalized_id};
+use crate::ids::{RATABLE_JOIN, Ratable, UserId, is_normalized_id};
 use crate::priors::PairTallies;
 use crate::sim::{World, WorldConfig};
 use crate::snapshot::Snapshot;
+use crate::witness::UserResult;
 
 /// One rating exactly as it arrived, before anything decides whether it is a thumb.
 ///
@@ -30,15 +30,22 @@ use crate::snapshot::Snapshot;
 pub struct RatingValue(f64);
 
 impl RatingValue {
-    /// `1` or `-1`, and nothing else.
+    /// The thumb, `1` or `-1`, and nothing else. `2` and `-2` are the same thumbs marked as
+    /// given after the viewer's own thumb on the same thing (DESIGN section 3.4): the order is
+    /// all the neighbourhood says about time, one bit per rating and never a clock.
     pub fn thumb(self) -> Option<i8> {
-        if self.0 == 1.0 {
+        if self.0 == 1.0 || self.0 == 2.0 {
             Some(1)
-        } else if self.0 == -1.0 {
+        } else if self.0 == -1.0 || self.0 == -2.0 {
             Some(-1)
         } else {
             None
         }
+    }
+
+    /// Whether this thumb was given after the viewer's own on the same thing.
+    pub fn is_later(self) -> bool {
+        self.0 == 2.0 || self.0 == -2.0
     }
 }
 
@@ -57,8 +64,9 @@ impl From<f64> for RatingValue {
 #[cfg(feature = "serde")]
 impl Serialize for RatingValue {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // `±2` stays `±2`: the order bit is part of the value.
         match self.thumb() {
-            Some(thumb) => serializer.serialize_i8(thumb),
+            Some(_) => serializer.serialize_i8(self.0 as i8),
             None => serializer.serialize_f64(self.0),
         }
     }
@@ -141,10 +149,10 @@ impl<'de> Deserialize<'de> for RatingValue {
 
 /// A friend graph and everyone's ratings, as the loader read them.
 ///
-/// Adjacency arrives *directed*, one list per node whose own row was read, because the walk stops
+/// Adjacency arrives *directed*, one list per node whose own row was read, because the loader stops
 /// at a budget: a loaded node names people nobody loaded, and their side of the edge is simply not
 /// in the snapshot. An edge survives only where both endpoints name each other, or where one of
-/// them was never read (DESIGN section 3.4 step 1).
+/// them was never read (DESIGN section 3.4).
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(default, rename_all = "camelCase"))]
@@ -156,11 +164,12 @@ pub struct SnapshotData {
     /// able to rate, with unknown adjacency. An empty list means the whole graph was read, which
     /// is what a test or a simulated world hands over.
     pub loaded: Vec<String>,
-    /// Undirected pairs, the form the simulator dumps and the examples read. Both endpoints of
-    /// one of these list each other by construction, so nothing here needs reciprocity.
+    /// Undirected pairs, taken as given with no reciprocity check: a test's shorthand for
+    /// `friend_ids`.
     pub edges: Vec<(String, String)>,
     /// user id to ratable — the item id, or the item id and the tag joined by `RATABLE_JOIN` —
-    /// to `1` or `-1`, before sanitizing.
+    /// to `1` or `-1`, or `2` or `-2` for a thumb given after the viewer's own, before
+    /// sanitizing.
     pub ratings: BTreeMap<String, BTreeMap<String, RatingValue>>,
 }
 
@@ -173,13 +182,14 @@ pub struct ScoreData {
     pub confidence: f64,
 }
 
-/// A node the walk reached and could not expand, with the mass waiting on it.
+/// A person whose connections were not loaded, and how strongly a chain would reach them: the
+/// loader reads the strongest next (DESIGN section 3.4).
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct BoundaryNodeData {
     pub id: String,
-    pub residual: f64,
+    pub strength: f64,
 }
 
 /// What one viewer's recompute returns.
@@ -188,24 +198,11 @@ pub struct BoundaryNodeData {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct ResultData {
     pub viewer: String,
-    pub reach: usize,
-    /// `π̃_u(v)` per reached person, which the caller stores against the hash of the adjacency
-    /// it walked so an unchanged graph can be rescored rather than re-walked.
-    pub reach_masses: BTreeMap<String, f64>,
-    pub truncation: f64,
-    /// What the unread nodes would have sent on, and where it sits — reported apart from
-    /// `truncation` and not counted against `ε_total`. The loader reads these nodes and calls
-    /// again while `N_max` has room (DESIGN section 3.4 step 4); past that, it is influence from
-    /// beyond the nearest `N_max` people that the answer leaves out.
-    pub boundary_residual: f64,
+    /// People with a non-zero chain.
+    pub reached: usize,
+    /// Strongest first. The loader reads those with `strength > 0` while `N_max` has room.
     pub boundary_nodes: Vec<BoundaryNodeData>,
-    /// The largest movement of any score in the last pass of the settling loop, and whether
-    /// the loop stopped on the tolerance or on the pass cap. The caller stores both and
-    /// quantizes the bar to `max(truncation · L, settleMovement)`.
-    pub settle_movement: f64,
-    pub passes: usize,
-    pub settled: bool,
-    /// DESIGN section 2.10's per-viewer tallies. The caller stores them and a statement in the
+    /// DESIGN section 2.9's per-viewer tallies. The caller stores them and a statement in the
     /// database pools them; nothing else reads them back.
     pub pairs: PairTallies,
     pub scores: BTreeMap<String, ScoreData>,
@@ -218,7 +215,13 @@ pub struct ResultData {
 pub struct WorldData {
     pub seed: u64,
     pub config: WorldConfig,
+    /// Every thumb as `±1`: the world is nobody's view of it, so it carries no viewer's bit.
     pub snapshot: SnapshotData,
+    /// User id to ratable key to when that thumb was given, as an order (`Snapshot::stamps`); an
+    /// absent thumb has stamp zero. This is what the loader's `±2` is read from, as `rated_at`
+    /// is in the database, and seeding writes it there in the same order, so a seeded stack and
+    /// `WorldData::to_snapshot` agree on every viewer's bit.
+    pub stamps: BTreeMap<String, BTreeMap<String, u32>>,
     pub items: Vec<String>,
     /// Which cluster each user was drawn from, in `snapshot.users` order.
     pub clusters: Vec<usize>,
@@ -242,6 +245,12 @@ impl SnapshotData {
     /// Interns everything, drops every rating the core cannot read, and keeps only the edges
     /// both endpoints agree on.
     pub fn to_snapshot(&self) -> Snapshot {
+        self.build(None)
+    }
+
+    /// `to_snapshot`, with each thumb's order taken from `stamps` when given, in place of the
+    /// viewer's bit.
+    fn build(&self, stamps: Option<&BTreeMap<String, BTreeMap<String, u32>>>) -> Snapshot {
         let mut builder = Snapshot::builder();
         for name in &self.users {
             builder.user(name);
@@ -279,8 +288,8 @@ impl SnapshotData {
 
         for (owner, friends) in &self.friend_ids {
             for friend in friends {
-                // An edge to a node nobody read is a boundary edge: the walk will stop there and
-                // report it, and refusing it would hide reach rather than verify it.
+                // An edge to a node nobody read is a boundary edge: the model reports it for the
+                // loader's next round, and refusing it would hide reach rather than verify it.
                 let mutual = listed
                     .get(friend.as_str())
                     .is_some_and(|theirs| theirs.contains(owner.as_str()));
@@ -307,7 +316,23 @@ impl SnapshotData {
                     continue;
                 }
                 let ratable = builder.ratable(ratable_name);
-                builder.rate(user, ratable, thumb);
+                let stamp = match stamps {
+                    Some(given) => given
+                        .get(name)
+                        .and_then(|owned| owned.get(ratable_name))
+                        .copied()
+                        .unwrap_or(0),
+                    // An order stamp relative to the viewer only: a thumb given after the
+                    // viewer's sorts after it, everything else sorts with it.
+                    None => {
+                        if value.is_later() {
+                            2
+                        } else {
+                            0
+                        }
+                    }
+                };
+                builder.rate_at(user, ratable, thumb, stamp);
             }
         }
 
@@ -328,7 +353,17 @@ impl SnapshotData {
 }
 
 impl Snapshot {
-    pub fn to_data(&self) -> SnapshotData {
+    /// The boundary form as the loader sends it to `viewer`: `±2` for a thumb given after the
+    /// viewer's own on the same thing, `±1` for every other (0015's `load_nodes`).
+    pub fn to_data(&self, viewer: UserId) -> SnapshotData {
+        self.data_with(|user, ratable, stamp| {
+            user != viewer
+                && self.rating(viewer, ratable).is_some()
+                && stamp > self.stamp(viewer, ratable)
+        })
+    }
+
+    fn data_with(&self, is_later: impl Fn(UserId, Ratable, u32) -> bool) -> SnapshotData {
         let friend_ids = self
             .users()
             .filter(|&user| !self.friends(user).is_empty())
@@ -347,7 +382,11 @@ impl Snapshot {
                 let owned = self
                     .ratings(user)
                     .iter()
-                    .map(|&(ratable, value)| (self.ratable_name(ratable), RatingValue::from(value)))
+                    .zip(self.stamps(user))
+                    .map(|(&(ratable, value), &stamp)| {
+                        let scale = if is_later(user, ratable, stamp) { 2 } else { 1 };
+                        (self.ratable_name(ratable), RatingValue::from(value * scale))
+                    })
                     .collect();
                 (self.user_name(user).to_string(), owned)
             })
@@ -372,25 +411,15 @@ impl Snapshot {
     pub fn result_data(&self, result: &UserResult) -> ResultData {
         ResultData {
             viewer: self.user_name(result.viewer).to_string(),
-            reach: result.reach,
-            reach_masses: result
-                .reach_masses
-                .iter()
-                .map(|&(user, mass)| (self.user_name(user).to_string(), mass))
-                .collect(),
-            truncation: result.truncation,
-            boundary_residual: result.boundary_residual,
+            reached: result.reached,
             boundary_nodes: result
-                .boundary_nodes
+                .boundary
                 .iter()
                 .map(|node| BoundaryNodeData {
                     id: self.user_name(node.user).to_string(),
-                    residual: node.residual,
+                    strength: node.strength,
                 })
                 .collect(),
-            settle_movement: result.settle_movement,
-            passes: result.passes,
-            settled: result.settled,
             pairs: result.pairs,
             scores: result
                 .scores
@@ -426,7 +455,22 @@ impl World {
         WorldData {
             seed,
             config: self.config.clone(),
-            snapshot: self.snapshot.to_data(),
+            snapshot: self.snapshot.data_with(|_, _, _| false),
+            stamps: self
+                .snapshot
+                .users()
+                .map(|user| {
+                    let owned = self
+                        .snapshot
+                        .ratings(user)
+                        .iter()
+                        .zip(self.snapshot.stamps(user))
+                        .filter(|&(_, &stamp)| stamp != 0)
+                        .map(|(&(ratable, _), &stamp)| (self.snapshot.ratable_name(ratable), stamp))
+                        .collect();
+                    (self.snapshot.user_name(user).to_string(), owned)
+                })
+                .collect(),
             items: self
                 .items()
                 .map(|item| self.snapshot.item_name(item).to_string())
@@ -434,6 +478,13 @@ impl World {
             clusters: self.cluster_of.clone(),
             true_preference: self.true_preference.clone(),
         }
+    }
+}
+
+impl WorldData {
+    /// The world with every thumb's order, so any viewer's bit is the one a seeded stack gives.
+    pub fn to_snapshot(&self) -> Snapshot {
+        self.snapshot.build(Some(&self.stamps))
     }
 }
 
@@ -463,11 +514,17 @@ mod tests {
     fn nothing_a_rating_map_can_hold_fails_the_boundary() {
         // Values a changed schema could let through, as JSON. Every one of them has to
         // deserialize — a snapshot that fails here fails the recompute of every viewer in reach of it — and
-        // every one but the two thumbs has to come out as no rating at all.
+        // every one but the thumbs, with and without the order bit, has to come out as no
+        // rating at all.
         for (document, thumb) in [
             ("1", Some(1)),
             ("-1", Some(-1)),
             ("1.0", Some(1)),
+            ("2", Some(1)),
+            ("-2", Some(-1)),
+            ("2.0", Some(1)),
+            ("3", None),
+            ("-3", None),
             ("1.5", None),
             ("300", None),
             ("0", None),
@@ -483,29 +540,138 @@ mod tests {
         }
     }
 
+    #[test]
+    fn a_later_thumb_keeps_its_value_and_sorts_after_the_viewers() {
+        let data = SnapshotData {
+            users: vec!["u0".into(), "u1".into()],
+            ratings: ratings(&[("u0", &[("i0", 1.0)]), ("u1", &[("i0", -2.0), ("i1", 2.0)])]),
+            ..SnapshotData::default()
+        };
+        let snapshot = data.to_snapshot();
+        let viewer = snapshot.user_id("u0").expect("u0");
+        let other = snapshot.user_id("u1").expect("u1");
+        let item = snapshot.ratable_id("i0").expect("i0");
+        assert_eq!(snapshot.rating(other, item), Some(-1));
+        assert!(snapshot.stamp(other, item) > snapshot.stamp(viewer, item));
+    }
+
+    fn result_of(snapshot: &Snapshot, viewer: &str) -> ResultData {
+        let id = snapshot
+            .user_id(viewer)
+            .expect("the viewer is in every form");
+        let result = crate::witness::compute_user(snapshot, id, &crate::params::Params::default())
+            .unwrap_or_else(|error| panic!("{viewer}: {error}"));
+        snapshot.result_data(&result)
+    }
+
+    /// A world leaves the crate in two forms: the dump, which keeps every stamp, and what the
+    /// loader sends one viewer, which keeps only that viewer's bit. Both have to give each viewer
+    /// the bits and the result of the snapshot they came from, or `check:recs-parity` compares
+    /// two different questions.
+    #[test]
+    fn both_data_forms_keep_every_viewers_order() {
+        let world = crate::sim::simulate(
+            &crate::sim::WorldConfig {
+                users: 30,
+                items: 60,
+                tag_rated_fraction: 0.3,
+                ..crate::sim::WorldConfig::default()
+            },
+            &mut crate::rng::Rng::new(5),
+        );
+        let original = &world.snapshot;
+        let dumped = world.to_data(5).to_snapshot();
+        let (mut later, mut earlier) = (0usize, 0usize);
+        for viewer in original.users() {
+            let viewer_name = original.user_name(viewer);
+            let loaded = original.to_data(viewer).to_snapshot();
+            for other in original.users().filter(|&other| other != viewer) {
+                let other_name = original.user_name(other);
+                for &(ratable, _) in original.ratings(other) {
+                    if original.rating(viewer, ratable).is_none() {
+                        continue;
+                    }
+                    let bit = original.stamp(other, ratable) > original.stamp(viewer, ratable);
+                    if bit {
+                        later += 1;
+                    } else {
+                        earlier += 1;
+                    }
+                    let key = original.ratable_name(ratable);
+                    for (form, what) in [(&dumped, "dump"), (&loaded, "loaded")] {
+                        let (Some(mine), Some(theirs), Some(thing)) = (
+                            form.user_id(viewer_name),
+                            form.user_id(other_name),
+                            form.ratable_id(&key),
+                        ) else {
+                            panic!("{what}: {viewer_name}, {other_name} or {key:?} went missing");
+                        };
+                        assert_eq!(
+                            form.stamp(theirs, thing) > form.stamp(mine, thing),
+                            bit,
+                            "{what}: {other_name}'s {key:?} against {viewer_name}'s"
+                        );
+                    }
+                }
+            }
+
+            let expected = result_of(original, viewer_name);
+            for (form, what) in [(&dumped, "dump"), (&loaded, "loaded")] {
+                let got = result_of(form, viewer_name);
+                assert_eq!(got.reached, expected.reached, "{what}: {viewer_name}");
+                assert_eq!(
+                    got.scores.keys().collect::<Vec<_>>(),
+                    expected.scores.keys().collect::<Vec<_>>(),
+                    "{what}: {viewer_name}"
+                );
+                for (key, score) in &expected.scores {
+                    let theirs = got.scores[key];
+                    assert!(
+                        (theirs.score - score.score).abs() <= 1e-12
+                            && (theirs.confidence - score.confidence).abs() <= 1e-12,
+                        "{what}: {viewer_name}'s {key:?} is {theirs:?}, not {score:?}"
+                    );
+                }
+            }
+        }
+        assert!(
+            later > 0 && earlier > 0,
+            "the world has to hold both orders: {later} later, {earlier} not"
+        );
+    }
+
     #[cfg(feature = "serde")]
     #[test]
-    fn a_walk_report_crosses_the_boundary_whole_or_not_at_all() {
-        use crate::compute::WalkReport;
-        let report: WalkReport = serde_json::from_str(
-            r#"{"truncation":0.01,"boundaryResidual":0.3,"settleMovement":2e-5,"passes":5,"settled":true}"#,
-        )
-        .expect("the report computeUser's result carries");
-        assert_eq!(
-            report,
-            WalkReport {
-                truncation: 0.01,
-                boundary_residual: 0.3,
-                settle_movement: 2e-5,
-                passes: 5,
-                settled: true,
-            }
+    fn the_order_survives_json() {
+        let world = crate::sim::simulate(
+            &crate::sim::WorldConfig {
+                users: 12,
+                items: 20,
+                ..crate::sim::WorldConfig::default()
+            },
+            &mut crate::rng::Rng::new(3),
         );
-        // A report missing a field is refused rather than defaulted: a rescore that invented
-        // `settled: false` or a zero truncation would store a claim no walk made.
+        let dump = world.to_data(3);
+        let read: WorldData = serde_json::from_str(&serde_json::to_string(&dump).expect("a dump"))
+            .expect("a dump reads back");
+        assert_eq!(
+            (&read.snapshot, &read.stamps),
+            (&dump.snapshot, &dump.stamps)
+        );
+
+        let viewer = world.snapshot.users().next().expect("a viewer");
+        let loaded = world.snapshot.to_data(viewer);
+        let read: SnapshotData =
+            serde_json::from_str(&serde_json::to_string(&loaded).expect("a snapshot"))
+                .expect("a snapshot reads back");
+        assert_eq!(read, loaded);
         assert!(
-            serde_json::from_str::<WalkReport>(r#"{"truncation":0.01,"settleMovement":0}"#)
-                .is_err()
+            loaded
+                .ratings
+                .values()
+                .flat_map(BTreeMap::values)
+                .any(|value| value.is_later()),
+            "somebody rated after the viewer"
         );
     }
 
@@ -582,7 +748,7 @@ mod tests {
         assert_eq!(
             snapshot.friends(viewer).len(),
             1,
-            "u2 does not list u0 back, so that edge is not walkable"
+            "u2 does not list u0 back, so that edge is dropped"
         );
         assert!(!snapshot.friends(viewer).contains(&stale));
         assert!(

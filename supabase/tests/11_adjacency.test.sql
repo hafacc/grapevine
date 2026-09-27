@@ -1,5 +1,5 @@
 -- The adjacency is `friendships` and nothing else (DESIGN §3.2). No profile
--- column lists a person's friends — a list the walk believed would be a claim
+-- column lists a person's friends — a list the recompute believed would be a claim
 -- about who knows whom that anyone could make — an edge is only ever written by
 -- one of its two ends, and reciprocity is a constraint.
 

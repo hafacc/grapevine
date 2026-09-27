@@ -41,11 +41,6 @@ export default function AboutPage(): ReactElement {
 
       <H2>how your list is built</H2>
       <P>
-        Someone counts more the more their earlier thumbs matched yours, most of
-        all on things people around you disagree about. Everything anyone near
-        you rated shows, drawn fainter the less is behind it.
-      </P>
-      <P>
         People outside your vine have limited impact on your list, which limits
         the effect of bots.
       </P>

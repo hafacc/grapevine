@@ -3,132 +3,100 @@
 The recommendation algorithm of [DESIGN.md](../DESIGN.md) §2, as pure functions over an
 in-memory snapshot, plus the synthetic-world simulator and the property suite that pins the
 algorithm's claims down. No I/O, no database, no async. Built to WebAssembly by
-`scripts/build-wasm.sh`, for the two Edge Functions (`web` target) and for
+`scripts/build-wasm.sh`, for the Edge Function (`web` target) and for
 `rust/examples/smoke.mjs` (`nodejs`).
 
 ```rust
 let result = compute_user(&snapshot, viewer, &Params::default())?;
-// result.scores: ratable -> (score, confidence), everything with W ≥ W_min
-// result.truncation: what the walk left unresolved, over the loaded nodes
-// result.boundary_residual, result.boundary_nodes: what the unread nodes would have sent on
-// result.settle_movement, result.passes, result.settled: where the settling loop stopped
-// result.reach, result.reach_masses, result.work, result.pairs
+// result.scores: ratable -> (score, confidence = W) for every item and tag anyone reached rated,
+//                and every attribute gap filled from a linked pair
+// result.reached: people with a non-zero chain
+// result.boundary: unloaded neighbours of the loaded, with the strength a chain would reach them at
+// result.pairs: the per-viewer tallies the database pools into the priors
 ```
 
-Every entry point returns a `Result`. The error cases are a snapshot whose walk produced a
-non-finite mass, a parameter table outside the ranges of §2.8, an unknown viewer, and a rescore
-handed a mass vector of the wrong length — never a rating anyone can write: values that are not
-`1`/`-1` and keys whose halves are not usable ids are *dropped* at the boundary, because refusing
-them would let one crafted account fail the recompute of every viewer within reach of it.
+Every entry point returns a `Result`. The error cases (`CoreError`) are a parameter table the model
+has no answer for (`a₀` outside `(0, 1)`, a `κ` or `L` that is not positive and finite), an
+unknown viewer, and a score or certainty that is not finite — never a rating
+anyone can write: values that are not `1`/`-1` (or `2`/`-2`, the same thumbs given after the viewer's own) and
+keys whose halves are not usable ids are *dropped* at the boundary, because refusing them would let
+one crafted account fail the recompute of every viewer within reach of it.
 
 ## Layout
 
 | module | what it is |
 |---|---|
 | `ids` | `UserId`, `ItemId`, `TagId`, `Ratable` (an item, or an item–tag pair), the id check |
-| `snapshot` | the friend graph and everyone's ratings, names interned to integers; a user may be *unloaded* |
+| `snapshot` | the friend graph and everyone's ratings with their order stamps, names interned to integers; a user may be *unloaded* |
 | `graph` | the `Graph` trait (adjacency may be missing, as it is for an unloaded user), BFS hop distances |
-| `params` | the table of DESIGN §2.8: `Params::default()` on demand, `Params::deep()`, the wider budget the sybil suite also runs |
-| `walk` | the non-backtracking push of §2.4: `π̃`, truncation, boundary residual and the nodes holding it; `Budget` is the `E_max` it spends |
-| `informativeness` | `ω` per item (§2.2), the viewer's own vote included at `π̃ = 1` |
-| `alignment` | `A`, `D`, `â`, `ℓ` over item ratables (§2.3) |
-| `score` | `E`, `W`, `s` for items and tags (§2.6) |
-| `compute` | the settling loop: `compute_user`, `compute_user_detail`, `compute_all`, and `rescore_user` over cached masses |
-| `priors` | `κ` and `a₀(d)` by method of moments (§2.10): the per-recompute `PairTallies` the database pools, the same estimate over a whole snapshot for the simulator, and the per-field merge into the table |
-| `rng`, `sim` | seeded xorshift; latent-taste worlds with clusters, homophily and an agreement oracle |
-| `attack` | sybil regions: `PromoteOnly`, `CopyConsensus`, `ManufactureContested`, `MimicFeed`, `TagSpam`, wired as a clique, a chain or a star of chains |
+| `params` | the table of DESIGN §2.9: `a₀`, `κ`, `L` |
+| `witness::channel` | the witness channel of §2.2: a shared thumb's likelihood with the reaction mixture, the posterior of `λ` on a 16-point grid, a thumb's clipped log-likelihood ratio, the chance it is the viewer's answer |
+| `witness::circle` | the circle (the viewer and the people they trust directly) and the base rates read over it |
+| `witness::chains` | direct reliability, the max-product chains and their regions, own history under the two caps |
+| `witness::topics` | the attributes a thing carries, and reliability per attribute with `κ_a` chosen by marginal likelihood |
+| `witness::score` | region averages, the starting point, the score and the certainty `W` |
+| `witness::facts` | attribute thumbs as facts: the one fact reliability, tag scores, attribute pairs by spike-and-slab and the gaps they fill |
+| `witness` | `compute_user`, `compute_user_detail` (everything per person, for tests), `compute_all`; the boundary and the tallies |
+| `score` | `Score`: one ratable's score and `W` |
+| `priors` | `κ` and `a₀(d)` by method of moments (§2.9): the per-recompute `PairTallies` the database pools, the same estimate over a whole snapshot for the simulator, and the per-field merge into the table |
+| `rng`, `sim` | seeded xorshift; latent-taste worlds with clusters, homophily, correlated attributes, order stamps and an agreement oracle |
+| `attack` | sybil regions: `PromoteOnly`, `CopyConsensus`, `ManufactureContested`, `TagSpam`, wired as a clique, a chain or a star of chains |
 | `data` | the string-id boundary form — directed `friendIds`, the `loaded` set, permissive rating values — and the JSON a world dump carries |
 | `error` | `CoreError`: what the core refuses to answer |
-| `wasm` | `computeUser` and `rescoreUser` behind the `wasm` feature (below) |
+| `wasm` | `computeUser` behind the `wasm` feature (below) |
 
 Decisions worth knowing before reading the code:
 
-- **Affinity reallocates flow; it never creates any.** At node `v` entered from `w`, a share
-  `1 − α` of what arrived goes on, split over `v`'s neighbours other than `w` and the viewer in
-  proportion to `aff_u(y) = exp(max(ℓ_{u,y}, 0))`, and the rest stops. So the mass beyond one
-  friend is at most one friend-unit on **every** graph, and no cycle can amplify itself.
-- **The push drains a node, not an edge.** The system lives on directed edges — a residual on
-  `(w → v)` may not go back to `w` — but expanding `v` passes on everything waiting there at
-  once: what leaves along `(v → x)` is `(1 − α)·aff(x)·Σ_{w ≠ x} r(w → v)/(S_v − aff(w))`, one sum
-  over the arrivals less the one from `x`. An expansion costs `deg(v)` pushes and a sweep of the
-  neighbourhood one push per directed edge, where an edge-at-a-time push pays
-  `Σ_v deg(v)·(deg(v) − 1)`. The order is largest residual first to within a factor of two — a
-  bucket per binary exponent, first come first served inside one — so the walk is a function of
-  the snapshot alone.
-- **The settling loop, not a fixed number of passes.** The first walk runs with every alignment
-  at its prior, so the masses depend on the graph alone. Each pass after it recomputes `ω`, the
-  alignments and the scores from the masses it has, and walks again **starting from the
-  previous pass's masses**: the residual it starts from is `e + T·a₀ − a₀` under the new split,
-  signed, and the truncation is `Σ|r|·(1 − α)/α` either way. The loop stops when no score moved
-  by more than `SETTLE_TOLERANCE`, at `SETTLE_MAX_PASSES`, or when the budget cannot pay for
-  another pass. A pass is started only if what is left covers what the last one cost, and a
-  pass the budget cuts short anyway is thrown away, so the answer is always the last complete
-  pass.
-- **Accuracy is relative to the loaded neighbourhood.** `truncation` counts only residual on
-  loaded nodes, and it is what is held to `ε_total`. Mass that reaches a node whose friend list
-  was never read is counted as visit mass there and reported as `boundary_residual`, apart from
-  the truncation and not counted against `ε_total`: the loader reads more while `N_max` has room,
-  and past that it is influence from beyond the nearest `N_max` people that the answer leaves
-  out (DESIGN §3.4).
-- **The viewer is removed from every transition row and the row is renormalized.** §2.4 says the
-  walk continues to a neighbour `y ∉ {w, u}` in proportion to affinity, so the viewer's share is
-  never handed out rather than handed out and dropped.
-- **Distances are a separate BFS** and feed only `a₀(d)` in the alignment; the walk decides for
-  itself how far to go.
+- **Nothing iterates.** One pass for base rates, one max-product search for the chains (a link is
+  learned only when it could beat what its far end already has), one pass for own history, one
+  per attribute for `κ_a`, one for scores and one for certainty.
+- **A region is one voice.** Everyone reached through one directly trusted person is averaged into
+  that person's region, and nobody in it reads stronger than its head; later thumbs raise nobody
+  past their own chain. That is the sybil bound of §2.5.
+- **Exposure is structural.** A thumb given after the viewer's is a reaction with probability
+  `1/(people v trusts)`; every thumb in a chain link is one with probability `1/(v's connections
+  nearer the viewer)`.
+- **Population statistics are the circle's.** Base rates, which attributes a thing carries, the
+  fact reliability and the attributes' base rates count only the viewer and the people they trust
+  directly, whom no account behind an accepted connection can be. `κ_a` and the base rate a thumb's
+  evidence is judged against add the rater's own region, and reach only it. Chains reach only
+  people the loader read who are connected to the viewer; an unloaded person is on the boundary.
+- **Per attribute, the same caps.** A person's reliability on an attribute is centred on their
+  reliability off it (worked out by the same capped rule) and capped the same way; someone whose
+  every shared thing carries the attribute reads at their overall reliability and does not vote on
+  `κ_a`.
 
 ## Parameters
 
-`Params::default()` is the shipped table of DESIGN §2.8. Every constant in it is one of five
-kinds, and the kind is what says how to argue about changing it:
+`Params::default()` is the table of DESIGN §2.9:
 
 | parameter | kind | value |
 |---|---|---|
-| `decay` (`α`) | **derived** — ½ is the rate that makes "everything beyond a friend ≤ that friend" exact | 0.5 |
-| affinity `exp(max(ℓ, 0))` | **derived** — the odds that a neighbour shares the viewer's taste; no constant of its own | — |
-| `alignment_clamp` (`L`) | **cap** on one account's evidence, and so on the affinity at `e^L ≈ 7.39` | 2 |
-| `prior_friend`, `prior_friend_of_friend`, `prior_distant` (`a₀(d)`) | **priors** on agreement at hop 1 / 2 / further | 0.65 / 0.55 / 0.50 |
-| `alignment_pseudocount` (`κ`) | **prior** strength: how much evidence it takes to override `a₀` | 8 |
-| `score_shrinkage` (`κ_s`) | **prior** strength on the score: one friend-unit of nothing | 1 |
-| `min_weight` (`W_min`) | **product threshold**: less support than this is not shown | 0.5 |
-| `error_budget` (`ε_total`) | **budget** on the walk's error, friend-units | 0.02 / 0.001 deep |
-| `node_budget` (`N_max`) | **budget** on how many nodes a walk expands | 2 000 / 50 000 deep |
-| `edge_budget` (`E_max`) | **CPU ceiling** on the edge pushes one whole computation may spend | 10 000 000, both |
-| `settle_tolerance` | **budget**: the loop has settled once no score moves by more than this | 1e-4 |
-| `settle_max_passes` | **budget**: a hard stop on passes after the first | 12 |
+| `prior_agreement` (`a₀`) | **prior** mean of a trust connection's agreement rate `(1 + λ)/2` | 0.65 |
+| `prior_strength` (`κ`) | **prior** strength, in things | 8 |
+| `clip` (`L`) | **cap** on one thumb's log-likelihood ratio | 2 |
 
-`κ` and `a₀(d)` are estimated from the population (§2.10): every recompute reports its
-`PairTallies`, a scheduled statement in the database pools them into `private.params`, and each
-field replaces the table's value only once its own sample clears `N_min`.
+`N_max` is not in it: how many people to load is the loader's decision (DESIGN §3.4), and the
+core computes over whatever snapshot it is handed.
 
-`E_max` is not a work estimate. `Budget::for_snapshot` reserves what a whole loop over the loaded
-neighbourhood can cost — for the graph-only pass and each of `SETTLE_MAX_PASSES` more, one deposit
-per friend and one sweep more than a cold walk needs to shrink `F` friend-units below `ε_total` —
-and takes the smaller of that and `E_max`. `E_max` is the pushes that fit in 0.3 s of
-WebAssembly, measured at about 30 ns a push (`docs/algorithm-notes.md` §8), and no neighbourhood
-measured comes near it: the worst converged loop over 2 000 people at 50 friends each spends
-2.5 million.
-
-`ω` is unsmoothed and carries its own support: `ω = 4·n⁺·n⁻/(n·(n+1))`, the even-split factor
-times `n/(n+1)`, and `0` where nothing in reach has rated the item. An item with no dissenter in
-the viewer's reach is worth exactly zero, which is what makes copying consensus worthless
-rather than merely cheap. The viewer's own thumb is one of the votes, at `π̃_u(u) = 1`.
-
-Tag votes carry no alignment at all: a tag asks whether a place is cheap, not whether two people
-share taste, so `E` and `W` weight them by reach mass alone.
+`κ` and `a₀` are estimated from the population (§2.9): every recompute reports its `PairTallies` —
+per pair the rate `(1 + λ̂)/2` its shared items imply under the channel, with a match's chance the
+circle's base rate, and a weight that makes 0005's sampling term right for that rate — a scheduled
+statement in the database pools them into `private.params`, and each field replaces the table's
+value only once its own sample clears `N_min`. `a₀(2)` and `a₀(3+)` are still pooled
+and are read by nothing: a chain replaces a prior by distance.
 
 ## Running it
 
 ```sh
-cargo test --release                     # the whole suite, about 10 s on a quiet machine
+cargo test --release                     # the whole suite
 cargo test --release --features serde    # and the boundary's own deserializer
 cargo clippy --all-targets -- -D warnings
 cargo fmt --check
 
 cargo run --release --features serde --example dump-world -- --seed 7 --out world.json
 cargo run --release --features serde --example compute-user -- world.json u3
-cargo run --release --example fixed-point -- --seed 7           # docs/algorithm-notes.md §3
-cargo run --release --features serde --example recompute-cost   # §8
-cargo run --release --example spread                            # §5
+cargo run --release --features serde --example recompute-cost   # docs/algorithm-notes.md §8
 ```
 
 The examples that read or write JSON need the `serde` feature, which is off by default so that
@@ -146,72 +114,46 @@ bash scripts/build-wasm.sh web      # into supabase/functions/refresh-recs/
 
 - `computeUser(snapshot, viewer, params, priors)` — `snapshot` is the loader's own form:
   `users`, directed `friendIds`, the `loaded` set and `ratings`; `params` a partial table or
-  `null`; `priors` the `private.params` row or `null`. Returns `viewer`, `reach`, `reachMasses`,
-  `truncation`, `boundaryResidual`, `boundaryNodes`, `settleMovement`, `passes`, `settled`,
-  `pairs` and `scores`. It throws on a parameter out of range, an unknown viewer, or a result
-  whose reported error is not a finite number; nothing a rated account can write reaches that.
-  A large truncation is not refused — the caller reads it and decides.
-- `rescoreUser(snapshot, viewer, reach, walk, params, priors)` — the same result from masses a
-  previous `computeUser` produced, with no walk: `reach` is its `reachMasses`, and `walk` is
-  `{ truncation, boundaryResidual, settleMovement, passes, settled }` from the same result,
-  carried through unchanged because it bounds the error in exactly those masses.
+  `null`; `priors` the `private.params` row or `null`. Returns
+  `{ viewer, reached, boundaryNodes: { id, strength }[], pairs, scores }`, each score
+  `{ score, confidence }` with `confidence` the certainty `W`. A rating value of `2` or `-2` is the
+  same thumb given after the viewer's own. It throws on a parameter out of range, an unknown viewer
+  or a non-finite result; nothing a rated account can write reaches that.
 
-## What the property tests assert
+## What the tests assert
 
-`src/walk.rs` (unit) — a lone friend keeps one unit; the walk does not step back; no affinity
-makes a friend triangle diverge; an affinity of zero, below zero or not finite is refused; a
-300-clique stops on a small budget with its truncation above `ε_total` and resolves in a few
-sweeps given room; one converged walk fits in a pass of the reservation; one budget is shared
-across calls; a warm start reaches the cold answer for fewer pushes; the pop order is fixed by
-the graph; an unloaded node's mass is reported rather than swallowed.
+Each `witness` module has its own unit tests: the channel's arithmetic (the grid, chance
+weighting, a certain reaction teaching nothing, flipping, the clip, `ρ` a chance); base rates with
+the pair left out, chains multiplying along the strongest path, an unloaded or unconnected person
+unreached, predictions raising someone to the head and copies not past their chain; a thing's
+attributes by majority, a friend read per kind, a copier on one attribute held at their chain; one
+friend's thumb by hand, a region as one voice, a split at the middle with some certainty; facts, taggers behind
+one friend as one voice, a linked pair filling a gap; the boundary and the tallies.
 
-`tests/mechanics.rs` — the arithmetic, on graphs small enough to check by hand.
+`tests/mechanics.rs` — the three-user graph by hand (the wasm smoke script checks the same
+number), every rated thing shown and nothing unreached, an empty answer for nobody to hear, a
+contested friend triangle bounded, determinism and `compute_all`, what the data boundary drops, and
+the boundary a partly loaded neighbourhood reports.
 
-- `hand_computed_three_user_graph` — two friends thumbing one item up: `W = 2·logit(0.65)`,
-  `s = 0.5531881`. The wasm smoke script checks the same number.
-- `informativeness_is_zero_on_unanimity` — `ω` on even and uneven splits, zero on unanimity, a
-  single rating and no ratings; the viewer's own dissent is what makes a ten-up item contested.
-- `alignment_shrinks_toward_the_prior` — `â` and `ℓ` from the shrinkage formula at hop 1 and
-  hop 2; a hundred agreeing *tag* ratings move neither.
-- `walk_mechanics` — injection, `‖β^{(f)}‖₁ ≤ 1`, non-backtracking on a path, the absorbing
-  viewer on a triangle, affinity steering by `e^L/(e^L + 9)`, and conservation on a tree: what
-  leaves a node, which is what its children hold, is `1 − α` of what reached it whatever the
-  split.
-- `walk_equals_the_exact_resolvent` — the push reproduces `e_uᵀ(I − (1−α)B_u)^{-1}` to 1e-8
-  against a dense Gaussian solve built in the test, under a uniform and a skewed affinity.
-- `walk_error_bound` — reported truncation bounds the distance to the converged walk, for
-  `π̃` and for every score, at three budgets and under a starved node budget; and the same graph
-  gives the same walk and the same settling loop.
-- `a_friend_triangle_stays_bounded_and_settles` — a K4 of mutual friends: every friend at most
-  two units, the reach at most `|F_u|/α`, and the loop settles.
-- `the_data_boundary_drops_what_it_cannot_read` — malformed values and keys drop out and the
-  rest computes; every parameter out of range is refused.
-- `partial_graph_reports_its_boundary` — an unloaded node is a boundary and not a leaf, its
-  residual is reported with its id and apart from the truncation, reading it moves the frontier
-  one hop out, and an id only one side lists is not an edge.
-- `sign_symmetry`, `determinism_and_degenerate_inputs`.
+`tests/witness_sybil.rs` — DESIGN §2.5's bound as a property, over every plan (promote only, copy
+the viewer, copy the viewer while tagging, copy the crowd, manufacture contested, tag spam, copy
+this model's feed, copy it half inverted), every shape of `attack.rs`, one to two hundred accounts,
+behind one to three of the viewer's connections:
+every bot is in the region of the head its path passes, none reads above its head, copying the
+viewer raises none past its own chain, the bots move any thing by at most `2L + ln 2` per accepted
+connection, a gatekeeper moves only through their later thumbs (bit for bit what the same number of
+connections to accounts that rate nothing gives), and nothing in front of a gatekeeper two steps
+out moves.
 
-`tests/enumeration.rs` — every reciprocal graph up to six nodes: an answer inside its bounds, the
-push within the reported truncation of the resolvent, and relabelling leaves the answer alone.
+`tests/witness_properties.rs` — a sane, deterministic answer and relabelling invariance on every
+graph up to six nodes; chains never exceed their weakest link; a link that predicts nothing cuts off
+everyone behind it who has no history of their own; a viewer with no thumbs gets a score for every
+thing anyone reached rated; per-attribute reliability is the overall one when kinds do not matter,
+and is capped as the overall one is; one co-tag moves a pair's odds by at most the factor
+`docs/witness-model.md` §1.6 proves; no snapshot gives a non-finite result, and no score reaches
+either end.
 
-`tests/settling.rs` — the loop settles on random worlds and under the copying attack, its
-movements shrinking over every two passes; a loop squeezed by the budget keeps its last complete
-pass and says `settled: false`; reaching the pass cap is reported and not an error; the bar's
-step is the larger of the two errors; the budget is read off the graph; every viewer of 120- and
-300-person worlds at 9–14 friends meets `ε_total` on the product path; rescoring cached masses is
-the same answer to the bit, and a mass vector of the wrong length is refused.
-
-`tests/sybil.rs` — the mass bound over three shapes, four sizes and both budgets, three
-gatekeepers, a captured gatekeeper and the feedback shape `h – b₁ – b₂ – h`, each to within the
-reported truncation; the 500-clique behind one gatekeeper is bounded and resolves; consensus
-copying earns nothing.
-
-`tests/discovery.rs` — the walk follows aligned paths four hops out where the uniform pass does
-not, and nothing surfaces on one stranger.
-
-`tests/priors.rs` — `a₀(d)` and `κ` read back off a population against what generated it, a
+`tests/priors.rs` — `a₀(d)` and `κ` read back off a population against its true `(1 + λ)/2`,
+including one with things everyone likes, where the plain share of matches is 0.22 too high, a
 class below `N_min` keeps the table, one world gives one estimate, and the pooled tallies land
 where the whole-snapshot estimate does.
-
-`tests/incentives.rs` — honest reporting beats withholding, randomizing and lying, on average
-and per state.

@@ -1,14 +1,13 @@
-//! The priors `κ` and `a₀(d)` estimated from a population, against what
+//! The priors `κ` and `a₀` estimated from a population, against what
 //! generated it — the only check that they are the population's numbers rather than plausible
 //! ones — and against the per-recompute tallies the database pools.
 
 mod common;
 
-use grapevine_core::alignment::alignment_for;
 use grapevine_core::{
     MIN_SAMPLE, PairTallies, Params, PriorEstimate, PriorSample, Rng, UserId, World, WorldConfig,
-    compute_user_detail, estimate_priors, estimate_priors_from_tallies, hop_distances,
-    informativeness, simulate, tally_pairs,
+    compute_user, estimate_priors, estimate_priors_from_tallies, hop_distances, shared_item_counts,
+    simulate,
 };
 
 /// One pair of the population: how much they agreed, how much they did not, and how far apart
@@ -25,12 +24,10 @@ fn world_of(config: WorldConfig, seed: u64) -> World {
     simulate(&config, &mut Rng::new(seed))
 }
 
-/// Every pair of the world with its weighted counts, rebuilt in the test from the public
-/// alignment so that nothing about the estimate's own pair enumeration is taken on trust.
-fn pairs_of(world: &World, params: &Params) -> Vec<Pair> {
+/// Every pair of the world with its counts, rebuilt in the test from the public counting so that
+/// nothing about the estimate's own pair enumeration is taken on trust.
+fn pairs_of(world: &World) -> Vec<Pair> {
     let snapshot = &world.snapshot;
-    let count = snapshot.user_count();
-    let omega = informativeness(snapshot, UserId(0), &vec![1.0; count]);
     let mut pairs = Vec::new();
     for one in snapshot.users() {
         let distances = hop_distances(snapshot, one);
@@ -38,7 +35,8 @@ fn pairs_of(world: &World, params: &Params) -> Vec<Pair> {
             if other <= one {
                 continue;
             }
-            let alignment = alignment_for(snapshot, one, other, &omega, &distances, params);
+            let (agreements, disagreements) =
+                shared_item_counts(snapshot.ratings(one), snapshot.ratings(other));
             let class = match distances[other.index()] {
                 Some(1) => 0,
                 Some(2) => 1,
@@ -47,8 +45,8 @@ fn pairs_of(world: &World, params: &Params) -> Vec<Pair> {
             pairs.push(Pair {
                 one,
                 other,
-                agreements: alignment.agreements,
-                disagreements: alignment.disagreements,
+                agreements,
+                disagreements,
                 class,
             });
         }
@@ -63,108 +61,88 @@ fn qualifying(pairs: &[Pair], min_overlap: f64) -> Vec<&Pair> {
         .collect()
 }
 
-/// `ln Γ(x)` by the Lanczos approximation, so the reference fit below can be a likelihood and
-/// not a moment. Test-only: nothing in the crate needs it.
-fn ln_gamma(value: f64) -> f64 {
-    const COEFFICIENTS: [f64; 9] = [
-        0.999_999_999_999_809_9,
-        676.520_368_121_885_1,
-        -1_259.139_216_722_402_8,
-        771.323_428_777_653_1,
-        -176.615_029_162_140_6,
-        12.507_343_278_686_905,
-        -0.138_571_095_265_720_12,
-        9.984_369_578_019_572e-6,
-        1.505_632_735_149_311_6e-7,
-    ];
-    if value < 0.5 {
-        // Reflection, so the search below may take the whole line without a special case here.
-        (std::f64::consts::PI / (std::f64::consts::PI * value).sin()).ln() - ln_gamma(1.0 - value)
+/// Each item's share of the population that truly likes it.
+fn true_up_rates(world: &World) -> Vec<f64> {
+    let users = world.true_preference.len() as f64;
+    (0..world.config.items)
+        .map(|item| {
+            world
+                .true_preference
+                .iter()
+                .filter(|preferences| preferences[item] > 0)
+                .count() as f64
+                / users
+        })
+        .collect()
+}
+
+/// The oracle: `(1 + λ)/2` for a pair under the witness channel, over the whole catalogue and the
+/// true preferences, a match on each item having the chance of `one`'s answer in the population.
+/// This is the quantity `a₀` and `κ` describe; the plain share of matches is not.
+fn true_rate(world: &World, up: &[f64], one: UserId, other: UserId) -> f64 {
+    let mine = &world.true_preference[one.index()];
+    let theirs = &world.true_preference[other.index()];
+    let (mut matches, mut chance) = (0.0, 0.0);
+    for (item, (&my_value, &their_value)) in mine.iter().zip(theirs).enumerate() {
+        if my_value == their_value {
+            matches += 1.0;
+        }
+        chance += if my_value > 0 {
+            up[item]
+        } else {
+            1.0 - up[item]
+        };
+    }
+    let (agreement, chance) = (matches / mine.len() as f64, chance / mine.len() as f64);
+    let reliability = if agreement >= chance {
+        (agreement - chance) / (1.0 - chance)
     } else {
-        let shifted = value - 1.0;
-        let mut series = COEFFICIENTS[0];
-        for (index, coefficient) in COEFFICIENTS.iter().enumerate().skip(1) {
-            series += coefficient / (shifted + index as f64);
-        }
-        let intermediate = shifted + 7.5;
-        0.5 * (2.0 * std::f64::consts::PI).ln() + (shifted + 0.5) * intermediate.ln() - intermediate
-            + series.ln()
-    }
+        agreement / chance - 1.0
+    };
+    (1.0 + reliability) / 2.0
 }
 
-/// The Beta-binomial log-likelihood of the observed agreement counts under one `κ`, with each
-/// class at its own observed mean. The binomial coefficient does not depend on `κ`, so it is
-/// dropped: this is the reference the method of moments is checked against, not a number with
-/// a meaning of its own.
-fn log_likelihood(pairs: &[&Pair], means: &[f64; 3], pseudocount: f64) -> f64 {
-    let mut total = 0.0;
+/// The oracle's mean rate per class over a set of pairs, and the `κ` of a Beta with the same
+/// spread around each class's own mean: what the population really is, with no sampling in it.
+fn oracle(world: &World, pairs: &[&Pair]) -> ([f64; 3], [usize; 3], f64) {
+    let up = true_up_rates(world);
+    let mut totals = [0.0; 3];
+    let mut squares = [0.0; 3];
+    let mut counts = [0usize; 3];
     for pair in pairs {
-        let prior = means[pair.class];
-        let up = pseudocount * prior;
-        let down = pseudocount * (1.0 - prior);
-        total += ln_gamma(pseudocount) - ln_gamma(up) - ln_gamma(down)
-            + ln_gamma(pair.agreements + up)
-            + ln_gamma(pair.disagreements + down)
-            - ln_gamma(pair.agreements + pair.disagreements + pseudocount);
+        let rate = true_rate(world, &up, pair.one, pair.other);
+        totals[pair.class] += rate;
+        squares[pair.class] += rate * rate;
+        counts[pair.class] += 1;
     }
-    total
-}
-
-/// The `κ` that best explains the observed spread, by golden-section search on `ln κ`.
-fn maximum_likelihood_pseudocount(pairs: &[&Pair], means: &[f64; 3]) -> f64 {
-    let golden = (5.0_f64.sqrt() - 1.0) / 2.0;
-    let (mut low, mut high) = (0.05_f64.ln(), 400.0_f64.ln());
-    let mut left = high - golden * (high - low);
-    let mut right = low + golden * (high - low);
-    let mut left_value = log_likelihood(pairs, means, left.exp());
-    let mut right_value = log_likelihood(pairs, means, right.exp());
-    for _ in 0..80 {
-        if left_value > right_value {
-            high = right;
-            right = left;
-            right_value = left_value;
-            left = high - golden * (high - low);
-            left_value = log_likelihood(pairs, means, left.exp());
-        } else {
-            low = left;
-            left = right;
-            left_value = right_value;
-            right = low + golden * (high - low);
-            right_value = log_likelihood(pairs, means, right.exp());
+    let mut means = [0.0; 3];
+    let (mut spread, mut binomial) = (0.0, 0.0);
+    for class in 0..3 {
+        if counts[class] == 0 {
+            continue;
         }
+        let count = counts[class] as f64;
+        means[class] = totals[class] / count;
+        spread += squares[class] - count * means[class] * means[class];
+        binomial += count * means[class] * (1.0 - means[class]);
     }
-    ((low + high) / 2.0).exp()
+    (means, counts, binomial / spread - 1.0)
 }
 
-/// The oracle's mean agreement over a set of pairs: what the population really does, with no
-/// sampling and no reporting noise in it.
-fn true_mean(world: &World, pairs: &[&Pair], class: usize) -> (f64, usize) {
-    let mut total = 0.0;
-    let mut count = 0;
-    for pair in pairs.iter().filter(|pair| pair.class == class) {
-        total += world.true_agreement(pair.one, pair.other);
-        count += 1;
-    }
-    (
-        if count == 0 {
-            0.0
-        } else {
-            total / count as f64
-        },
-        count,
-    )
+fn plain_mean(pairs: &[&Pair], class: usize) -> f64 {
+    let rates: Vec<f64> = pairs
+        .iter()
+        .filter(|pair| pair.class == class)
+        .map(|pair| pair.agreements / (pair.agreements + pair.disagreements))
+        .collect();
+    rates.iter().sum::<f64>() / rates.len().max(1) as f64
 }
 
 /// A population big enough to have all three distance classes in it and sparse enough that most
 /// pairs are three or more hops apart.
 ///
-/// Two settings are what make the oracle the right thing to compare against. Reporting noise is
-/// off, so the agreement the estimate sees is the agreement the oracle knows about rather than
-/// that agreement seen through a coin flip. And taste is spread over eight dimensions rather
-/// than the default six, which keeps every item close to an even split (`ω` from 0.68 to 1) —
-/// the estimate weights each shared item by `ω` and the oracle weights them all alike, so a
-/// catalog with near-unanimous items in it, which everybody agrees about and `ω` discounts,
-/// would put a real gap between two numbers that are both correct.
+/// Reporting noise is off, so the thumbs the estimate sees are the preferences the oracle reads
+/// rather than those preferences seen through a coin flip.
 fn population() -> World {
     world_of(
         WorldConfig {
@@ -182,19 +160,23 @@ fn population() -> World {
     )
 }
 
-/// The recovered `a₀(d)` lands on the population's own mean agreement by distance, and the
-/// recovered `κ` near the one that best explains the spread.
+fn full_sample(world: &World) -> PriorSample {
+    PriorSample {
+        pair_viewers: world.snapshot.user_count(),
+        ..PriorSample::default()
+    }
+}
+
+/// The recovered rates land on the population's own mean `(1 + λ)/2` by distance, and the
+/// recovered `κ` near the strength of a Beta with the population's spread.
 #[test]
 fn the_estimate_recovers_what_generated_the_world() {
     let world = population();
-    let table = Params::default();
-    let sample = PriorSample {
-        pair_viewers: world.snapshot.user_count(),
-        ..PriorSample::default()
-    };
+    let sample = full_sample(&world);
     let estimate = estimate_priors(&world.snapshot, &sample);
-    let pairs = pairs_of(&world, &table);
+    let pairs = pairs_of(&world);
     let qualified = qualifying(&pairs, sample.min_overlap);
+    let (means, counts, true_kappa) = oracle(&world, &qualified);
 
     let recovered = [estimate.a0.d1, estimate.a0.d2, estimate.a0.d3plus];
     let counted = [
@@ -202,47 +184,81 @@ fn the_estimate_recovers_what_generated_the_world() {
         estimate.samples.d2,
         estimate.samples.d3plus,
     ];
-    let mut means = [0.0; 3];
     for class in 0..3 {
-        let (oracle, count) = true_mean(&world, &qualified, class);
-        means[class] = qualified
-            .iter()
-            .filter(|pair| pair.class == class)
-            .map(|pair| pair.agreements / (pair.agreements + pair.disagreements))
-            .sum::<f64>()
-            / count.max(1) as f64;
         println!(
-            "d{}: {} pairs, recovered {:?}, population mean {:.4}, observed mean {:.4}",
+            "d{}: {} pairs, recovered {:?}, population {:.4}, plain share of matches {:.4}",
             class + 1,
-            count,
+            counts[class],
             recovered[class],
-            oracle,
             means[class],
+            plain_mean(&qualified, class),
         );
         assert_eq!(
             counted[class],
-            count,
+            counts[class],
             "class {} pair count differs from the test's own enumeration",
             class + 1
         );
-        if count >= MIN_SAMPLE {
+        if counts[class] >= MIN_SAMPLE {
             let estimated = recovered[class].expect("a class with enough pairs is estimated");
-            common::assert_close(estimated, oracle, 0.03, &format!("a0(d{})", class + 1));
+            common::assert_close(
+                estimated,
+                means[class],
+                0.03,
+                &format!("a0(d{})", class + 1),
+            );
         } else {
             assert_eq!(recovered[class], None, "class {} is under N_min", class + 1);
         }
     }
 
-    let reference = maximum_likelihood_pseudocount(&qualified, &means);
     let recovered_pseudocount = estimate.kappa.expect("the pooled sample is over N_min");
     println!(
-        "kappa: recovered {recovered_pseudocount:.3}, maximum likelihood {reference:.3}, \
-         {} pairs at mean overlap {:.2}",
+        "kappa: recovered {recovered_pseudocount:.3}, population {true_kappa:.3}, \
+         {} pairs at mean weight {:.2}",
         estimate.samples.pairs, estimate.samples.mean_overlap
     );
     assert!(
-        (recovered_pseudocount - reference).abs() <= 0.25 * reference,
-        "kappa {recovered_pseudocount} is not within 25% of the maximum likelihood {reference}"
+        (recovered_pseudocount - true_kappa).abs() <= 0.25 * true_kappa,
+        "kappa {recovered_pseudocount} is not within 25% of the population's {true_kappa}"
+    );
+}
+
+/// Things everyone likes make everyone match. The plain share of matches reads that as closeness
+/// (0.82 against a population at 0.59 on this world, and a `κ` of 36 against 12.7); the channel's
+/// chance takes it back out.
+#[test]
+fn agreement_chance_alone_produces_is_not_counted() {
+    let world = world_of(
+        WorldConfig {
+            consensus_items: 30,
+            ..population().config
+        },
+        7,
+    );
+    let sample = full_sample(&world);
+    let estimate = estimate_priors(&world.snapshot, &sample);
+    let pairs = pairs_of(&world);
+    let qualified = qualifying(&pairs, sample.min_overlap);
+    let (means, _, true_kappa) = oracle(&world, &qualified);
+
+    let plain = plain_mean(&qualified, 0);
+    let estimated = estimate.a0.d1.expect("d1 is estimated");
+    let kappa = estimate.kappa.expect("kappa is estimated");
+    println!(
+        "a0(d1): recovered {estimated:.4}, population {:.4}, plain {plain:.4}; \
+         kappa: recovered {kappa:.3}, population {true_kappa:.3}",
+        means[0]
+    );
+    assert!(
+        plain > means[0] + 0.2,
+        "the world does not test the chance: plain {plain} against {}",
+        means[0]
+    );
+    common::assert_close(estimated, means[0], 0.03, "a0(d1)");
+    assert!(
+        (kappa - true_kappa).abs() <= 0.5 * true_kappa,
+        "kappa {kappa} is not within 50% of the population's {true_kappa}"
     );
 }
 
@@ -279,13 +295,10 @@ fn a_class_below_the_floor_keeps_the_table() {
     let merged = estimate.merge(&table);
     assert_ne!(merged, table, "a met sample moves the table");
     assert_eq!(merged.validate(), Ok(()));
-    assert_ne!(merged.prior_friend, table.prior_friend);
-    assert_ne!(merged.alignment_pseudocount, table.alignment_pseudocount);
-    // Nothing outside the three priors is touched by any estimate.
-    assert_eq!(merged.decay, table.decay);
-    assert_eq!(merged.alignment_clamp, table.alignment_clamp);
-    assert_eq!(merged.min_weight, table.min_weight);
-    assert_eq!(merged.node_budget, table.node_budget);
+    assert_ne!(merged.prior_agreement, table.prior_agreement);
+    assert_ne!(merged.prior_strength, table.prior_strength);
+    // Nothing outside the two priors is touched by any estimate.
+    assert_eq!(merged.clip, table.clip);
 }
 
 /// The estimate is a function of the snapshot, so two estimates over one world agree exactly.
@@ -310,22 +323,12 @@ fn one_world_gives_one_estimate() {
     assert_ne!(once, PriorEstimate::default());
 }
 
-/// The tallies match the batch: `κ` and `a₀(d)` pooled from what each viewer's own
+/// The tallies match the batch: `κ` and the agreement rates pooled from what each viewer's own
 /// recompute reported land where `estimate_priors` puts them on the same world.
 ///
-/// The two are not the same arithmetic. `estimate_priors` sweeps every pair of the snapshot once
-/// and weights each shared item by a population `ω`; a recompute sees only the people its own
-/// walk reached and weights by its own reach-local `ω` (DESIGN section 2.2), and every unordered
-/// pair inside two viewers' reach is reported twice.
-///
-/// **The gap between them is one-sided and grows as a neighbourhood shrinks**, which is worth
-/// stating because nothing else does. Reach-local `ω` is measured over about `2·|F_u|`
-/// friend-units of votes, and the people holding most of that mass are the ones who agree with
-/// the viewer — so the items a friend agreed on look unanimous inside the reach and are
-/// discounted, while the ones they disagreed on stay contested. The pooled `a₀` therefore reads
-/// *lower* than the batch: by about 0.02 on the world below, where people have fifteen friends
-/// each, and by 0.10 on a world where they have four. The world here is one where both
-/// estimators are looking at the same moment; a sparser one is not a failure of either.
+/// The two are not the same arithmetic. `estimate_priors` sweeps every pair of the snapshot once;
+/// a recompute sees only the people connected to its viewer, and every unordered pair inside two
+/// viewers' reach is reported twice. Both count every shared item once.
 #[test]
 fn the_pooled_tallies_land_where_the_batch_estimate_does() {
     let world = world_of(
@@ -343,24 +346,14 @@ fn the_pooled_tallies_land_where_the_batch_estimate_does() {
         7,
     );
     let params = Params::default();
-    let sample = PriorSample {
-        pair_viewers: world.snapshot.user_count(),
-        ..PriorSample::default()
-    };
+    let sample = full_sample(&world);
     let batch = estimate_priors(&world.snapshot, &sample);
 
     let mut pooled = PairTallies::default();
     for viewer in world.snapshot.users() {
-        let detail = compute_user_detail(&world.snapshot, viewer, &params)
+        let result = compute_user(&world.snapshot, viewer, &params)
             .unwrap_or_else(|error| panic!("computing for {}: {error}", viewer.0));
-        // What a recompute writes to `user_model` is exactly this. Driving both halves is the
-        // point: reading `detail.pairs` alone would check only that a field was copied.
-        assert_eq!(
-            detail.pairs,
-            tally_pairs(&detail.alignments, &detail.distances),
-            "the detail's tallies are not the ones its own alignments imply"
-        );
-        pooled.merge(&detail.pairs);
+        pooled.merge(&result.pairs);
     }
     let derived = estimate_priors_from_tallies(&pooled, MIN_SAMPLE);
 
@@ -399,6 +392,14 @@ fn the_pooled_tallies_land_where_the_batch_estimate_does() {
             &format!("a0(d{}) pooled against the batch", class + 1),
         );
     }
+    let pairs = pairs_of(&world);
+    let (means, _, _) = oracle(&world, &qualifying(&pairs, sample.min_overlap));
+    common::assert_close(
+        derived.a0.d1.expect("the tallies estimated d1"),
+        means[0],
+        0.03,
+        "a0(d1) pooled against the population",
+    );
     let batched = batch.kappa.expect("the batch estimated kappa");
     let from_tallies = derived.kappa.expect("the tallies estimated kappa");
     assert!(

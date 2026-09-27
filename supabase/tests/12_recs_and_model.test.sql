@@ -2,14 +2,13 @@
 -- which bypasses RLS. There is no client write verb at all, so nobody can plant
 -- entries in a feed — their own or, once these ids are known, anyone else's.
 --
--- The two tables part company on the read. A viewer reads their own feed,
--- `error` included, because the bar cannot quantize itself to a bound it cannot
--- see; nobody reads `user_model` at all, because its reach masses say how far
--- each named person's corner of the graph agrees with the viewer, which DESIGN
--- §4 keeps on the server (0002 says the rest).
+-- The two tables part company on the read. A viewer reads their own feed;
+-- nobody reads `user_model` at all: its pair tallies are moments of how far the
+-- viewer agrees with the people around them, which DESIGN §4 keeps on the
+-- server (0002 says the rest).
 
 begin;
-select plan(17);
+select plan(16);
 
 insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'viewer@example.com',   now()),
@@ -17,22 +16,17 @@ insert into auth.users (id, email, email_confirmed_at) values
 create or replace function private.is_unlocked(p_user uuid) returns boolean
   language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
-insert into public.user_recs (user_id, computed_at, entries, feed_hash, error) values
+insert into public.user_recs (user_id, computed_at, entries, feed_hash) values
   ('11111111-1111-1111-1111-111111111111', now(),
-   '[{"itemId":"café bleu","score":0.4,"conf":1.2,"tags":{}}]'::jsonb, 'abc', 0.04);
+   '[{"itemId":"café bleu","score":0.4,"conf":1.2,"tags":{}}]'::jsonb, 'abc');
 insert into public.user_model (user_id, computed_at, checked_at, nodes_touched,
-                               rating_count, truncation, boundary_residual, settle_movement, passes, settled,
-                               recomputed, reach, reach_hash, reach_reuses) values
-  ('11111111-1111-1111-1111-111111111111', now(), now(), 12, 30, 0.01, 0.3, 0.04, 5, true, true,
-   '{"22222222-2222-2222-2222-222222222222":0.31}'::jsonb, 'abcd1234', 0);
+                               rating_count, recomputed, pair_n_d1, pair_sum_d1) values
+  ('11111111-1111-1111-1111-111111111111', now(), now(), 12, 30, true, 3, 2.1);
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
 select is((select count(*)::int from public.user_recs), 1, 'the owner reads their own feed');
-select is(
-  (select error::text from public.user_recs), '0.04',
-  'and the step its bar may move in, which is why the column is on this row');
 select throws_ok(
   $$select count(*) from public.user_model$$, '42501', null,
   'and cannot read the model row behind it, not even their own');
@@ -53,13 +47,13 @@ select throws_ok(
   $$delete from public.user_recs$$, '42501', null,
   'nor delete one');
 
--- The reach masses are the one place the walk's opinion of each named person is
--- written down, so a forged row would be a way to move somebody's feed.
+-- The tallies are pooled into everybody's priors (0005), so a forged row would
+-- be a way to move every feed at once.
 select throws_ok(
-  $$insert into public.user_model (user_id, reach) values ((select auth.uid()), '{"f1":1}'::jsonb)$$,
+  $$insert into public.user_model (user_id, pair_n_d1) values ((select auth.uid()), 1000000)$$,
   '42501', null, 'the owner cannot insert a model row');
 select throws_ok(
-  $$update public.user_model set reach = '{"f1":1}'::jsonb$$, '42501', null,
+  $$update public.user_model set pair_n_d1 = 1000000$$, '42501', null,
   'nor rewrite one');
 select throws_ok(
   $$delete from public.user_model$$, '42501', null,
@@ -107,7 +101,7 @@ select is(
   (select count(*)::int from information_schema.columns
    where table_schema = 'public' and table_name = 'user_model'
      and column_name like 'pair\_%'),
-  12, 'and DESIGN §2.10 reports twelve tallies per viewer');
+  12, 'and DESIGN §2.9 reports twelve tallies per viewer');
 
 select * from finish();
 rollback;

@@ -118,8 +118,9 @@ export default function PrivacyPage(): ReactElement {
       <List>
         <li>
           <strong>Your ratings:</strong> only you. The server reads them to
-          build lists for people near you in the network. Those lists never say
-          who rated what.
+          build lists for people near you in the network, and keeps a private
+          copy to refresh those lists, deleted after a week unused. Those lists
+          never say who rated what.
         </li>
         <li>
           <strong>Your vine:</strong> you, and each person in it sees that you

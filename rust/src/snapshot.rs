@@ -10,10 +10,10 @@ use crate::ids::{ItemId, RATABLE_JOIN, Ratable, TagId, UserId};
 /// Nothing here is per viewer: the same snapshot answers for every user in it.
 ///
 /// A user may be *unloaded*: present, nameable, and rateable, but with a friend list nobody has
-/// read. That is a boundary node of DESIGN section 3.4 — the walk reports the mass that stopped
-/// there instead of treating it as a leaf, because a node with no onward shares and a node whose
-/// onward shares are unknown are not the same answer. Everything a builder makes is loaded
-/// unless it says otherwise.
+/// read. That is a boundary node of DESIGN section 3.4 — reported for the loader's next round
+/// rather than treated as a leaf, because a node with no friends and a node whose friends are
+/// unknown are not the same answer. Everything a builder makes is loaded unless it says
+/// otherwise.
 #[derive(Clone, Debug, Default)]
 pub struct Snapshot {
     user_names: Vec<String>,
@@ -22,6 +22,11 @@ pub struct Snapshot {
     adjacency: Vec<Vec<UserId>>,
     loaded: Vec<bool>,
     ratings: Vec<Vec<(Ratable, i8)>>,
+    /// Beside each rating, when it was given, as an order and nothing more: a thumb with a
+    /// larger stamp was given after one with a smaller. Zero is "no later than anything", which
+    /// is what a snapshot without times holds, and what the boundary gives every thumb it does
+    /// not mark as given after the viewer's own (DESIGN §2.3).
+    stamps: Vec<Vec<u32>>,
 }
 
 impl Snapshot {
@@ -47,7 +52,7 @@ impl Snapshot {
         &self.adjacency[user.index()]
     }
 
-    /// Whether this user's friend list was read. The walk expands only loaded nodes.
+    /// Whether this user's friend list was read. Chains run only through loaded people.
     pub fn is_loaded(&self, user: UserId) -> bool {
         self.loaded[user.index()]
     }
@@ -55,6 +60,19 @@ impl Snapshot {
     /// One user's ratings, sorted by ratable, items before tags.
     pub fn ratings(&self, user: UserId) -> &[(Ratable, i8)] {
         &self.ratings[user.index()]
+    }
+
+    /// The order stamps of `ratings(user)`, position for position.
+    pub fn stamps(&self, user: UserId) -> &[u32] {
+        &self.stamps[user.index()]
+    }
+
+    /// When `user` rated `ratable`, as an order; zero when they did not, or when nobody knows.
+    pub fn stamp(&self, user: UserId, ratable: Ratable) -> u32 {
+        let owned = &self.ratings[user.index()];
+        owned
+            .binary_search_by_key(&ratable, |&(key, _)| key)
+            .map_or(0, |position| self.stamps[user.index()][position])
     }
 
     pub fn rating(&self, user: UserId, ratable: Ratable) -> Option<i8> {
@@ -138,7 +156,18 @@ impl Snapshot {
             tag_names: self.tag_names.clone(),
             adjacency: self.adjacency.clone(),
             loaded: self.loaded.clone(),
-            ratings: self.ratings.clone(),
+            ratings: self
+                .ratings
+                .iter()
+                .zip(&self.stamps)
+                .map(|(owned, stamps)| {
+                    owned
+                        .iter()
+                        .zip(stamps)
+                        .map(|(&(ratable, value), &stamp)| (ratable, value, stamp))
+                        .collect()
+                })
+                .collect(),
             user_index,
             item_index,
             tag_index,
@@ -168,7 +197,7 @@ pub struct SnapshotBuilder {
     tag_names: Vec<String>,
     adjacency: Vec<Vec<UserId>>,
     loaded: Vec<bool>,
-    ratings: Vec<Vec<(Ratable, i8)>>,
+    ratings: Vec<Vec<(Ratable, i8, u32)>>,
     user_index: HashMap<String, UserId>,
     item_index: HashMap<String, ItemId>,
     tag_index: HashMap<String, TagId>,
@@ -225,9 +254,8 @@ impl SnapshotBuilder {
         self
     }
 
-    /// Marks a user's friend list as read or unread. An unread one makes them a boundary node:
-    /// the walk counts the mass that arrives and reports it rather than letting it vanish at
-    /// what looks like a leaf (DESIGN section 3.4).
+    /// Marks a user's friend list as read or unread. An unread one makes them a boundary node
+    /// (DESIGN section 3.4).
     pub fn set_loaded(&mut self, user: UserId, loaded: bool) -> &mut Self {
         self.loaded[user.index()] = loaded;
         self
@@ -236,11 +264,16 @@ impl SnapshotBuilder {
     /// Records a thumb. Anything but `1` or `-1` removes the rating rather than failing the
     /// build, so one crafted row cannot fail every recompute that reaches it.
     pub fn rate(&mut self, user: UserId, ratable: Ratable, value: i8) -> &mut Self {
+        self.rate_at(user, ratable, value, 0)
+    }
+
+    /// Records a thumb with the order it was given in (`Snapshot::stamps`).
+    pub fn rate_at(&mut self, user: UserId, ratable: Ratable, value: i8, stamp: u32) -> &mut Self {
         let owned = &mut self.ratings[user.index()];
         if value == 1 || value == -1 {
-            owned.push((ratable, value));
+            owned.push((ratable, value, stamp));
         } else {
-            owned.retain(|&(key, _)| key != ratable);
+            owned.retain(|&(key, ..)| key != ratable);
         }
         self
     }
@@ -265,16 +298,27 @@ impl SnapshotBuilder {
         for owned in &mut self.ratings {
             // A later thumb on the same ratable replaces an earlier one.
             owned.reverse();
-            owned.sort_by_key(|&(ratable, _)| ratable);
-            owned.dedup_by_key(|&mut (ratable, _)| ratable);
+            owned.sort_by_key(|&(ratable, ..)| ratable);
+            owned.dedup_by_key(|&mut (ratable, ..)| ratable);
         }
+        let (ratings, stamps) = self
+            .ratings
+            .into_iter()
+            .map(|owned| {
+                owned
+                    .into_iter()
+                    .map(|(ratable, value, stamp)| ((ratable, value), stamp))
+                    .unzip()
+            })
+            .unzip();
         Snapshot {
             user_names: self.user_names,
             item_names: self.item_names,
             tag_names: self.tag_names,
             adjacency: self.adjacency,
             loaded: self.loaded,
-            ratings: self.ratings,
+            ratings,
+            stamps,
         }
     }
 }

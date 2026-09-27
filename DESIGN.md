@@ -60,17 +60,17 @@ the bottom where a thumb already is. Everything else is a layer over that list, 
 things that are not the list — a thing, and the people — are reached by opening a row and by
 the avatar in the corner. Everything user-facing is lower case.
 
-1. **The list.** With the field empty it is the viewer's feed, ranked by §2.6, plus everything
-   the viewer has rated, which the feed may not carry — with no friends it carries none of it
-   (a thing nothing in reach has scored sorts as zero). Typing filters the feed by an item's
-   name **and** by its attributes, fuzzy-matched, so a misspelling finds the thing that
-   already exists rather than offering to make a second one. Several words each read as the name
-   or an attribute and rank by how well the thing has them all; `!` puts the low-rated first,
-   `@` looks at names only and `#` at attributes only (proposal: "Search" below). A row carries the
-   name, its attribute chips, and one bar. The bar belongs to **whatever matched**: an
-   attribute match shows that attribute's score for this viewer, a name match the item's own.
-   That is the whole answer to "why is this here", and it is an answer about the viewer's own
-   model of a word, never about a person (§4).
+1. **The list.** With the field empty it is the viewer's feed, ranked by what its bars draw ("The
+   bar" below), plus everything the viewer has rated, which the feed may not carry — with no friends
+   it carries none of it (a thing nothing in reach has scored sorts as zero). Typing filters the
+   feed by an item's name **and** by its attributes, fuzzy-matched, so a misspelling finds the thing
+   that already exists rather than offering to make a second one. Several words each read as the
+   name or an attribute and rank by how well the thing has them all; `!` puts the low-rated first,
+   `@` looks at names only and `#` at attributes only ("Search" below). A row carries the name, its
+   attribute chips, and one bar. The bar belongs to **whatever matched**: an attribute match shows
+   that attribute's score for this viewer, a name match the item's own. That is the whole answer
+   to "why is this here", and it is an answer about the viewer's own model of a word, never about
+   a person (§4).
 2. **Adding is part of searching.** Above the field, quiet and dashed, sits *add "&lt;what you
    typed&gt;"* — available the whole time there is a query, not only when nothing matched,
    because identity is by folded name and an add that collides is a find. Tapping it opens the
@@ -206,46 +206,37 @@ countable rather than guessed against the background. There is no word beside it
 No numbers, ever: every one of §4's promises holds — no counts, no raters, no averages, no
 attribution.
 
-**The fill is quantized to the error the recompute can carry.** A bar whose resolution is
-pixels claims a precision the arithmetic does not have, so a difference smaller than the
-recompute's own error is noise being drawn as a fact. The recompute carries two errors, and
-neither dominates the other in general:
+**The fill is one cautious value: high only when the score is high and much stands behind it.**
+The feed keeps two numbers per thing, the score `s ∈ (−1, 1)` and the evidence `W` (§2.6: how many
+of the viewer's own thumbs the evidence amounts to, at most one per person the viewer trusts
+directly). The bar draws, and the list ranks by,
 
-- **truncation** — §2.4's walk stops with some mass still in flight, bounded by `ε_total`, in
-  `π̃` friend-units; a friend-unit of it moves a score by at most `L` (§2.9).
-- **settle_movement** — §2.2's settling loop stops when the largest movement of any score in a
-  pass falls under `SETTLE_TOLERANCE` or the pass cap fires, and a loop that stopped on the cap
-  is still moving. This is already a distance between two values of `s`.
+    c  =  s · W / (1 + W),        fill  =  (c + 1)/2
 
-Where the loop settles, the converted truncation is the larger: on the eighty-viewer world
-`rust/tests/settling.rs` samples, it is the larger for every one of the eighty. Where the loop
-does not settle, the distance it stopped at is larger by an order of magnitude — 0.26 and 0.83
-against a truncation bound of 0.04. So the recompute reports both, puts them in the same units,
-and takes the larger:
+which is the posterior mean of a Beta on "you would like it" that holds `W` thumbs at rate
+`(1 + s)/2` beside the Jeffreys prior's one pseudo-thumb (`α = ½ + W(1 + s)/2`, `β = ½ + W(1 − s)/2`),
+mapped back to `−1..1`. A thing trusted people agree on draws near an end; a thing little stands
+behind, or one they split on, draws near the middle. There is no step to round to and no floor
+below which a thing is hidden. A thing with `W = 0` — carried into the feed only by an attribute of
+it, whose own score is only the prior — draws as nothing known and sorts as zero. An attribute's bar
+draws its score as it is, because its entry carries a score and no `W` (§3.2).
 
-    error  =  max( truncation · L,  settle_movement )        on the score's own (−1, 1) scale
-    q      =  error / 2                                      on the bar's 0..1 scale
-    fill(x)  =  round( ((s_u(x) + 1) / 2) / q ) · q
+**Why the mean.** Caution here is symmetric: little evidence may neither lift a thing high nor
+drive it to the bottom, so only much evidence moves it far from the middle in either direction.
+The mean does exactly that — `|c| = |s| · W/(1 + W)`, the score shrunk toward the middle by the
+share of it that is evidence — so a thing rises only with both a high `s` and a large `W`, and falls
+only with both a low `s` and a large `W`. A confidence bound does not: "ranked high only with
+evidence" reads as the lower side of how much you would like a thing, and a lower quantile of the
+same Beta sits near the bottom for a thing with little behind it, drawing every thing nobody knows
+as strongly *disliked* (an upper quantile fails the same way on the other side). `s` and `W` stay
+separate in storage, so a different reading needs no recompute.
 
-`q` is half the error because the bar maps `(−1, 1)` onto a unit of width. At `error = 0.04`
-that is `q = 0.02`: fifty possible fills across four segments, a dozen per segment. It still
-reads as a continuous bar, it still has no words and no numbers, and it cannot move by less
-than the error. What either error can still do is move a value across one step boundary, which
-moves the fill by exactly one quantum — the smallest thing the bar is able to say. The quantum
-is per viewer and per feed, so a loop that stopped before it settled draws a coarser bar, which
-is the honest thing for it to do. Ranking is done on the full-precision score and only the
-drawing is quantized, or the quantum would manufacture ties in the order.
+`web/DESIGN-UI.md` "The bar" is the component.
 
-`user_recs.error` holds the first line's value (§3.2), which is how the error reaches a client
-that cannot read `user_model`. It is deliberately not called `truncation`: a column named for
-one of the two quantities while holding the maximum of both is a trap. `web/DESIGN-UI.md`
-"The bar" is the component.
+### Search
 
-### Search (proposal)
-
-> **Status: proposal, built so it can be tried** (`shared/src/search.ts`, `searchFeed` in
-> `web/utils/discover.ts`). Migration `0008` reserves `!`, `@` and `#` and is not yet applied to
-> the project.
+Built in `shared/src/search.ts` and `searchFeed` in `web/utils/discover.ts`; migration `0008`
+reserves `!`, `@` and `#`.
 
 **What is typed is free text.** Split on whitespace. A word may start with `!`, then `@` or
 `#`:
@@ -272,8 +263,9 @@ how good and how quiet each is. Every row takes whichever split scores it highes
   §2.6's score is a shrunk estimate of the mean thumb, and a thumb is `±1`, so `(1 + s) / 2` is
   the estimated chance a rater says yes. No evidence shrinks `s` to 0, which lands exactly on
   one half, so **unknown is 0.5 without being chosen**: above "said not", below any yes.
-- **The name: the thing's own presence**, the same mapping of the thing's own score `s_u(i)`
-  (or the viewer's thumb on it). A name piece says *this* thing; how good it is is what it adds.
+- **The name: the thing's own presence**, the same mapping of the value its bar draws, `c`
+  ("The bar"), or the viewer's thumb on it. A name piece says *this* thing; how good it is, with
+  the evidence behind that, is what it adds.
 - **A word that no reading on the row answers: 0.5**, the same unknown. A thing that lacks a
   word is lower, not gone. A word may be left unread only when nothing on the row reads it, or
   the best split would simply skip every "not".
@@ -322,10 +314,10 @@ attribute that moves with (or against) one it spells can:
 
     ρ(a,b)  =  Σ_i W(i)·s(i,a)·s(i,b)  /  ( κ_s + sqrt(Σ_i W(i)·s(i,a)² · Σ_i W(i)·s(i,b)²) )
 
-over the things in the viewer's feed, each weighted by its support `W_u(i)` as §2.6 weights
-evidence and shrunk by the same `κ_s = 1`, so one co-occurrence is a hint rather than a law. A
-cosine rather than a centred correlation, because 0 on §2.6's scale already means "nothing
-known": an attribute missing from a thing is that 0. The piece then contributes
+over the things in the viewer's feed, each weighted by its certainty's evidence `W_u(i)` (§2.6)
+and shrunk by `κ_s = 1`, the one pseudo-thumb that certainty starts from, so one co-occurrence is
+a hint rather than a law. A cosine rather than a centred correlation, because 0 on §2.6's scale
+already means "no lean": an attribute missing from a thing is that 0. The piece then contributes
 `0.5 + w·ρ·(presence(b) − 0.5)` — the regression of one standardized quantity on another,
 discounted by how well the piece spelled `a` — so `quiet` on a thing the feed calls `loud` reads
 below unknown. A relation can add a thing it implies has the word, and lower a thing already
@@ -353,8 +345,8 @@ already on the client. No count, no rater, no number; a note names only words th
 **Cost on a phone.** Folding and splitting each name and attribute is cached across keystrokes,
 the list recomputes on React's deferred value so typing stays ahead of it, and the relation is
 built once per feed. On a synthetic 3 000-thing feed with twelve attributes each, under Bun on an
-M-series Mac: about 13 ms for one word and 25–40 ms for four, against 10–12 ms for the matcher
-this replaces; the relation about 16 ms. A phone is several times slower, and a feed of 3 000
+M-series Mac: about 13 ms for one word and 25–40 ms for four, against 10–12 ms for a matcher that
+ranks by kind of match (below); the relation about 16 ms. A phone is several times slower, and a feed of 3 000
 things is far past the usual.
 
 **Rejected:**
@@ -400,709 +392,732 @@ things is far past the usual.
   it back. Whoever adds the about adds the page.
 - **A polished desktop.** The phone layout is what is designed; the desktop is what it
   degrades to.
+- **Friend suggestions.** Naming a stranger whose taste is like yours would put a stranger's name
+  on screen, need a second Edge Function reading other people's ratings, and give a stranger a
+  second way to reach you besides your link (§4).
 
 ## 2. Recommendation algorithm
 
+> **Status: built**, in `rust/src/witness/`. `docs/witness-model.md` holds the proofs and the
+> measurements every choice was made on, run on a prototype; `docs/algorithm-notes.md` holds the
+> built core's own numbers, which are the ones quoted here unless a number says it is the
+> prototype's. Two baselines appear in the comparisons: **the relay**, a random-walk model that
+> spreads trust along friend edges with a fixed fade at every step, and the model before it. The
+> prototype, both baselines and the harness that compared them with the built core are code the
+> repository does not keep; their numbers stay as measured. Where a part is
+> original to grapevine rather than taken from the literature it says so; **unproven** marks what
+> rests on simulation or on nothing yet.
+
+### In plain words
+
+Your list is a guess at one thing: **how you would rate each thing, if you rated it.** Everyone
+connected to you is treated as a witness to that, and the whole design is how much to believe each
+witness.
+
+- **A connection is trust.** You connect to people whose opinion you want in your list. For now it
+  goes both ways.
+- **How much someone predicts you is learned, never assumed.** Everyone starts where people like them
+  usually start, and every thing you have both rated moves that up or down.
+- **A match counts for as much as it was surprising.** Agreeing that a place everybody loves is good
+  tells us almost nothing; agreeing about something people near you are split on tells us a lot.
+- **A thumb given before yours counts in full; one given after counts for less**, by the chance that
+  the person could have seen yours. Nothing about time is used but "before you" or "after you".
+- **Someone who reliably disagrees with you is still useful**: their thumbs are read upside down.
+- **Trust travels in chains.** You hear the people your trusted people trust, as strongly as the
+  chain is trusted at every link. A long chain of people who each predict the next still reaches you;
+  one link that predicts nothing cuts off everything beyond it. Someone who has predicted you
+  themselves — rated things the way you later did — is heard for it too, but never more strongly than
+  the person you trust directly at the head of their chain.
+- **Taste can depend on the kind of thing.** A friend can be right about films and wrong about
+  restaurants. How much someone predicts you is learned separately for each attribute a thing
+  carries, and pulled back toward their overall record by exactly as much as the data says kinds
+  don't matter.
+- **A thing starts where the people near you put it.** Before anyone's particular taste is weighed, a
+  thing most voices near you like starts a little above the middle, which is what gives someone with
+  no thumbs of their own a useful list from the first day.
+- **Everyone reached through one person you trust counts as one voice.** However many accounts sit
+  behind them — real people or one person's fakes — together they are one more opinion, never more
+  than that person's own. This is the one rule that is not a consequence of the rest; it is there
+  because of bots.
+- **Every rated thing shows, and the bar is cautious.** How likely you are to like it and how much
+  stands behind that are kept apart; the bar and the order of the list combine them, so a thing
+  sits near the top only when you would probably like it *and* many voices you trust say so. A
+  guess, or a thing the people you trust are split on, sits near the middle.
+
+### The computation, in order
+
+One pass per viewer `u` over the loaded neighbourhood (at most `N_max = 2 000` people); nothing
+iterates to a fixed point. Each step is argued in the section it names.
+
+1. **Base rates** (§2.2). Per thing, up and total thumbs over the **circle**: `u` and the loaded
+   people `u` trusts directly. A reading's chance of agreement is the Beta(1,1) posterior of that
+   rate with the two people's own thumbs left out; in step 6 a thumb is judged against the circle's
+   thumbs plus those of the rater's own region, the rater's own left out.
+2. **Direct reliability** (§2.3) of each person `f` `u` trusts directly: the posterior mean of `λ`
+   under a Beta prior on `(1 + λ)/2` with mean `a₀` and strength `κ`, over the things both rated. A
+   thumb `f` gave after `u`'s is read with the reaction mixture at `e_f = 1/(number of people f
+   trusts)`.
+3. **Chains and regions** (§2.4). A max-product shortest path out from the direct connections along
+   trust connections: popping the strongest `|chain|` first, each neighbour `v` of the popped `w`
+   that is neither `u` nor a direct connection, and whose chain so far is weaker, gets
+   `chain(w) · λ_{w→v}`. The link is the posterior mean at the same prior over the things `w` rated,
+   **every** shared thumb read with the reaction mixture at `e = 1/(number of v's connections nearer
+   u than v)`, because the order between two people who are not `u` is not known (it is not asked
+   of the database, and measured it is worth nothing). A person's region is the direct connection
+   their strongest chain starts from.
+4. **Own history** (§2.4), for each reached person who is not a direct connection and shares things
+   with `u`: two posteriors with the chain as prior mean, one over the thumbs given before `u`'s and
+   one over all of them (later ones at `1/(number of people v trusts)`). Their reliability is the
+   larger in magnitude of the first capped at the head's `|λ_f|` and the second capped at their own
+   `|chain|`; with nothing shared, it is their chain.
+5. **Per-attribute reliability** (§2.8). A thing carries an attribute when more of the circle tagged
+   it up than down. Per attribute and region, `κ_a` is chosen from `{1, 2, 4, …, 1024}` by the
+   marginal likelihood of the on-attribute readings of the circle and that region under a prior
+   centred on each person's off-attribute reliability (ties to the larger); each person's
+   reliability on the attribute is the posterior at that `κ_a`, under the same two caps. A thing is
+   read at the mean over its attributes that have one, else at the overall reliability.
+6. **Scores** (§2.2, §2.4, §2.6). Per thing and region, the reliability-weighted average of the
+   raters' log-likelihood ratios, each clipped at `±L`. Per thing, the starting point `logit b`,
+   `b = (1 + Σ_r s_r q_r)/(2 + Σ_r s_r)` over the regions `r` that rated it, `q_r` the region's
+   reliability-weighted up-share and `s_r` its strongest rater's reliability; plus the regions'
+   averages. The score is `tanh(Λ/2)`, clamped strictly inside `(−1, 1)`.
+7. **Certainty** (§2.6). For each thumb the posterior chance `ρ` that it is `u`'s answer rather
+   than a guess, given the score; averaged per region by reliability; summed over regions: `W`.
+8. **Attributes as facts** (§2.8). One fact reliability for everyone, `λ_fact = √(2A − 1)` for `A`
+   the rate at which two of the circle agree about one `(thing, attribute)`, each attribute's base
+   rate the circle's, and the same per-region average with no starting point. Gaps — a
+   `(thing, attribute)` nobody loaded tagged — are filled from attribute pairs: each co-tagging person's
+   counts weighted by `|chain|` and averaged within their region, against chain-weighted base rates
+   over everyone reached, a spike-and-slab posterior per pair with the linked share by empirical
+   Bayes over all pairs, a pair used when more likely linked than not, at its slab mean, and the
+   pairs pointing at one gap from the attributes tagged on the thing averaged as one voice. A filled
+   gap gets a score and a certainty by step 7's formula over its sources.
+9. **Boundary** (§3.4). Every unloaded person adjacent to a loaded one, with the strength a chain
+   would reach them at, `max |chain(w)| · |2a₀ − 1|` over loaded neighbours `w` (`u` counting as a
+   chain of one), for the loader's extra rounds.
+10. **Tallies** (§2.9). Per hop-distance class (1, 2, 3+), the count, sum and sum of squares of
+    each pair's rate `(1 + λ̂)/2` with `u`, and the sum of their weights, over every loaded person
+    connected to `u` who shares at least ten things with them.
+
+Posteriors are integrated on a 16-point midpoint grid (64 measured no different), except under a
+prior too sharp for it, where the window is the prior's own scale (`docs/witness-model.md` §1.8).
+Every sum runs in a fixed order, so a snapshot's result is bit-identical run to run.
+
 ### 2.1 Goals and the threats it must survive
 
-Everything below is per viewer `u`. The output is, for every ratable `x` that anyone within
-reach has rated, a score `s_u(x) ∈ (-1, 1)` and a confidence `W_u(x) ≥ 0`.
+Everything below is per viewer `u`. The output is, for every ratable `x` that anyone in reach has
+rated, a score `s_u(x) ∈ (−1, 1)` and a certainty in `[0, 1)`.
 
 Requirements, in priority order:
 
-1. **Personal**: `s_u` is a function of `u`'s ratings and `u`'s network. There is no global
-   score that anyone could care about or game for status, and no global aggregate at all.
-2. **Sybil-bounded**: the total influence any set of accounts can have on `u` is bounded by
-   the friend *edges* connecting that set to `u`'s honest network, not by the number of
-   accounts in the set. Making 1,000 bots is no better than making 1. (Flow conservation,
-   §2.4 — the same currency as SybilGuard/SybilLimit, Advogato, personalized PageRank.)
-3. *(Deliberately not a requirement: self-correcting, localized blame — the edges that carried
-   recommendations `u` then rated the other way lose trust, the edge into a bot and not the
-   friend who accepted it. Alignment cannot supply it, because alignment rewards agreement and
-   a mimic maximises agreement, and no other mechanism does. §2.5 says why that is survivable
-   and what the mechanism would be.)*
-4. **Incentive-aligned, per state**: whatever everyone else has said, reporting your true
-   thumb on an item is at least as good for your own results as reporting the opposite, and
-   rating is at least as good as not rating in expectation (§2.7, stated with its limits).
-5. **Transitive taste, bounded**: a path of aligned people is followed as far as it still
-   matters, with no fixed depth; a distant person with strong alignment can weigh as much
-   as a fresh direct friend. Not as much as a well-aligned direct friend: a stranger who
-   perfectly mimics you is indistinguishable from a bot behind one edge, so (2) caps what
-   anyone reached only through others can earn (§2.4, §2.9).
-6. **Discreet**: results never *display* who rated what. Leaks through inference are
-   acceptable as long as they take deliberate effort (§4).
-
-Threats, and what actually bounds each:
+1. **Personal**: `s_u` is a function of `u`'s ratings and `u`'s trust network. No global score, and
+   no global aggregate except the population priors of §2.9, which are moments of the population.
+2. **Sybil-bounded**: the influence any set of accounts can have on one of `u`'s scores is bounded
+   by the trust connections joining that set to `u`'s honest network, not by the number of accounts,
+   and the bound rests on nothing the set can change (§2.5).
+3. **Learned, not assumed**: how much a thumb counts is a posterior over what the viewer has seen,
+   from a population prior (§2.3).
+4. **Incentive-aligned, per state**: reporting your true thumb is at least as good for your own
+   results as the opposite or as silence, in expectation (§2.7).
+5. **Transitive, bounded**: people the viewer does not know directly are heard through chains of
+   trust, as far as the chain still predicts, and never more strongly than the person they are heard
+   through (§2.4).
+6. **Discreet**: results never display who rated what (§4).
 
 | Attack | What bounds it |
 |---|---|
-| Bot farm behind one honest friend `f` promotes item `P`. | Flow conservation with killing at rate ½: all bots together, however many and however wired, receive at most what lies beyond `f` can weigh, which is at most `f` itself (§2.4). Nothing shuts the swarm off after the viewer dislikes what it pushed, so what bounds it is the ceiling and not a reaction: one edge buys at most what `f` itself weighs — about a friend-unit, more where the viewer's other friends' walks also pass through `f` (a converged 500-bot clique held 1.050 behind a gatekeeper of 1.055, §2.4) — spread over however many accounts the attacker made, and every promotion competes against the viewer's honest reach at that ceiling for as long as the edge exists. §2.9 works the numbers and §2.9a measures how far such a promotion actually travels. |
-| Bots learn `u`'s taste from their own feed (a bot's feed is the mass-weighted opinion of its reach, `u` included) and rate contested items to mimic it before promoting. | Real, and not detectable — a mimic is a perfect friend-of-a-friend. It is bounded, not prevented: everything beyond one friend weighs at most that friend, unconditionally, alignment is clamped, and a friend's own thumbs are never scaled. Worst case from one edge is quantified in §2.9. **And it does not compose**: mimicry is what carries a promotion past the person who accepted the request (without it the item reaches nobody else at all), but a swarm that has copied one person is wrong for everyone that person disagrees with, so it buys one weak ring and stops — measured in §2.9a. |
-| Bots copy consensus opinions to look aligned with everyone. | Agreement on a unanimous item carries **exactly zero** weight, at any support: `ω = 4p(1−p)·n/(n+1)` is `0` when nobody in reach dissents. This is the row that decides the shape of `ω` (§2.2). Consensus is measured inside `u`'s reach with bounded mass, so bots cannot make consensus items look contested either. |
-| Bots tag thousands of items with obvious categories to earn "agreement". | Tag ratings never enter alignment; only item ratings do (§2.3). |
-| An anti-aligned account rates `−1` to promote. | Negative alignment flips the sign of an account's evidence; it does not shrink it. The defense against promotion is the mass bound, not the sign (§2.3). |
-| A user rates dishonestly to manipulate a friend's feed. | Influence on that friend is scaled by alignment earned by agreeing with them, bounded by flow, and invisible, so there is no social payoff. They also degrade their own results (§2.7). |
-| One account, or a swarm, behind one edge rates 10,000 items. | Bounded per item by mass, not per feed: all ten thousand can be there at once, each at the one edge's ceiling. Identical treatment for a prolific honest friend-of-a-friend, and nothing distinguishes them later either. What keeps this tolerable is that mass is not evidence until multiplied by alignment, so ten thousand ratings by an account the viewer has no agreement with carry a prior's worth each (§2.9). |
-| A dense clique inside the viewer's nearest `N_max` people, built to make the walk expensive. | Not influence: the mass bound above holds on whatever the walk produced. What it can buy is **staleness**. A sweep costs two pushes per friendship loaded (§2.4), so a clique makes the walk dearer in proportion to the friendships it adds — a 500-bot clique behind one gatekeeper converges in 1.75 M pushes, well inside `E_max` — and one dense enough that a converged loop does not fit `E_max` stops the recompute short of `ε_total`, and a walk that does not resolve writes no feed, so the viewer keeps the last one they had (§3.4). Its edges still have to be accepted by real people, which is what bounds how close to a viewer it can sit. A clique beyond the nearest `N_max` is not walked at all (§2.4). |
-| Inferring a specific friend's rating from your feed. | Display floor, no counts, no recency ordering, staleness window. With exactly one friend the feed *is* that friend's ratings; §4 says so. |
-
-### 2.2 Ratings, consensus, and informativeness
-
-Ratings `r_{v,x} ∈ {+1, −1}`. Alignment (§2.3) is computed over **item** ratables only; tag
-ratables are scored (§2.6) but never used as evidence of shared taste.
-
-For viewer `u` and item `x`, the reach-weighted vote counts are
-
-    n⁺_x = Σ_v π̃_u(v) · [r_{v,x} = +1],    n⁻_x likewise,    n_x = n⁺_x + n⁻_x
-
-summed over everyone in reach *including the viewer at `π̃_u(u) = 1`* (their own thumb is a
-real vote in their own reach; leaving it out would make "everyone but me" unanimous look
-uncontested, so a bot swarm the viewer disagrees with would never register), with `π̃_u`
-from §2.4. The consensus and **informativeness** are
-
-    p_x = n⁺_x / n_x
-    ω_x = 4 · p_x · (1 − p_x) · n_x / (n_x + 1)  =  4 · n⁺_x · n⁻_x / (n_x · (n_x + 1))
-                                                   ∈ [0, 1),   0 if n_x = 0
-
-(`rust/src/informativeness.rs`). `4p(1−p)` is the even-split factor, the variance of a ±1
-vote scaled so an even split reads 1; `n/(n+1)` is the support the count itself carries, one
-pseudo-vote of doubt, so an item with little reach mass behind it does not read as maximally
-informative — reach mass is measured in friend-units and is small. `ω_x → 1` for an evenly
-contested, well-supported item, reaches `n/(n+1)` at an even split, and is **exactly `0`** on a
-unanimous item however much mass rated it. An item two friend-units split evenly reads `2/3`.
-
-**Not the exact Beta(1,1) posterior, deliberately.** `n/(n+1)` is an invented constant, and
-the exact posterior `E[p(1−p) | data] = p̂(1−p̂)·(n+2)/(n+3)` with `p̂ = (k+1)/(n+2)` would
-remove it. It cannot be used, because the two forms differ in exactly the place the defence
-lives: this form reads **exactly `0`** on a unanimous item at any support, and the posterior
-reads `4(n+1)/((n+2)(n+3))` — `0.60` at two friend-units, `0.28` at ten, `0.12` at thirty.
-Thirty unanimous items at `ω ≈ 0.12` is `A ≈ 3.5`, which against `κ = 8` moves a stranger to
-`â ≈ 0.55` and `ℓ ≈ 0.2` — small, and bought for nothing by an account that agrees with
-everybody. So **"contested means at least one dissenter in reach, and nothing less counts"** is
-a rule, and `n/(n+1)` is named as a chosen constant in §2.8. A tidier closed form is not an
-improvement when the untidy form's *discontinuity* is the property being relied on.
-
-**The definition is circular, and it is run until it stops moving.** `π̃` depends on
-alignment, alignment depends on `ω`, and `ω` depends on `π̃`. The computation is therefore one
-settling loop, not a fixed number of stages: walk with every alignment at its prior `a₀(d)`
-(so the first walk depends on the graph only, not on any rating), recompute contestedness and
-alignment from what it found, walk again, and stop when the largest movement of any score in a
-pass falls below
-
-    SETTLE_TOLERANCE = 1e-4      or   pass count reaches   SETTLE_MAX_PASSES = 12
-
-**Reaching the cap is not an error.** The loop reports the movement it stopped at
-(`settle_movement`) beside the truncation, and the caller decides what to do with it — §1's
-bar quantizes to the larger of the two, and §3.4's recompute writes a feed either way.
-
-**Each pass starts from the one before, and a pass that cannot finish does not count.** A pass
-after the first is seeded with the previous pass's flow, so it pays only for how far the
-affinities moved rather than for a walk from nothing (§2.4 gives the residual this leaves). And
-the loop never starts a pass that the remaining push budget (§2.8's `E_max`) cannot pay for at
-the last pass's price; a pass that stops on the budget anyway is discarded. The answer is always
-the last *completed* pass — its masses, its scores, its movement — with `settled` false; a loop
-that can afford only its first pass reports `settled: false, passes: 1`. A pass cut short must
-never replace a converged one before it: a starved second pass would report a walk of fourteen
-nodes after the first had reached three hundred.
-
-Two fixed passes would not be enough. Measured on the same worlds, a two-pass answer sits
-`0.006`–`0.012` from the settled answer on the worst single ratable — inside §2.9's truncation
-bound of `0.04` — but where the loop cannot settle at all the distance it stopped at is an order
-of magnitude past that bound, and that is the case the bar has to draw (§1).
-
-**That it settles is measured, and there is a theorem for the shape of it.**
-`rust/examples/fixed-point.rs` iterates the map and reports how far the score vector moves
-each pass: movement of the worst single score falls by a factor of `0.032`–`0.039` at the
-first step and `0.055`–`0.14` at the second, then wobbles around `5e-5` — it shrinks over every
-*two* passes, not every pass — across seeds and across `p_same_cluster` from 0.05 to 0.30, and
-every viewer of every one of those worlds reached the tolerance — four passes the median and
-five the most any viewer took. Denser and hostile worlds settle too: at `p_same_cluster = 0.6`
-— 120 people, 72 friends each — every viewer within four passes and 52 000–60 000 pushes; under
-a 200-bot mimic clique all 320 viewers within eight passes, the bots holding 1.025 friend-units
-behind a gatekeeper of 1.114. The cap of 12 is therefore room for a graph that contracts several
-times more slowly than anything observed, and the tolerance of `1e-4` is two orders below the
-smallest step the bar can ever draw. `fixed-point.rs` and the product path walk the same graph.
-The general statement is Butkovsky's: a kernel whose
-transition probabilities depend on the law it produces has a unique invariant measure, reached
-geometrically, when its Lipschitz constant in the measure is below its Dobrushin coefficient
-(*Theory Probab. Appl.* 58(4), 2014, Thm 2.2), and a walk killed at rate `α` supplies that
-coefficient for free on every graph.
-
-**Two obstructions, because the condition above is not self-evidently met here.** Butkovsky's
-own Example 2.1 is a two-state chain satisfying the Dobrushin condition alone that does *not*
-converge, so "the killing rate makes it contract" is false as a standalone argument — the
-Lipschitz half is what §2.3's `κ` supplies and it is not free. And multilinear PageRank, a
-close relative, is unique for `α < 1/2` and explicitly **non-unique for `α ≥ 1/2`** (Gleich,
-Lim & Yu, *SIMAX* 36(4), 2015); ours is exactly `1/2`, chosen for a different reason (§2.4).
-Different model, close enough that sitting on that boundary is a decision rather than an
-oversight, and the measurements above are what stands behind it. This is why the cap exists
-and why reaching it is reported rather than thrown.
-
-Counting inside the viewer's own reach with conserved mass means a bot region can shift any
-`p̂_x` by at most its bounded share, and there is no global aggregate for anyone to attack
-from outside.
-
-### 2.3 Pairwise taste alignment
-
-For viewer `u` and any `v` in reach, over the **items** both have rated:
-
-    A_{uv} = Σ_x ω_x · [r_{u,x} = r_{v,x}]        (weighted agreements)
-    D_{uv} = Σ_x ω_x · [r_{u,x} ≠ r_{v,x}]        (weighted disagreements)
-
-Shrink toward a prior that depends only on graph distance `d(u,v)`:
-
-    a₀(1) = 0.65,   a₀(2) = 0.55,   a₀(d ≥ 3) = 0.50
-    â_{uv} = (κ · a₀(d) + A_{uv}) / (κ + A_{uv} + D_{uv}),    κ = 8
-
-The prior says a friend is weak evidence of shared taste, a friend-of-a-friend weaker, and
-anyone further away none; data overrides all three. `κ = 8` means one agreement on a sparse item moves a stranger's alignment to
-about `0.55`, ten agreements and no disagreements to about `0.78`, twenty to about `0.86`. This is what gives a
-brand-new user something to look at (their friends' ratings at modest weight) and what makes a
-like-minded second-hop person overtake a fresh direct friend once overlap accumulates.
-
-**`κ` is load-bearing a second way, and this is the more important one.** It is what makes
-§2.2's loop settle. Alignment divides by `κ + A + D`, so a change in the masses moves `A` and
-`D` and is then divided by `κ`; a large `κ` means alignment barely responds to a change in
-flow, which is exactly the small Lipschitz constant the contraction argument needs. So `κ` is
-not only a statement about how fast a stranger should earn trust — it is what makes the whole
-circular definition well-posed, and lowering it trades convergence for responsiveness rather
-than responsiveness alone. It remains **chosen** rather than derived, against both jobs.
-
-The **alignment weight** is the clamped log-odds of agreement:
-
-    ℓ_{uv} = clamp(logit(â_{uv}), −L, +L),    L = 2
-
-This is the elo-style logit, and the weighting is not a choice: under conditional independence
-and a uniform prior, the error-minimising aggregation of binary votes weights each voter by
-`log(p/(1−p))`, which by Neyman–Pearson *is* the log-likelihood ratio, so every other
-weighting is strictly dominated (Nitzan & Paroush, *Int. Econ. Rev.* 23(2), 1982; the same
-object as I. J. Good's weight of evidence). A thumb from `v` is evidence about `u`'s taste with
-weight `ℓ_{uv}`. It is positive for like-minded people, near zero for people we know nothing about
-*and* for people who only ever agree on consensus items, and **negative** for people whose
-taste reliably opposes yours: their thumbs-up is evidence you will dislike it. Note what
-negative alignment is not: it is not a penalty. Evidence is invariant under flipping both the
-sign of `ℓ` and the sign of the rating, so an anti-aligned account promotes by rating `−1`
-exactly as well as an aligned one by rating `+1`. What limits any account is the mass bound
-(§2.4) and the clamp, not the sign.
-
-**And the clamp is the second thing holding the loop together.** `L` bounds how much any one
-account's thumb can ever count, which is the guarantee it was written for; it also bounds how
-lopsided §2.4's split may get, since the affinity range is `e^L` and the best-to-worst
-neighbour ratio is `e^{2L}`. Measured on the same worlds: at `L = 2` the ratio is 7:1 and the
-loop contracts at about 0.2 a pass; at a ratio of 55:1 it is 0.45; at 3 000:1 it is 0.83; and
-at `2.6e10:1` the iteration has a per-pass ratio of `1.008` and **never settles at all**. So
-past a best-to-worst ratio in the thousands there is no answer to converge to. Concentration
-does not help an attacker either — with 200 mimic bots the bots' share drifts slightly *down*
-as the split sharpens — so stability is the only thing being traded, and `L = 2` keeps the
-ratio at 7:1.
-
-`ℓ_{uv} = ℓ_{vu}` exactly. That symmetry is why an account's own feed tells it how aligned it
-is with its reach; see the mimicry row of §2.1.
-
-### 2.4 Reach and flow: how much of each person `u` can hear at all
-
-Alignment says how much to believe someone; it must not decide whether they can reach you, or
-a thousand well-aligned bots would drown a network. Reach is a conserved quantity that flows
-along friend edges and is followed as deep as it still matters.
-
-**The walk.** From viewer `u`, run a **non-backtracking random walk**: it never immediately
-re-traverses the edge it arrived by, it never steps onto `u` (the viewer is removed from every
-transition row and the row renormalized, so mass that would have come back to you is shared
-among that node's other neighbours instead), and at every step it is **killed with
-probability `α = 1/2`**. From a node `v` entered along the edge `(w → v)`, it continues to a
-neighbour `y ∉ {w, u}` with probability proportional to the **affinity**
-
-    aff_u(y) = exp(max(ℓ_{u,y}, 0))      ∈ [1, e^L] ≈ [1, 7.4]
-
-the odds that `y` shares the viewer's taste, when those odds are better than even. A
-neighbour aligned with the viewer is preferred over an unaligned one by exactly those odds,
-so a path of aligned people keeps most of its mass at every step, and the range follows
-from the alignment clamp rather than from a constant of its own. The exponential form is
-forced once the constraint is: `split ∝ exp(β·alignment)` is the unique maximiser of
-`H(q) + β·E_q[alignment]` over the simplex — strictly concave, hence unique — so `β` is a
-Lagrange multiplier on a constraint and not a tuned knob (Gibbs; axiomatically, Shore &
-Johnson, *IEEE IT* 26(1), 1980), and `β = 1` is what makes the multiplier the log-odds
-themselves. The honest caveat: this relocates the arbitrariness into choosing the constraint
-level, which is what §2.3's paragraph on `L` is about. This is the
-personalized, alignment-steered form of non-backtracking centrality: the visit mass
-`π_u(v)`, the expected number of times the walk arrives at `v`, is what the Hashimoto-matrix
-centrality localizes to a single start node.
-
-**There is nothing else in the split.** Each node's onward mass goes to its neighbours in
-proportion to the affinity above and to stopping at rate `α`, and that is the whole rule — no
-learned per-edge distribution (§2.5). The injection at a friend is never scaled either way, so
-a friend's own thumbs are judged by alignment alone.
-
-Why there must be a killing rate, and why it is one half. On a finite graph an unkilled walk
-forgets where it started: the expected number of visits to `v` before returning to `u` is
-`deg(v)/deg(u)` for every `v`, however far away, so an undamped walk measures degree, not
-proximity to you. Some horizon is therefore not a tuning knob but the definition of
-"personalized". Killing with probability `1/2` is the one rate with a structural meaning here:
-the mass that ever travels beyond a friend is `Σ_{j≥1} (1/2)^j = 1` times the mass injected at
-that friend, so **everything that lies beyond any one friend weighs, in total, at most as much
-as that friend**. That is the whole sybil argument, and it needs no further cap.
-
-**Injection and normalization.** The walk starts by stepping to a friend `f` with probability
-`1/|F_u|` (its first arrival counts as a visit). Normalize so one ordinary friend is the unit:
-
-    π̃_u(v) = π_u(v) · |F_u|
-
-A direct friend has `π̃ = 1` from injection plus whatever arrives by other routes (on a
-triangle `u – f – f'`, `f'` gets `1 + 1/2` because all of `f`'s onward mass has nowhere else to
-go); the total beyond a friend is at most that friend's own `π̃`, which is `1` only when no
-other route reaches them, and less when the branch is sparse (the walk dies at leaves).
-
-**What is actually computed.** Nothing is sampled. Let `B_u` be the viewer's
-non-backtracking transition operator on directed edges (Hashimoto matrix with the affinity
-weights, rows for edges into `u` zeroed) and `e_u` the injection vector. The visit mass is
-the resolvent row
-
-    π_u = e_uᵀ · Σ_{k≥0} ((1 − α) B_u)^k = e_uᵀ · (I − (1 − α) B_u)^{−1}
-
-summed onto nodes. This is the non-backtracking analogue of personalized PageRank / Katz
-centrality. It is a linear system, not an eigenproblem: the leading eigenvector of `B` is
-one global ranking shared by everyone, whereas we need a different row of the resolvent for
-every viewer, and `B_u` itself differs per viewer because the affinities are the viewer's own
-alignments. A low-rank spectral approximation of the resolvent is exactly the wrong tool
-here: the top eigenvectors carry global structure and smooth over sparse cuts, so a small
-sybil region behind one edge would be assigned mass in proportion to its size — the property
-the flow argument exists to prevent. So each viewer's row is solved directly.
-
-**Error-bounded evaluation.** The solve is by local push (Andersen–Chung–Lang), which is
-Gauss–Seidel on the Neumann series restricted to where the mass actually is. The residual lives
-on directed edges, `r(w → v)`, because the walk is non-backtracking — but a push takes a
-**node**: pop the node `v` holding the most residual, add everything waiting on its incoming
-edges to `π_u(v)` at once, and send each outgoing edge `(v → x)` its share of `(1 − α)` times
-that total *less* the part that arrived along `(x → v)`. Stop when the mass still in flight
-could change no score by more than the budget, or when a budget is exhausted:
-
-    stop when  Σ |r| · (1 − α)/α  <  ε_total        (0.02 on demand, 0.001 deep, in π̃ units)
-           or  nodes touched ≥ N_max                (2 000 on demand, 50 000 deep)
-           or  push work ≥ E_max                     (a CPU backstop, §2.8)
-
-`N_max` bounds the nodes a walk touches, hence its memory, CPU and egress; since the
-neighbourhood is in the function's memory (§3.4) it bounds no reads. The **deep** budget is the
-same walk followed much further and tighter; nothing in the product runs under it now that
-taste search is gone (§5), and the sybil suite still checks it.
-
-**A node push, because an edge push costs the degree squared.** A pop pushes one share along
-each edge out of `v`, so a **sweep** of the loaded neighbourhood costs
-
-    sweep  =  Σ_v deg(v)      pushes, two per friendship
-
-and a converged walk takes about `⌈log₂(F / ε_total)⌉` sweeps, `F` the viewer's friend count.
-Popping one *edge* at a time instead would deposit along every edge out of `v` but the one it
-arrived by, so a sweep would cost `Σ_v deg(v)(deg(v) − 1)` — the mean degree times more. At
-2 000 people and 50 friends each, one walk takes 6.9 ms by node against 12 354 ms by edge
-(native), and the whole loop 27 ms against 56 188 ms, on the same equation, the same stop rule
-and the same truncation: over 300–2 000 people the masses agree to 2.9e-4, the scores to 9.0e-4,
-and the pass counts (4–5) are equal. Masses can err slightly high as well as low, within the
-reported truncation. The pop order is largest-first to within a factor of two — one bucket per
-binary exponent, first in first out inside a bucket — and deterministic.
-
-**Passes are warm-started.** §2.2's loop runs the walk once per pass, and a pass after the first
-starts from the previous pass's flow instead of from nothing: its residual is what that flow
-leaves unexplained under the new affinities, `e + T(a₀) − a₀`, which may be negative. That is why
-the stop rule sums `|r|`. It roughly halves a loop's work, since later passes pay only for how far
-the affinities moved.
-
-**Nothing is trimmed, and the accuracy is relative to the nearest `N_max` people.** The budget a
-walk gets is `min((SETTLE_MAX_PASSES + 1) × (F + (sweeps + 1) · Σ_v deg(v)), E_max)`, and with
-the node push and warm starts a converged loop over the whole `N_max` fits the CPU ceiling
-(136 ms of `computeUser` in wasm at worst, 2 000 people × 50 friends). Do not make it fit by
-unloading the furthest nodes: §3.4's boundary rounds skip anything already loaded, so trimmed
-nodes never come back, and every viewer with a neighbourhood past about a hundred people would
-get no feed at all.
-
-**Influence from beyond the nearest `N_max = 2 000` people is ignored.** The walk reports two
-quantities, not one. `truncation` is the residual left *inside* the loaded set, and it is what
-`ε_total` bounds. `boundary_residual` is the mass that walked out of it onto people who were
-never loaded; it is reported and stored (`user_model.boundary_residual`, §3.2) and **not**
-counted against `ε_total`. It is not small: in loose worlds at 10–40 friends each it measured
-0.2–14 friend-units, against an `ε_total` of 0.02. Against a walk of the whole world the bars
-moved by at most 0.03–0.11 and about one item in twenty fell below the display floor. That is
-the price of a bounded load, accepted as a threshold rather than hidden in a bound it does not
-satisfy.
-
-**A walk that cannot meet `ε_total` inside the loaded set writes no feed at all.** It does
-not write a worse one: §3.4's recompute answers with the *previous* `user_recs` row and
-`recomputed: false`, stamping `checked_at` so the staleness window still applies — including for a
-viewer with no earlier feed, who would otherwise pay a walk on every open. A feed the viewer
-already has is a better answer than a feed drawn from a walk that did not resolve, and the
-alternative — storing it with a large reported error — puts a number on the bar that is really a
-statement that the computation failed. With nothing trimmed only `E_max` can cause this: a
-neighbourhood dense enough that a converged loop does not fit the CPU ceiling.
-
-Residual left at termination still counts as visit mass where it sits; only its onward flow
-is lost, and `truncation = Σ |r| · (1 − α)/α` is reported with the result. Since evidence is
-mass times a clamped alignment, any ratable's `E_u(x)` is within `L · truncation` of the exact
-value, and its score within `L · truncation / (κ_s + W_u(x))` — of the exact value *over the
-loaded set*, which is the guarantee's scope as stated above. This is a true search: a path of
-strongly aligned people is followed as long as the mass on it can still matter, however many
-hops away it leads, and a wide unaligned neighbourhood is cut off as soon as it cannot. The
-cost bound is the node budget, not a depth. The pop order is fixed, so the result is
-deterministic. A global power iteration would cost one pass over the whole graph per step for
-every viewer; the push costs `O(1/(α·ε))` pushes regardless of graph size, which is why it is
-the standard way to compute personalized centralities, and why one viewer costs milliseconds.
-
-**Why this is sybil-bounded.** Take any set of accounts `S` reachable only through edges from
-honest gatekeepers `h₁..h_k`. Every row is a distribution, so mass enters `S` only along
-those edges, at most `π_u(h_i) · P_{h_i}(S)` per unit at `h_i` (where `P_h(S)` is the share
-of `h`'s onward mass that leads into `S`, at most `1 − α`), and inside `S` it can accumulate
-at most `1/α = 2` times its inflow. So
-
-    π̃_u(S) ≤ Σ_i  π̃_u(h_i) · P_{h_i}(S)
-
-and, since the onward share of any node is at most `1 − α`, a region behind one gatekeeper
-never outweighs the gatekeeper. `π̃_u(h_i)` is the gatekeeper's total mass, which includes
-what returns to it (a walk `h → b₁ → b₂ → h` is not backtracking): from a single region
-routing everything straight back, at most `1/(1 − (1−α)²) = 4/3` times what it had; in
-general it is bounded only by conservation (three mutual friends each sit near `1.9`, fed by
-each other), and `π̃_u(S) ≤ π̃_u(h)` holds regardless. Nothing
-in the bound is `|S|`: adding accounts to `S` re-divides a fixed pie, and no chain, clique,
-or fan-out inside `S` can collect more than what entered. **Nor is the budget in it.** A
-clique dense enough to exhaust `E_max` inside itself leaves the loop stopped on a partial walk,
-and the bound still holds on the masses that walk produced, because what the push did not
-carry is held as residual and reported as `truncation`, not handed to anybody; the cost of that
-case is an answer nobody is shown, since §3.4 writes no feed and the viewer keeps the last one.
-A 500-bot clique behind one gatekeeper does not get there: the loop converges in 5 passes and
-1.75 M pushes, settled, at a truncation of 0.0041, and the bots hold 1.050 friend-units against
-the bound's 1.055. **That is more than one friend-unit, and "a region behind an ordinary
-gatekeeper holds at most one friend-unit" is not a theorem**: the gatekeeper's own `π̃`
-includes what the viewer's other friends' walks carry through it, and the bound is that, not
-`1`. A region beyond the nearest `N_max` people is not walked at all, which bounds it
-trivially. The worst case from one *captured* edge — a friend whose entire beyond-them world is
-bots that have correctly predicted `u`'s taste — is one friend-unit, `4/3` with maximal
-feedback; an ordinary gatekeeper adds whatever else flows through it. Mass is not evidence until
-multiplied by alignment (§2.6), which starts at the prior for anyone new. That ceiling is the
-whole of the defence on that edge: nothing reacts to what crosses it afterwards (§2.5). §2.9
-works the numbers.
-
-**The bound is the best available, and that is a theorem rather than a hedge.** You cannot
-have *zero* sybil gain: strong transitive trust, independence of disconnected agents,
-anonymity and misreport-proofness together imply that beneficial sybil attacks exist (Seuken &
-Parkes, AAMAS 2014). So "bounded, not prevented" is what any rule of this kind can offer. The
-closest thing to a characterisation of which flow rules admit the bound is Levien's
-*bottleneck property* — a trust metric must dilute the trust accorded to the successors of a
-node as more successors are added — which is mass conservation, and which he states plainly is
-a conjecture with no proof.
-
-**Two costs that come with measuring visit mass.** Under personalized *hitting probability* —
-did the walk ever reach you — the optimal sybil strategy is provably no sybils at all (Hopcroft
-& Sheldon, WAW 2007). We measure accumulated visit mass, a resolvent, which counts revisits, and
-for that family one sybil with a two-loop strictly pays (Liu, Parkes & Seuken, AAMAS 2016,
-Thm 1). **So this design must not claim immunity, only the bound above.** Non-backtracking
-removes the two-loop specifically — a bot cannot bounce straight back along the edge it arrived
-by — so the cheapest cycle attack becomes a triangle, two sybils instead of one, and no
-further; there is no literature at the intersection of non-backtracking walks and sybil
-resistance, so that benefit is measured here and borrowed from nobody. Non-backtracking's other
-job is the one it is famous for: ordinary eigenvector centrality localizes onto hubs and
-non-backtracking does not, because it removes the hub↔neighbour reflection (Martin, Zhang &
-Newman, *PRE* 90, 052808). In a friend graph with one 500-friend account that is the difference
-between a working feed and a feed about the hub.
-
-### 2.5 Why there is no learned edge trust
-
-**Each node's onward split is §2.4's affinity split and nothing else.** A per-viewer, per-edge
-fit — a learned logit `θ_e` on every directed edge reallocating the onward mass, trained by
-gradient descent on the viewer's own thumbs under a Gaussian prior — is deliberately not built.
-
-**Why not.** The loss is convex in the scores, but the scores are a resolvent of `θ`, so
-**convexity in `θ` is not established**. Descent finds a stationary point with no uniqueness
-claim, and a starved budget finds wherever it happened to stop — so the answer depends on the
-budget, which is the one thing a bound must not do. The sharp counterpoint from the literature
-is that spectral initialisation plus a *single* EM step is minimax optimal for the analogous
-rater-reliability problem (Zhang, Chen, Zhou & Jordan, *JMLR* 17, 2016): the initialiser is the
-whole problem, and running an optimiser to convergence is the part with no guarantee. A fit is
-principled when the model is identified and the optimum provably unique — the Bradley–Terry MLE
-exists and is unique exactly when the comparison digraph is strongly connected (Ford 1957;
-Hunter, *Ann. Statist.* 32(1), 2004). The objection is not to optimising; it is that this
-objective is non-convex in its parameter, its loss is unmotivated, and its prior scale, tolerance
-and step cap are three more chosen constants in the part of the design whose job is to remove
-chosen constants.
-
-**What that leaves undone.** §2.1's requirement 3 — blame the edge into the bot, not the friend
-— has no mechanism: **outcome-based blame is not implemented.** Nothing in grapevine watches what
-a recommendation turned out to be worth and moves anything because of it. What a bad
-recommendation costs its source is only what §2.3 already charges — a disagreement in `D_{uv}`,
-which lowers that person's alignment — and that is per person, not per edge and not per path, so
-the friend who accepted the bot is charged alongside the bot.
-
-**Why that is survivable**, and it is an argument from measurement (§2.9a): the attack
-requirement 3 defends against is the expensive one, aimed at one person at a time, and the
-ceiling of §2.4 already bounds it to a friend-unit however many accounts are behind the edge.
-The attack that *scales* — a business putting one item in front of as many people as possible —
-is bounded by something requirement 3 never touches, namely how many real people accept a friend
-request; bots are free and worthless, and copying one person's taste is what forfeits the next
-person's.
-
-**If it is ever wanted, the shape is Resnick & Sami's influence limiter** (RecSys 2007). Each
-source carries a reputation starting near zero, moves the prediction only in proportion to it,
-and gains or loses when the viewer later rates the thing themselves. Six lines. Total damage from
-`n` sybils is bounded **with no assumption about what fraction of raters are honest** (Thm 4); an
-honest rater gives up `O(log n)` influence once and is unlimited afterwards (Thm 7); and honest
-reporting is optimal because the update is a proper scoring rule (Lemma 1). It needs the one
-input most recommenders lack and grapevine has by construction — the viewer eventually rating the
-same thing. **The warning that comes with it**: its bound covers *myopic* attackers only, and the
-authors explicitly exclude one who misleads other raters into amplifying her effect and later
-corrects. Learned per-edge weights are exactly the machinery that moves a system into that
-excluded case, which is a second reason not to build them.
-
-Mass conservation, the sybil bound, the per-account ceiling `L` and the truncation bound all
-hold at the affinity split as stated. Nothing sits a swarm's edge at a floor after a few
-dislikes, and nothing routes the whole of a friend's onward mass to one well-aligned neighbour;
-§2.9's worked bounds assume neither.
-
-### 2.6 Scoring a ratable
-
-For viewer `u` and item `x`, summing over every `v ≠ u` in reach who rated `x`:
-
-    E_u(x) = Σ_v π̃_u(v) · ℓ_{uv} · r_{v,x}          (signed evidence)
-    W_u(x) = Σ_v π̃_u(v) · |ℓ_{uv}|                  (total weight = confidence)
-    s_u(x) = E_u(x) / (κ_s + W_u(x)),   κ_s = 1
-
-`s_u(x) ∈ (−1, 1)` is a shrunk posterior mean: near 0 with little evidence, approaching ±1
-only with a lot of consistent, well-aligned, well-connected evidence. One fresh direct friend
-(`π̃ = 1`, `ℓ = logit(0.65) = 0.62`) moves an unrated item to `±0.38`; a well-aligned one
-(`ℓ = 2`) to `±0.67`. Ranking is by `s_u` descending.
-
-Items with `W_u(x) < W_min` (`W_min = 0.5`) are not shown at all.
-
-Tag ratables `(i, t)` ask a factual question ("is it cheap?"), so they are weighted by reach
-alone, not by whether we share taste:
-
-    E_u(i,t) = Σ_v π̃_u(v) · r_{v,(i,t)},    W_u(i,t) = Σ_v π̃_u(v)
-
-with the same shrinkage and floor. "Restaurants that are cheap" means items where, for each
-selected tag, `u` rated it `+1`, or `s_u(i,t) > −0.1`, or `W_u(i,t) < W_min` (unknown is not
-"no"), ranked by `s_u(i)`. Taste-flavoured tags ("date-night") would want per-tag alignment;
-that is the first refinement in §2.8.
-
-Treating raters as independent evidence over-counts when many correlated friends rate the
-same thing. The `κ_s + W` denominator turns this into a weighted average rather than a
-naive-Bayes sum, which is the right tradeoff for ranking.
+| Bot farm behind one trusted person `h` promotes item `P`. | One voice (§2.4): everything reached through `h` is pooled into `h`'s one voice, which is never stronger than `h`'s own. A thousand bots are the same voice as one. |
+| Bots copy the viewer's thumbs to look reliable. | Copies come after the viewer's thumbs and count only by the chance they are not reactions (§2.3), except on a thing the viewer turned over and back or cleared and gave again, where they read as predictions (§2.3's hole); and a chain is never stronger than its first link, which the bots do not touch (§2.4). |
+| Bots copy their gatekeeper's thumbs, to be trusted by them. | Their only connection is the gatekeeper, so the chance they saw what they copy is one, and a copy counts for nothing (§2.3). |
+| Bots copy the crowd before anyone rates, to look reliable. | Agreeing with the crowd is what chance predicts, so it teaches little (§2.2); whatever they earn, they are inside one voice. |
+| Bots tag thousands of items with obvious categories. | Facts are weighed per voice, not per account (§2.8), and which kind a thing is, the circle decides. |
+| Bots swing how things are usually rated near the viewer, to make other people's thumbs look surprising or not. | Base rates are the circle's, and a region's thumbs are judged against the circle and that region only (§2.2). |
+| A region pushes the same lean on every item. | **Not bounded across items** (§2.5): one voice per item, on every item. The residual risk, stated. |
+| A dense clique inside the nearest `N_max`, to make the recompute expensive. | Every step is one pass over what was loaded (§2.10); `N_max` bounds it. |
+| Inferring one person's rating from your feed. | No counts, no order, a staleness window, a bar with no number. With exactly one connection the feed *is* that person's ratings; §4 says so. |
+
+### 2.2 The model: one story
+
+The model is Dawid & Skene's "learning from crowds" (1979) turned around: the crowd is everyone the
+viewer is connected to, and the truth is the viewer's own taste.
+
+**The truth.** For each ratable `x` there is `t(x) ∈ {−1, +1}`: how `u` would rate it. `u`'s own
+thumbs are `t` observed. Everything else is a guess at `t`.
+
+**Witnesses.** Every other person `v` is a witness with a signed reliability `λ_v ∈ (−1, 1)`. On any
+thing, with probability `|λ_v|` their thumb is `u`'s own answer (reversed when `λ_v < 0`); otherwise
+it is a draw from how that thing is usually rated near `u`, its base rate `b_x`:
+
+    P(v says +1 | t)  =  |λ_v| · [sign(λ_v)·t = +1]  +  (1 − |λ_v|) · b_x
+
+This is the "knows or guesses" annotator: MACE (Hovy et al., NAACL 2013) without its per-annotator
+guessing distribution, and Aickin's constant-predictive-probability model of agreement (*Biometrics*
+46, 1990). It is a one-parameter slice of Dawid & Skene's two-coin model, and `λ` is Youden's J
+(sensitivity + specificity − 1), which lets a reliable opposite be read reversed exactly as Raykar &
+Yu flip an adversarial annotator (*JMLR* 13, 2012). The viewer's own thumbs anchor the sign, so the
+label-switching problem of unsupervised Dawid–Skene does not arise (Ghosh, Kale & McAfee, EC 2011,
+need one known-good agent; the viewer is it).
+
+**What falls out of it, with no rule added:**
+
+- **Chance weighting.** A thumb's evidence is its likelihood ratio. Agreeing with the grain on a thing
+  everybody near `u` likes (`b_x` near 1) carries a ratio near `1/(1 − λ)` — weakly informative, never
+  zero — and a thumb against the grain carries a large one. When `b_x = 1/2` the ratio is
+  `(1 + λ)/(1 − λ)`, the Nitzan–Paroush log-odds weight (*Int. Econ. Rev.* 23, 1982). When `b_x` equals
+  both people's overall rates, `λ` is Cohen's κ exactly.
+- **Flipping.** `λ < 0` makes `v`'s up evidence for down: a reliable opposite is as useful as an ally.
+- **Chains** (§2.4). If `v` knows `w`'s answer with probability `λ_{w→v}` and `w` knows `u`'s with
+  probability `λ_w`, then `v` knows `u`'s with probability `λ_w · λ_{w→v}`: reliabilities multiply
+  along a chain, signs included, and a chain is never more reliable than its weakest link — the
+  data-processing inequality for this channel.
+
+**The base rate** `b_x` is how `x` is rated near `u`, a Beta(1,1) posterior over the thumbs of the
+viewer's **circle** — the viewer and the people they trust directly — with the two people a reading
+compares left out. In a thumb's likelihood it says how surprising the thumb is. It is the circle and
+not everyone reached because base rates feed every reliability: read over everyone, accounts behind
+one person move other regions' evidence, the links of chains and the heads' own reliabilities, and
+two hundred of them move one thing by 7.16 of log-odds behind one connection, past §2.5's bound of
+4.69 (4.86 with each region counted as one voice, since the one voice still reaches everyone else's
+base rates). Nobody in the circle can be such an account. The same holds for everything else read
+off the population around the viewer: which attributes a thing carries, the fact reliability and the
+attributes' base rates (§2.8; attribute pairs are the one exception, and §2.8 says why it is safe).
+**Original to grapevine.**
+
+When a thumb is weighed as evidence (§2.6) the guess it might be is drawn from how the thing is rated
+around the guesser: the circle **and the guesser's own region**. A region reaches only its own
+members' evidence that way, and a swarm agreeing with itself on a thing only it rated is no surprise
+to itself; against the circle alone, a promoted thing nobody in it has rated sits at an even chance,
+every bot's thumb on it is a surprise, and twenty bots behind a connection move it `+0.13` rather
+than `+0.09`. Reliabilities are learned against the circle alone: regions are not known until the
+chains are, and a head's reliability must not depend on who is behind them.
+
+**The viewer's answer before any witness** is that base rate too, counted by voices: each region of
+§2.4 contributes its up-share once, weighted by its strongest rater's reliability, so a region nobody
+believable is in contributes nothing. This is Dawid & Skene's class prior made per thing — empirical
+Bayes, since the same thumbs then also enter as witnesses — and it is what lets a thing most people
+near the viewer like start above the middle before any particular person's taste is weighed. Measured
+(`docs/witness-model.md`), it adds up to 0.05 of held-out AUC; a region can move it by at most `ln 2`
+of log-odds (§2.5). A region's say is its *strongest* rater's reliability, not its raters' combined
+reliability: combined, forty bots each barely reached add up to a whole voice, and a promoted thing
+leans for 243 of 244 people two steps from where they were accepted on the realistic graph
+(prototype).
+
+### 2.3 How much a person predicts you
+
+**Learned only where the answer is known.** `λ_v` is learned from the things `u` rated, because only
+there is `t` observed. Dawid–Skene would also learn it from things nobody knows `u`'s answer to, by
+checking `v` against the other witnesses; for taste that is the wrong question — two people agreeing
+about something `u` never rated says they share *their* taste. Crowd-labelling on subjective
+questions finds exactly this: people split into schools with different right answers (Tian & Zhu,
+KDD 2012), and unlabelled data can make a misspecified generative model worse (Cozman & Cohen, 2002).
+It is also where colluding accounts raise each other. So the viewer's unrated things never teach
+reliability: feedback from them is **cut**, in the modular-Bayes sense (Plummer, *Stat. Comput.* 25,
+2015; Jacob et al., 2017). The same holds for a link `w → v` of a chain: it is learned from the things
+`w` rated.
+
+**Before and after.** A thumb `v` gave before `u` rated the same thing is a prediction. One given
+after may be a reaction to `u`'s: seen in `v`'s own feed, followed or resisted. The model says so
+directly: a later thumb is, with probability `e_v`, a reaction whose direction tells nothing about
+`v`'s taste either way, and otherwise an independent witness:
+
+    later:   P(v's thumb | λ)  =  e_v · ½  +  (1 − e_v) · P_witness(v's thumb | λ)
+
+So a later thumb carries about `1 − e_v` of the evidence an earlier one would, less when `v` was
+likely to have seen `u`'s, and it counts the same whether it agrees or disagrees. There is no copier
+type and no copy detection: measured herding is small and spread over everybody (Muchnik, Aral &
+Taylor, *Science* 2013), and a per-person "copier" type could not be told apart from an honest friend
+with the overlaps a viewer has. Resnick & Sami (RecSys 2007) keep only earlier thumbs, which is the
+case `e_v = 1`.
+
+**Before is measured against the viewer's current thumb, and that is a hole.** The order is `v`'s
+`rated_at` against the viewer's `rated_at` on the same thing (0015, 0016), and the viewer's moves:
+turning a thumb over restamps it, and clearing one and giving it again writes a new row. So when the
+viewer turns a thumb over and back, or clears and re-gives it, every thumb given on that thing since
+the viewer's first — a copy of the viewer's own included — reads as a prediction, and a copy that
+matches raises its account toward the head of its chain as if it had predicted the viewer. The bound
+of §2.5 still holds, since the head caps it; what the hole gives away is the gap between a copier's
+own chain and its head. Closing it needs a permanent record of when the viewer *first* rated each
+thing, kept through a clear, and that is deliberately not kept: it would reward rating everything
+early, any way at all, just to be first, and would keep that influence after the rater changed
+their mind. Resetting the order on a flip or a clear removes that incentive, at the cost above.
+
+**Exposure** `e_v` is the chance `v` could have seen `u`'s thumb: `u`'s share of what `v`'s own feed
+said about that thing. It comes from the trust graph, not from anything `v` did. `v`'s feed is one
+voice per person `v` trusts (§2.4), and a voice in which `u` is the only one who rated the thing *is*
+`u`'s thumb — the average does not dilute a lone rater — so `u`'s thumb can be one of `v`'s voices:
+`e_v = 1/(number of people v trusts)`. An account whose only connection is `u` has `e = 1`, and its
+later thumbs count for nothing. A product of shares along the path back to `u` is wrong for
+exactly that reason: it leaves a lone bot behind a friend unexposed, and copying the viewer then
+earns it the friend's whole voice (`+0.87` on a promoted thing, prototype).
+
+For a **chain link** `w → v` the thumb that may have been seen is `w`'s, and it reaches `v` through
+`v`'s connections that are nearer the viewer than `v` — for a person reached along the chain, that
+is the way toward `w`; everyone else `v` trusts is `v`'s own circle, and in a swarm of accounts
+behind one person they know `w` only through that person too. So a link's exposure is `1/(number of
+v's connections nearer the viewer than v)`: a bot whose only connection toward the viewer is its
+gatekeeper saw everything the gatekeeper said, however many other bots it is connected to. Counting
+all of `v`'s connections instead lets a clique of bots that copy their own feed — which is their
+gatekeeper's circle — earn a strong link to the gatekeeper by being connected to each other: `+0.17`
+on the promoted thing against `+0.06` (prototype, `docs/witness-model.md` §2.6). Both exposures are
+original to grapevine, structural estimates with no impression log behind them, and unproven; their
+only defence is what they measured.
+
+**With no history at all** — a new viewer, or one who has rated only things nobody near them has —
+every person they trust starts at the prior (`λ = 2a₀ − 1 = 0.3`), every chain from them is learned
+from *their* history with the people beyond, and every thing anyone reached rated has a score. Measured
+on the built core over five worlds, a viewer with no thumbs ranks what they would like at 0.671 / 0.829
+/ 0.696 / 0.520 / 0.554 AUC against the relay's 0.673 / 0.814 / 0.658 / 0.520 / 0.548, with a score on
+every thing where the relay has one on 78–100% of them: level where friends are chosen almost regardless
+of taste (mixed), ahead elsewhere. Counting the starting point by the voices' combined reliability, up
+to the head, doubles what bots that only promote achieve (`+0.13` against `+0.07`, prototype), so it
+stays each region's strongest rater.
+
+**The prior** on a directly trusted person's agreement rate `(1 + λ)/2` is a Beta with mean `a₀`
+and strength `κ`, estimated from the population (§2.9); pooling is the literature's answer to overlaps
+of a handful of things (Paun et al., *TACL* 6, 2018; Venanzi et al., WWW 2014). Anyone further gets
+their prior from the chain that reaches them (§2.4). **The estimate** is the posterior mean of `λ`, a
+one-dimensional integral per person, because a weight is judged by squared error.
+
+### 2.4 Trust chains, and the one axiom
+
+**The chain.** Each person `f` the viewer trusts directly starts a chain at `λ_f`, learned as in
+§2.3. From anyone `w` already reached, the chain continues to `v` along a **link**: a trust
+connection between them, or demonstrated agreement — `v` reliably predicting `w`'s thumbs on things
+`w` rated. A link's reliability `λ_{w→v}` is learned exactly as `λ_v` is, with `w` in the viewer's
+place: from `v`'s thumbs on the things `w` rated, where now `e` is the chance `v` saw `w`'s thumb.
+Every shared thumb of a link is read as possibly a reaction, at `1 − e`: the database gives the
+order of a thumb against the viewer's only, and the order between two people who are not the viewer,
+measured, is worth nothing (`docs/witness-model.md` §2.1). The chain's reliability at `v` is the
+product along it (§2.2):
+
+    λ_chain(v)  =  λ_f · λ_{f→w₁} · λ_{w₁→w₂} · ... · λ_{w_k→v}
+
+Each person is reached by their **strongest** chain — the path maximizing `|λ_chain|`, a shortest-path
+problem on `−log|λ|` — which is TidalTrust's rule of trusting the strongest paths (Golbeck, 2005). The
+chain's value is `v`'s prior; `v`'s own history with the viewer, when there is any, updates it, and
+the result is **never larger in magnitude than the reliability of the head of the chain** — the person
+`f` the viewer trusts directly — so nobody reaches the viewer more strongly than the person they are
+reached through; and only thumbs `v` gave before the viewer's can raise `v` past their own chain at all
+(below). A chain fades only as trust falls; a link near zero cuts off everyone beyond it who has not
+predicted the viewer themselves; a reliable opposite passes the chain on reversed.
+
+**How far own history may raise someone.** Thumbs given *before* the viewer's — predictions — may raise
+a person up to the head of their chain. Thumbs given after, discounted by exposure, may raise them only
+up to their own chain. Both alternatives lose (prototype, `docs/witness-model.md` §2.1, §2.6):
+
+- *Capping everything at the whole chain* throws away most people's own record: a chain of
+  reliabilities near 0.3–0.6 is below 0.02 two or three links out for 11–53% of the people reached,
+  and held-out AUC falls by up to 0.10 (0.728 against 0.826 on the mixed world).
+- *Letting later thumbs raise anyone to the head* gains 0.013 AUC on average over five worlds and lets
+  bots that copy the viewer, the crowd or their own feed after the fact reach their head's full
+  strength: `+0.16` to `+0.19` on a promoted thing against `+0.05` to `+0.07`.
+
+**Demonstrated-agreement links** — `v` reaching the viewer through `w`, inside `w`'s region, because
+`v` reliably predicts `w`'s thumbs without a trust connection between them — **are not built**:
+measured, they add 0.000 to 0.005 of AUC on five worlds at two to three times the cost of a recompute.
+Their rule, if they ever come, stays: inside a region only (§2.5).
+
+This is where "trust in who they trust" lives, and it is a gate on reach, not a head start: the
+standing objection to such a thing — a correlation prior between reliabilities that nothing in the
+literature measures — does not apply, because nothing here assumes that friends' reliabilities are
+alike — the chain's value is what the witness model itself implies if `v` knows the viewer's taste
+only through `w`, and it is tested wherever `v` shares history with the viewer. Propagated trust is
+standard in trust-aware recommenders — multiplied along paths (Golbeck's TidalTrust; Guha et al.,
+WWW 2004), decayed with distance (MoleTrust, Massa & Avesani, RecSys 2007), flowed with capacities
+(Advogato, Levien) — and each finds error lowest at one step and coverage gained at two or three
+(Massa & Avesani; Jamali & Ester, KDD 2009). Multiplying *learned reliabilities toward one person's
+taste* is derived here from the channel and measured here in simulation — chains are worth 0.01 to
+0.17 of held-out AUC (`docs/witness-model.md` §2.1) — and not shown to be the best composition.
+
+**The one axiom.** Everything above assumes witnesses are independent given `t`. People reached
+through one person are not: the viewer cannot tell ten real friends of `f` from ten accounts `f`
+made.
+
+> **Everyone reached through one person the viewer trusts counts, together with that person, as one
+> voice.**
+
+Concretely, every reached person belongs to exactly one **region**, the one whose chain reaches them,
+and a region's evidence on `x` is the reliability-weighted average of its members' evidence on `x`:
+
+    E_f(x)  =  Σ_{v in f's region, rated x} |λ_v| · clip(LLR_v(x), ±L)  /  Σ_{same} |λ_v|
+
+with `λ_v` each member's reliability after the cap, and `LLR_v` computed at it. A region with one member who rated `x`
+speaks at that member's strength; a region of a thousand who rated it speaks at their weighted
+average. Nothing is halved at each step: depth costs nothing but the trust it takes.
+
+**What it means as probability.** Clemen & Winkler (*Operations Research* 33, 1985) show that `k`
+equally correlated sources are worth `k / (1 + (k − 1)ρ)` independent ones, and exactly one when
+`ρ = 1`. Under `ρ = 1` the Bayesian answer is the logarithmic pool — log-likelihood ratios averaged
+with weights summing to one — which is externally Bayesian (Genest & Zidek, *Stat. Sci.* 1, 1986). So
+the axiom does not suspend Bayes: it chooses, for every region, the worst dependence it cannot rule
+out, and the posterior is exact under that choice. What it gives up is calibration when a region really
+is independent — a score then too close to the middle, never too far from it.
+
+**The clip** at `±L` is Huber's least-favourable likelihood ratio (*Ann. Math. Stat.* 36, 1965): under
+a chance `ε = 2/(1 + e^L)` that any thumb is unrelated to anything, no single thumb says more than `L`.
+
+### 2.5 The bound
+
+**Claim.** Let `S` be a set of accounts every trust path from `u` to which passes through `h`, and `f`
+the person the viewer trusts directly at the head of `h`'s region. For every ratable `x`, everything
+`S` says about `x` reaches the viewer inside that one region: its average, at most the log-likelihood
+ratio of one thumb at reliability `|λ_f|` and never more than `L` either way, plus at most `ln 2` through
+the starting point of §2.2 — so at most `2L + ln 2` of log-odds, whatever the number of accounts. The
+proof is in `docs/witness-model.md` §1.4; in outline:
+
+1. *The bots cannot raise `h`, or anyone else outside `S`.* `λ_chain(h)` is a product of links on a
+   path from `u` to `h`. Each link is learned from the thumbs of the two people it joins, both outside
+   `S`; the viewer's trust in a directly trusted `h` is learned from `h`'s own thumbs. Every base rate
+   and every other statistic of the population they are read against is the circle's, and nobody in
+   `S` is in the circle.
+2. *The bots cannot leave `h`'s region.* A trust path from `u` to a member of `S` passes `h`; a strongest
+   chain along trust connections therefore reaches `S` through `h`, inside the region `h` is in.
+3. *The bots cannot outweigh the region's head.* Every member's reliability is capped at `|λ_f|`,
+   whatever their own history. An average is at most its largest term.
+4. *Copying does not help past that.* A bot's only connection toward the viewer is `h` or another bot,
+   so a link to it is learned at exposure one and copying `h` — or the bots' own feed, which is `h`'s
+   circle — earns nothing; copying the viewer is later, and later thumbs raise nobody past their own
+   chain — except on a thing the viewer has since turned over and back or cleared and given again,
+   where a copy reads as a prediction and can raise its account to `|λ_f|` (§2.3). The cap at the head
+   is untouched, so the bound is too.
+5. *One caveat.* Bots connected to `h` raise the number of people `h` trusts, which lowers `h`'s own
+   exposure, so `h`'s later thumbs count differently — exactly as connections to accounts that rate
+   nothing would make them, and not necessarily more: the posterior is not monotone in exposure once
+   two later thumbs are discounted (`docs/witness-model.md` §1.4, step 3). They cannot make `h` say
+   anything `h` did not.
+
+Tested (`rust/tests/witness_sybil.rs`): every step above, on every plan below and tag spam, three
+shapes, one to two hundred accounts, behind one to three accepted connections and behind someone two
+steps out — 720 attacks, none past the bound. Simulated on the built core (`docs/algorithm-notes.md`
+§6). Twenty bots in a clique behind each of one, two or three of the viewer's connections, the
+promoted thing's average score for that viewer, this model against the relay:
+
+| the bots first | behind 1 | behind 2 | behind 3 |
+|---|---|---|---|
+| do nothing | +0.09 / +0.06 | +0.17 / +0.11 | +0.27 / +0.16 |
+| copy the viewer | +0.09 / +0.37 | +0.17 / +0.55 | +0.27 / +0.66 |
+| copy the viewer, and tag the promoted thing with the viewer's commonest attribute | +0.09 / +0.37 | +0.18 / +0.55 | +0.26 / +0.66 |
+| copy the crowd | +0.09 / +0.19 | +0.17 / +0.30 | +0.27 / +0.39 |
+| make popular things look contested, then agree | +0.09 / +0.17 | +0.17 / +0.29 | +0.27 / +0.37 |
+| copy their own feed | +0.09 / +0.13 | +0.17 / +0.23 | +0.27 / +0.31 |
+
+Whatever the bots do first, they read at their chain, so every plan scores the same. Worst single
+viewer: `+0.40` against the relay's `+0.69`. Reading the population statistics over everyone reached
+rather than the circle scores `+0.05` to `+0.07` behind one (prototype), and lets the same bots move
+other things past the bound (§2.2). The paid promotion (three accepted connections, forty bots each,
+everyone by distance from whoever accepted), under every plan: the thing's score passes `+0.1` for
+51 of 96 people one step out at `+0.13`, 27 of 423 two steps out and 1 of 192 further, at `+0.12`;
+on the realistic graph 37 of 46 at `+0.14` and 2 of 244. **Where it is worse than the relay**: bots
+that only promote lean the thing slightly for far more people one and two steps out (the relay: 1
+and none) — a lone rater speaks for its region where the relay diluted it by a share of attention;
+bots that copy their feed first reach fewer people one step out than under the relay (51 against
+69–93) but more two steps out (27 against 1–4). Every one of those leans is small, and inside the
+bound.
+
+**What it is, and what it is not.**
+
+- **Pre-attack.** The bound rests on quantities the attack cannot change — Ruderman's objection to
+  Advogato's proof, where a bound on post-attack capacities let the gain grow as the square of the
+  cost, and Hopcroft & Sheldon's standard (WAW 2007).
+- **Per accepted connection.** Several people who each accept a bot each let in, at most, their own
+  region's voice; each account sits in one region, so `k` accepted connections are at most `k` voices.
+- **Demonstrated-agreement links would weaken it, unless confined.** If `v` could join a region by
+  predicting its head's thumbs, a bot swarm reached through several accepted connections could spread
+  into every region whose people it can predict. Confined to people already inside the same region,
+  the bound above holds exactly. They are not built (§2.4), and that is their rule if they ever are.
+- **Residual risk: per item, not per feed.** A region can lean *every* item by up to its voice — worst
+  case, a directly trusted friend with `λ = 0.6` who accepts bots gives every item the bots promote,
+  and nobody else in the friend's circle rated, a lean of `tanh(½ ln(1.6/0.4)) ≈ 0.6`. SumUp says the
+  same of itself ("up to `e_A` bogus votes on every object"). Bounding the total across items needs a
+  reputation the region spends when it is wrong (Resnick & Sami's influence limiter; Seuken & Parkes'
+  used-up trust, AAMAS 2014), which costs every honest source about `log n` of its influence to start
+  (Resnick & Sami, RecSys 2008). Not built, by decision; the remedy is the viewer's: drop the connection.
+- **It wastes information, by design.** A trusted person with fifty independent, well-informed friends
+  is still one voice. Clemen & Winkler's right cap would be `1/ρ` if the region's dependence `ρ` were
+  known; it cannot be estimated honestly, because the region controls the data it would come from.
+- **No zero.** Strong transitive trust, anonymity and misreport-proofness together imply some sybil
+  attack pays (Seuken & Parkes, AAMAS 2014). Bounded, not prevented.
+
+**If trust were one-directional.** Nothing in §2.2–§2.5 needs trust to be mutual. Chains would follow
+the direction trust was given, from `u` outward; `S`'s paths are paths along trust, and the bound is
+unchanged — cleaner, since an attack edge is exactly an honest person choosing to trust an account.
+Exposure would follow the other direction: `v` sees `u` only if `v` trusts `u`. What changes is outside
+the model: §4's symmetry breaks — someone who trusts you would see your thumbs as their feed without
+your trusting them back, so a one-way connection would need the trusted person's consent, or the
+one-connection leak of §4 becomes a way to read a stranger. The literature favours trust on quality:
+ratings agree with explicitly trusted people far more than with friends (average correlation
+0.32–0.45 on Epinions and Ciao against 0.06–0.18 on friendship graphs; Guo, Zhang & Yorke-Smith, AAAI
+2015).
+
+### 2.6 Scoring every rated thing
+
+**The score** is the posterior predictive `P(t(x) = +1 | everything)` mapped to `(−1, 1)`:
+
+    Λ_x  =  Σ_{regions f} E_f(x),        s_u(x)  =  tanh(Λ_x / 2)
+
+**The certainty.** A yes-or-no truth cannot tell "nothing is known" from "people you trust are split":
+both are a posterior of one half. The model does know the difference — how much evidence there is —
+and keeps it beside the score. Each thumb is, under §2.2, either the viewer's answer or a guess, and the
+posterior gives the chance `ρ_{v,x}` that it is the answer; a region's share is the same average as
+its evidence, so the thumbs amount to
+
+    W_x  =  Σ_{regions f} (the weighted average of ρ_{v,x} over f's raters of x)
+
+of the viewer's own thumbs, at most one per region; the feed stores it as `conf`. The certainty is
+`W/(1 + W)`: the share of a Beta posterior on the viewer's leaning that is evidence, with the Jeffreys
+prior Beta(½, ½) as the one pseudo-thumb it starts from. This is subjective logic's split of an
+opinion into evidence and uncertainty (Jøsang, 2001) and evidence counting through a trust network
+(Škorić, de Hoogh & Zannone, 2015); in this combination it is original to grapevine.
+
+**What is shown combines the two.** The score and `W` are stored apart; the bar draws, and the list
+ranks by, the posterior mean of that Beta on the `−1..1` scale, `c = s · W/(1 + W)` (§1 "The bar",
+which says why the mean and not a quantile). A thing people you trust agree on sits near an end; a
+thing nobody believable rated, and a thing they split on, sit near the middle. What tells those last
+two apart is kept in `W` and not drawn.
+
+**Is more certainty more often right? Measured, yes where anything can be learned.** The share of
+held-out things whose side of the middle is the viewer's, from the lowest populated fifth of
+`W/(1 + W)` to the highest: 71% → 93% (mixed), 64% → 78% (spread), 60% → 83% (sparse), 53% → 66% (realistic);
+in the high-rank world, where nothing near the viewer predicts them, 50% → 53%. As a probability the
+score is off by 1–11 points on average (expected calibration error 0.014 sparse, 0.021 spread, 0.090
+mixed, 0.098 high-rank, 0.105 realistic): too timid in the mixed world, too bold in the realistic and
+high-rank ones.
+
+**There is no floor.** Every ratable anyone in reach rated has an entry; certainty moves a thing
+toward the middle, never off the list. The score is conditional on the axiom's pessimism, so it is
+checked, not assumed: a reliability curve of shown score against the viewer's own later thumbs, and
+a recalibrating map if it is off, rather than loosening the axiom.
 
 ### 2.7 Incentive compatibility, stated carefully
 
-The claim: for **every fixed state** of everyone else's ratings and of the graph, reporting
-your true thumbs is at least as good for your own results as reporting the opposite, and at
-least as good as not reporting, **in expectation over which items you happen to rate**. Fix
-everything except `u`'s reports. They enter `u`'s own results through exactly two paths:
+Your reports enter your results through your displayed thumbs (trivially honest-best) and through
+what they teach about each witness's reliability. The honest report is the one under which those
+agreements are a correct sample of your true agreement; an inverted report samples its opposite.
+Resnick & Sami's scoring of sources on thumbs given later makes honest reporting the best a source
+can do, because the score is a proper scoring rule (their Lemma 1); here later thumbs count too,
+discounted, which keeps the direction of that argument but not its exactness. It holds on average and
+against fixed states, not per item or against an adaptive adversary: Personalized PageRank fails
+strong incentive compatibility for any damping (Altman & Tennenholtz, IJCAI 2007), and their
+impossibility result is the reason not to chase it.
 
-1. `u`'s displayed state for a rated item (own rating replaces the score): trivially
-   honest-best.
-2. The alignment estimates `â_{uv}`, and only through the indicators `[r_{u,x} = r_{v,x}]`
-   weighted by `ω_x`. The quantity being estimated is `u`'s *true* agreement rate with `v`.
-   The honest report is the one under which those indicators are a correct sample of that
-   rate; the inverted report is a sample of `1 −` that rate. Whatever `v` said, the honest
-   estimate is therefore the consistent one, and in expectation over the items `u` rates it
-   is closer to the truth. It is *not* closer for every single item: you and a close friend
-   who truly agree nine times in ten will disagree on some item, and on that item the honest
-   report moves the estimate away from 0.9 while the lie would move it toward it. No
-   estimator can promise per-sample improvement, and the same holds for withholding.
+### 2.8 Kinds of thing, facts, and attributes that go together
 
-**The settling loop adds no third path.** `ω_x` moves by at most `u`'s one vote. The *first*
-walk of §2.2's loop is at the priors and depends on no rating at all. Every later walk does
-depend on `u`'s reports — through the affinities, which are the alignments — and that is path 2,
-because everything reaching the walk is mediated by the agreement indicators and nothing else
-touches it. What the loop does add is a second-order channel: a report on `x` can move `π̃` of
-the people who rated `x`, which moves `ω` of *other* items, which reweights the agreement counts
-of pairs `u` is not in. It is bounded by the same contraction that makes the loop terminate —
-each round of feedback is damped by the measured 0.03–0.14 over the first two passes (§2.2) — so
-the effect is a few percent of the first-order one, in the same direction, and the honest report
-is the consistent estimate at the fixed point exactly as it is at the first walk. A report on `x`
-never touches `â_{uv}` *directly* for a `v` who did not rate `x`. Rating a consensus item, or one
-nobody in reach has rated, has no effect (`ω ≈ 0`, or no `v`), hence "at least as good". What
-remains true and unavoidable: every rating on a sparse item creates a little `|ℓ|` with
-strangers who happen to have rated it, so the total weight behind long-tail items grows with how
-many of them you rate; `κ = 8` and `ω`'s support factor keep that noise below the display floor
-for a lone stranger (§2.9).
+**Taste depends on the kind of thing.** A friend can be right about films and wrong about
+restaurants; the literature measures it (only about a third of a trust network is trusted on any one
+topic: Tang, Gao & Liu, WSDM 2012) with thousands of ratings per topic, which a viewer's overlaps
+never have. So a person's reliability on things carrying attribute `a` is learned from the viewer's
+things carrying `a`, **shrunk toward that person's reliability on everything else** by a strength
+`κ_a` — a hierarchical prior, the standard answer to small groups (Paun et al.; Gelman & Hill).
+`κ_a` is not chosen: it is the value that best explains the history with the viewer on `a` (type-II
+maximum likelihood over a grid, per attribute, per recompute) of the circle and of the region being
+read — the same people a region's thumbs are judged against (§2.2), so a region of copiers can pick
+its own `κ_a` and nobody else's. Chosen over the circle alone it is too few people: per-attribute
+reliability then costs accuracy on every world measured (−0.005 to −0.007). If kinds don't matter
+for `a`, the data picks a large `κ_a` and the attribute changes nothing; if they do, a small one. A
+thing carries an attribute when more of the circle tagged it up than down. A thing carrying several
+attributes is read at the average of their reliabilities; a thing carrying none, at the overall one.
 
-One state is excluded on purpose: an **adaptive** adversary who conditions on your reports.
-An account that rates by the sign of its own feed is mimicking your *reported* taste, and
-random misreporting on your part costs it alignment while costing you little; in simulation
-the honest reporter still wins on average but loses in about a quarter of runs. This is not
-specific to this algorithm: any method that trusts agreement can be baited by an adaptive
-agreer. The fixed-state guarantee is what we claim; the average-case claim is what holds
-against adaptive mimicry.
+**No declared kinds.** Whether `movie` is a kind and `quiet` a quality is not declared anywhere: every
+attribute is a candidate, and the shrinkage decides. On a simulated world where each person's taste
+is drawn separately per category (the same as their home group's with probability 1, 0.6 or 0.3),
+with three category attributes and three quality attributes that carry no taste:
 
-**And the stronger property is provably unavailable, which is why the gap above is a gap and
-not an oversight.** Personalized PageRank fails strong incentive compatibility for *any*
-damping factor, and satisfies self-confidence only when the damping factor is strictly greater
-than ½ — ours is exactly ½ (Altman & Tennenholtz, IJCAI 2007, Prop. 15). Their Cor. 21 is the
-reason not to chase it: self-confidence, transitivity, ranked IIA and strong incentive
-compatibility together collapse any personalized ranking system to *rank by hop distance and
-nothing else*, which is the one thing this design is for not doing.
-
-What we do not claim: strategy-proofness with respect to *other* people's results. Your
-ratings do influence your friends' feeds; that is the product. The defenses are that the
-influence is scaled by alignment earned through agreement, that it is bounded by flow, and
-that nobody can see it happen, so there is no social payoff to performing a rating. The
-simulation suite (`rust/tests/incentives.rs`) measures the self-interest claim under random worlds *and* under
-adversarially chosen fixed states (every friend disagrees with you; every friend agrees;
-mixed) per seed, and under adaptive mimicry on average.
-
-### 2.8 Parameters and planned refinements
-
-Every number in the design, by what kind of thing it is.
-
-| kind | name | value | why it exists |
+| taste shared across categories | relay | this model, one reliability | this model, per attribute |
 |---|---|---|---|
-| derived | `α` | 1/2 | the one killing rate at which "beyond a friend ≤ the friend" is exact (§2.4) |
-| cap (the guarantee) | `L` | 2 | how much any one account's thumb can ever count; bounds per-account influence and truncation error — **and** the limit on how lopsided §2.4's split may get, since past a best-to-worst neighbour ratio in the thousands §2.2's loop stops settling at all (§2.3) |
-| prior | `κ` | 8 | strength of the Beta prior on pairwise agreement — **and** what damps §2.2's loop, since alignment divides by `κ + A + D` (§2.3) |
-| prior | `a₀(d)` | 0.65 / 0.55 / 0.50 | mean of that prior at hop 1 / 2 / further |
-| chosen | `ω`'s support factor | `n/(n+1)` | one pseudo-vote of doubt; kept over the exact posterior because it reads exactly zero on a unanimous item (§2.2) |
-| unit | `κ_s` | 1 | scoring shrinkage of one friend-unit (§2.6) |
-| product | `W_min` | 0.5 | display floor: half a friend-unit. Measured against `L`, `α` and the friend-unit, which are chosen and do not move — not against what a fresh friend's thumb happens to weigh, since `a₀(1)` is estimated from the population (§2.10) and a ratio to it moves with the estimate |
-| budget | `ε_total` | 0.02 on demand, 0.001 deep | walk error tolerance, friend-units |
-| budget | `N_max` | 2 000 on demand, 50 000 deep | nodes a walk may load: memory, CPU and egress, not reads (§2.4, §3.4). The deep column is checked by the sybil suite and used by nothing in the product (§5) |
-| budget | `E_max` | 10 000 000 pushes, on demand and deep alike | a CPU backstop: 0.3 s at 30 ns a push (measured about 11 ns in wasm, 18 ns native), because §3.4 may call the core up to four times inside a free invocation's roughly two seconds. The budget a walk gets is `min(reservation, E_max)`, the reservation being `(SETTLE_MAX_PASSES + 1) × (F + (⌈log₂(F/ε_total)⌉ + 1) · Σ_v deg(v))`. No converged loop measured spent more than 2.45 M pushes (§2.4), so it bounds a pathological graph, not an ordinary one |
-| budget | `SETTLE_TOLERANCE`, `SETTLE_MAX_PASSES` | 1e-4, 12 | when §2.2's loop stops. The tolerance is two orders below the smallest step the bar can draw; the cap is room for a graph contracting several times more slowly than anything measured, and reaching it is reported, not an error |
-| budget | `REACH_REUSE_MAX` | 20 | consecutive recomputes that may reuse the cached reach masses before one full walk is forced anyway (§3.4) |
+| always | 0.826 | **0.846** | 0.843 |
+| with probability 0.6 | 0.766 | 0.807 | **0.809** |
+| with probability 0.3 | 0.725 | 0.781 | **0.783** |
 
-Affinity (`exp(max(ℓ, 0))`) and tag weighting (reach only) carry no constants of their own.
-`κ` and `a₀(d)` — the only population-level quantities — are **estimated from the population**
-(§2.10), with the values in the table as the fallback while there is too little data to
-estimate from.
+The strength it picks for quality attributes is about 39–45 things; for categories 20–30. So it
+tells the two apart from the data, gently. **It gains next to nothing** (−0.003 to +0.002). Most of
+the prototype's gain of 0.014 to 0.039 (0.858 / 0.844 / 0.822) comes from letting people beyond a
+direct connection rise to the head on thumbs given after the viewer's, the variant §2.4 rejects
+(`docs/algorithm-notes.md` §4). It stays because it is where a friend right about films and wrong
+about restaurants is read correctly, and it costs almost nothing where kinds don't matter.
 
-Planned refinements: per-tag or per-domain alignment (you and a friend may share movie
-taste and not food taste — fit `â` per top-level tag when overlap is large enough, fall back
-to pooled); time decay on ratings. §2.11's attribute similarity brings no constant into this
-table: it runs on the client over the viewer's own ratings and never touches the walk.
+**Does it help a copier?** A copier could aim at one attribute, where there are fewer things to match.
+It gains nothing past the overall rule: a person's reliability on an attribute is centred on their
+reliability off it, worked out by the same capped rule, and capped the same way — predictions up to
+the head, later thumbs up to their own chain — and someone whose every shared thing carries the
+attribute reads at their overall reliability. The copier's own tags decide nothing, since the circle
+says what kind a thing is. Capped only at the head, a copier of the viewer reaches the head through
+any attribute (`+0.24` on a promoted thing, worst `+0.58`); under both caps the attack scores what
+copying the viewer does (§2.5).
 
-### 2.9 Worked bounds with the defaults
+**Attribute thumbs are facts.** A thumb on `(thing, quiet)` asks a question of fact, where reliability
+has nothing to do with taste. Every witness has one reliability for facts, shared by everyone —
+estimated from how often two people of the circle agree about the same thing's attribute — and facts are
+averaged per region as items are. Here, unlike taste, that is the right question: a fact has one
+answer, so classic unsupervised Dawid–Skene is well specified and the cut of §2.3 is not needed.
+Per-person fact reliability, shrunk toward the shared one, is the extension once the data can carry
+it. Attribute thumbs therefore never teach anyone's taste reliability; they only say which kind a
+thing is.
 
-- **One fresh friend's thumb**: `π̃ = 1`, `ℓ = logit(0.65) = 0.62` ⇒ `W = 0.62 ≥ W_min`,
-  `s = ±0.38`. Surfaces.
-- **One maximally aligned person behind a friend with 10 other, unaligned friends**, at the
-  split: share `= e² / (e² + 10) ≈ 0.42` of the friend's onward `0.5`, mass `0.21`,
-  `ℓ ≤ 2` ⇒ `W ≤ 0.42 < W_min`. Does not surface alone, however many items it rates. The
-  ceiling for anyone reached through one friend is that friend's whole onward mass, `0.5`, so
-  `W ≤ 1.0` and `s ≤ 0.5` on an item only they rated — reached only when the friend has no
-  other neighbours to share it with.
-- **A swarm of mimics behind one friend** (any number, any wiring): total `π̃(S) ≤ π̃(f)`.
-  For a captured friend that is at most `4/3` friend-units with maximal feedback and `1`
-  without; an ordinary friend other routes also reach can weigh more, and the swarm with it
-  (1.050 measured, §2.4). At the captured bound `W ≤ 2.7` and
-  `s ≤ 0.73` on an item only they rated — enough to surface their promotions, and it stays
-  enough: there is no outcome-based blame (§2.5). What the swarm loses by being disliked is
-  only what §2.3 charges any account: disagreements in `D`, which lower its members' alignment
-  and so the `ℓ` its mass is multiplied by — per account, and the friend who accepted them is
-  charged the same way for the items the friend also rated. So the swarm keeps its shots for as
-  long as the edge exists, at the ceiling above, and what bounds the damage is §2.9a's
-  measurement rather than a reaction: it costs an attacker one real person's acceptance per
-  ring, and the ring does not propagate.
-- **Lone stranger noise**: one coincidental agreement on an item two friend-units split,
-  `ω = 0.8`, `κ = 8` ⇒ `â ≈ 0.55`, `ℓ ≈ 0.18`, at `π̃ ≤ 0.21` ⇒ `W ≤ 0.04`. Invisible.
-- **Transitive discovery**: a person two hops out with 40 agreements and 0 disagreements on
-  contested items, through a friend with 10 other unaligned friends: `ℓ = 2`, `π̃ = 0.21` ⇒
-  effective `0.42`; through a friend with no other neighbours to share the onward mass with,
-  up to `1.0` — above a fresh direct friend, below a well-aligned one (`2`). The affinity
-  split is what earns the difference, and a well-aligned neighbour is preferred over an
-  unaligned one by exactly `e^{2}`, so a friend's onward mass concentrates on the aligned
-  branch without anything being learned. Through a friend with
-  few other friends the non-backtracking walk has nowhere else to go: a chain `u – f – g – h`
-  of degree-2 nodes gives `h` exactly `0.25`, effective `0.5` at `ℓ = 2`. Deep discovery is
-  real but modest; a distant kindred spirit becomes a direct friend only by a link.
-- **Truncation**: with `ε_total = 0.02` and `L = 2`, no score moves by more than
-  `ε_total·L / (1 + W) = 0.04 / (1 + W)` versus the exact walk over the loaded set *at a given
-  pass* — mass beyond the nearest `N_max` people is outside it (§2.4). **This is not the whole
-  of the error and must not be drawn as if it were**: the other half is how far §2.2's loop was
-  still moving when it stopped, and which of the two is larger is a fact about the graph, not a
-  constant. §1 "The bar" takes the maximum of both and draws no finer than that, at any `ε`,
-  including a walk that ran out of budget or a loop that hit its cap. A walk that could not
-  meet `ε_total` at all draws nothing new, because it writes no feed (§2.4), and a pass cut
-  short by the budget never reaches the bar either (§2.2).
+**Attributes that go together.** When people in reach tag things `quiet` up and `loud` down together,
+a thing called loud reads *not quiet*. **Every pair is learned**, over the viewer's trusted network
+only: each reached person's co-tagging, weighted by the strength of the chain that reaches them, is
+averaged within their region so that a region counts as one voice (a thousand bots co-tagging are one
+person co-tagging). Each pair's link is the same witness channel as §2.2 — one attribute's thumbs as
+evidence about another's, chance-corrected by both attributes' base rates. Those base rates, alone
+among the model's population statistics, are not the circle's but the chain-weighted up-shares over
+everyone reached: a pair's reading only ever fills a gap, which is that gap's whole score, so
+whatever reaches it through them stays inside one gap's `±L`. A fill draws only on attributes
+somebody tagged on the thing, never on another gap filled on it.
 
-### 2.9a How far a paid recommendation actually travels — measured
+**Only pairs that are probably real are used.** Each pair is either unlinked (`λ = 0`) or linked with a
+reliability drawn from a flat prior, and the share of linked pairs is estimated from all the viewer's
+pairs at once — a spike-and-slab prior with its mixing weight by empirical Bayes, which is Efron's local
+false discovery rate (Efron, *JASA* 96, 2001). A pair is used to fill a gap when it is **more likely
+linked than not** — the Bayes decision with equal costs, not a threshold on its size — at its
+reliability given that it is linked. Several attributes pointing at one gap are not independent of
+each other, so by the same axiom they count together as one voice. The prediction is the prior on the
+gap's `t`, which direct thumbs, when there are any, outweigh.
 
-The bounds above are about one viewer. The attack that pays for itself is not one viewer: it is
-a business that wants one item in front of as many people as possible. `rust/examples/spread.rs`
-runs it. Each person who accepts a bot's friend request gets their own group of bots, which read
-their own feeds to copy that person's taste and then promote a single item; the whole honest
-population's feeds are then computed and the item's score read out of each one.
+Simulated (12 attributes along 3 hidden properties, 80 people, three seeds; and the same world with
+every attribute independent, where every fill is noise; the two alternative rules are the
+prototype's):
 
-**The result, pooled over seven seeds — 240 people each, three taste groups, nine friends
-apiece, three accepted requests:**
-
-| steps from whoever accepted | people | see the item at all | mean `s_u` |
+| rule | linked world: gaps filled, right | independent world: gaps filled, right | pairs used per viewer |
 |---|---|---|---|
-| 0 — accepted the request | 21 | 21 (100%) | `+0.98` |
-| 1 — their friends | 172 | 92 (54%) | `+0.49` |
-| 2 | 900 | 11 (1.2%) | `+0.42` |
-| 3 or more | 587 | 1 (0.2%) | `+0.35` |
+| relay | 660, 78.0% | 770, 51.4% | — |
+| every pair at its posterior | 702, 86.0% | 814, 54.9% | 66 |
+| posterior size above 0.3 | 696, 86.6% | 452, 52.4% | 25 / 5 |
+| **more likely linked than not** | **372, 86.3%** | **0** | **7.3 / 0** |
 
-The cliff is between the first ring and the second, and it is almost total: 54% of the duped
-person's friends against 1.2% of the ring beyond them.
+It fills fewer gaps, more of them right, and none at all where nothing is linked. **One new thumb**
+changes which pairs are used 0.030 times on average in the linked world and never in the independent
+one; and the change it can make is bounded (`docs/witness-model.md` §1.6): a co-tag from someone who
+already co-tagged the pair multiplies the odds that it is linked by at most `1/c`, `c` the chance that
+two such thumbs agree anyway — at most doubling near an even split — and someone co-tagging it for the
+first time can at most pull their region's reading toward a single co-tag.
 
-Three things follow, and they are the sharpest statement of §2.1's threat model that exists:
+**Things with things are not linked.** On the same data a model linking things through their
+correlations and one weighting people are the same linear model (the push-through identity), so item
+correlations add nothing the reliabilities do not already carry; a joint Gaussian over every
+ratable measures exactly that (−0.025 to +0.010 AUC, `docs/algorithm-notes.md` §11) and opens an
+attack. A low-rank structure fitted over
+everyone would add information, but it is a global aggregate over everybody's ratings, which §2.1 and
+§4 rule out.
 
-- **Whoever accepts is fully taken.** Near the top of the scale, and copying barely matters to
-  it (`+0.98` with copying, `+0.93` without). Accepting a bot's friend request means being shown
-  what it is paid to show you. No part of §2 is trying to prevent that, and none can.
-- **Copying is the only reason it travels at all.** With the same bots promoting the item and
-  copying nobody, the item reaches **exactly zero** people beyond the ones who accepted, at every
-  distance. Mimicry is not an amplifier on top of a working attack; it *is* the attack's entire
-  reach past the first person.
-- **And copying cannot be done twice.** A group of bots that has copied one person is, by
-  construction, wrong for anyone whose taste differs — which is everybody the copied person
-  disagrees with. So the leak past the duped person is one weak ring: about half of their
-  friends, at half the strength, and 1% of anybody further. **Agreement is
-  measured on the items people disagree about (§2.2), so the very ratings that earn trust with
-  one person are the ones that forfeit it with the next.** That is the property doing the work,
-  and it is why there is no mechanism here that tries to detect a bot.
+### 2.9 Parameters, and the priors from the population
 
-Two supporting measurements from the same file. **Bots are free and worthless**: 30, 120 and 480
-bots behind three accepted requests swayed the same 17 people out of 120, and the item's mean
-score fell slightly as the swarm grew. **Effort scales with the target**: with friend counts held
-at nine, three accepted requests reach 17 of 120 people, 13 of 240, and 11 of 480 — the absolute
-reach per accepted request is roughly fixed, so holding a constant *share* of a growing network
-costs proportionally more real people saying yes.
+| kind | name | value | why |
+|---|---|---|---|
+| prior | `κ`, `a₀` | 8; 0.65 | the Beta prior on a direct trust connection's agreement; estimated from the population (method of moments over pairs, pooled by 0005), the table is the fallback. The same prior serves every link of a chain. |
+| learned | `κ_a` | per attribute and region, per recompute | how far reliability on things carrying `a` may leave the overall one (§2.8) |
+| learned | share of linked pairs | per recompute | the spike-and-slab mixing weight (§2.8) |
+| learned | fact reliability | per recompute | how often people in the circle agree about attributes |
+| cap | `L` | 2 | the most one thumb can say, as log-odds: Huber's clip at `ε = 0.24` |
+| unit | Jeffreys prior | Beta(½, ½) | the one pseudo-thumb certainty starts from |
+| budget | `N_max` | 2 000 | people a recompute loads: memory, CPU and egress |
 
-Stated as the guarantee: **an attacker's reach is bounded by the number of real people who accept
-a friend request, and nothing they can buy — bots, compute, better copying — substitutes for
-that.** What copying buys is one weak ring around each of them.
+**What is pooled is on the prior's scale.** `a₀` is the mean of `(1 + λ)/2`, not of the share of
+matching thumbs: under the channel a pair matches with chance `c̄ + λ(1 − c̄)`, `c̄` the mean chance
+of a match on the things they share (each the circle's base rate of `u`'s thumb, both left out, as in
+§2.2), so on a catalogue with things nearly everyone likes the plain share reads strangers as close.
+Each pair reports `λ̂`, the channel inverted (`(A − c̄)/(1 − c̄)` at or above chance, `A/c̄ − 1`
+below), as the rate `(1 + λ̂)/2`, and in place of its overlap a **weight**: the number of fair coins
+whose share is as noisy as that rate, by the delta method at `λ̂` — the same as the overlap at
+`c = ½`, two for ten matches on things nine in ten like. That is what makes 0005's sampling term
+`m(1 − m)/n̄`, written for a plain rate, right for this one, so 0005 is unchanged and pools the same
+four sums into `a0_d1` and `kappa`, which the core merges. On a simulated population with no
+consensus things `a₀(1)` reads 0.599 against a true 0.590 (the plain share: 0.632) and `κ` 9.3
+against 9.0 (9.7); with thirty things everyone likes, 0.615 against 0.593 (0.816) and `κ` 17 against
+12.7 (36) (`tests/priors.rs`). Pooled from recomputes the chances are a small circle's, which is how
+the core reads the same pair, and on the second world that leaves `a₀(1)` at 0.70.
 
-Caveats, because this is measurement and not proof: the ring table is seven seeds, the sweeps
-are one world per configuration, and the simulator's model of taste is the one this design
-assumes. The shape (flat in bots, linear in accepted requests, decaying in steps) is robust
-across the seeds and densities tried; the constants are not claims.
+Exposure, the chains, the regions, the base rates and the chance of each thumb carry no constants of
+their own. There is no prior by hop distance: a chain is the prior for anyone past a direct
+connection. The pooling (§3.7) still writes `a0_d2` and `a0_d3plus`, and the core reads only `kappa`
+and `a0_d1`.
 
-### 2.10 Estimating the priors from the population
+### 2.10 Where it comes from, what it rejects, what it costs
 
-`κ` and `a₀(d)` are moments of distributions the data exhibits, so they are estimated by
-empirical Bayes from the population and the estimates are what every recompute uses; §2.8's
-constants apply only until enough data exists. They are the **only** non-local quantities in
-the design — everything else in §2 is a function of one viewer's own neighbourhood.
+**Standard, and where from.**
 
-**The estimator.** The alignment prior is `Beta(κ·a₀(d), κ·(1 − a₀(d)))` by distance. Over all
-pairs `(u, v)` at hop distance `d` with weighted overlap `A + D ≥ n_min = 10`, the observed
-agreement rates `A/(A + D)` have a mean and a variance. Method of moments: the mean is
-`a₀(d)`; the variance of a Beta-binomial proportion with `n` trials is
-`m(1−m)·(1 + (n−1)/(κ+1))/n`, so the excess of the observed variance over the sampling
-variance `m(1−m)/n̄` gives `κ` — pooled across distances, one `κ`, and one `a₀` per distance
-class `d = 1, 2, ≥3`. A class with fewer than `N_min = 200` pairs keeps the table value for
-that class.
+| part | source |
+|---|---|
+| the viewer's taste as the truth, others as annotators | Dawid & Skene 1979 |
+| knows-or-guesses channel with a base rate; chance weighting | MACE (Hovy et al. 2013); Aickin 1990 |
+| signed reliability, flipping | Raykar & Yu 2012; Karger, Oh & Shah 2011 |
+| log-odds weights | Nitzan & Paroush 1982 |
+| pooled prior on a connection's agreement; per-topic shrinkage | Paun et al. 2018; Venanzi et al. 2014; Tang, Gao & Liu 2012 |
+| thumbs before the viewer's as predictions | Resnick & Sami 2007 |
+| no learning from the viewer's unrated things | cut models (Plummer 2015; Jacob et al. 2017); Tian & Zhu 2012 |
+| trust multiplied along the strongest paths | TidalTrust (Golbeck 2005); Guha et al. 2004; MoleTrust (Massa & Avesani 2007) |
+| a region as one voice, as a logarithmic pool | Clemen & Winkler 1985; Genest & Zidek 1986 |
+| clip per thumb | Huber 1965 |
+| significance of a pair | spike-and-slab with an empirical-Bayes mixing weight; Efron 2001 |
 
-**They are running tallies, not a job.** A recompute already computes an alignment for every
-pair `(u, v)` in the viewer's reach, at a hop distance it already knows, so it already holds
-every sample the estimator wants. It reports its own partial sums into twelve `user_model`
-columns, per distance class `d1/d2/d3`: `pair_n`, `pair_sum` and `pair_sumsq` — a count, a sum
-and a sum of squares of `A/(A+D)` — and `pair_overlap`, `Σ(A + D)`, because `κ`'s moment
-equation needs the mean overlap `n̄` and the other three cannot supply it. A scheduled statement
-in the database pools them across viewers into `private.params`, applying the `N_min` guard per
-class. Counts, sums and sums of squares are all a mean and a variance need, and they add, which
-is the whole reason this shape works. The simulator keeps `estimate_priors(snapshot)` in the
-crate, so the same estimator runs over synthetic worlds, the recovered `a₀(d)` and `κ` must land
-near the generating values, and `rust/tests/priors.rs` checks the pooled tallies land where the
-batch estimate does.
+**Proven** (`docs/witness-model.md`): chance weighting and flipping, as consequences of the channel; a
+chain is never more reliable than its weakest link, for this channel; the region average is the exact
+posterior under fully dependent sources; the bound of §2.5; a viewer with no history gets a score for
+everything anyone reached rated; one thumb's bounded effect on whether a pair is used.
 
-**Where the estimates live.** `private.params`, server-only, with no client verb of any kind:
-reading it would hand out an aggregate nobody is shown anywhere else, and writing it would
-move the prior behind every feed at once. The recompute reads it at the start of a run and
-falls back per field to §2.8's table where a sample is below `N_min`, so a missing or partial
-row can only fail to move a number.
+**Measured in simulation, not proven** (`docs/witness-model.md`, `docs/algorithm-notes.md`). Held-out
+AUC on the mixed / spread / sparse / high-rank / realistic worlds:
+
+| model | mixed | spread | sparse | high-rank | realistic |
+|---|---|---|---|---|---|
+| before the relay | 0.701 | 0.848 | 0.569 | 0.533 | 0.517 |
+| relay | 0.781 | 0.826 | 0.677 | 0.526 | 0.568 |
+| this model, prototype | 0.826 | 0.830 | 0.692 | 0.529 | 0.578 |
+| … no chains | 0.659 | 0.729 | 0.583 | 0.515 | 0.518 |
+| … later thumbs up to the head (unsafe, §2.4) | 0.847 | 0.843 | 0.700 | 0.536 | 0.591 |
+| **this model, built** | **0.836** | 0.819 | **0.721** | 0.528 | **0.580** |
+
+The prototype rows are the prototype's, on which every choice was made; it read the population
+statistics over everyone reached and capped per-attribute reliability at the head only,
+which the bound rules out (§2.2, §2.8). The built row is `docs/algorithm-notes.md` §3's, on a
+slightly different sample of viewers (the "before the relay" row is 0.710 / 0.827 / 0.585 / 0.528 /
+0.518 there). Chains are worth 0.01–0.17 of it and the starting point up to 0.05; the defences
+against copying cost 0.013 on average, and buy the attack table of §2.5. Where taste splits by kind,
+per-attribute reliability adds −0.003 to +0.002 (§2.8). The pair rule, cold start and certainty as
+above.
+
+**What one recompute costs**, measured on the built core over a whole 2 000-person neighbourhood
+(base rates, attributes, chains, scores and certainty), per viewer, median: 18–43 ms natively and
+23–51 ms in WebAssembly under Node at 8–13 friends a person, against the relay's 24–50 and 35–71;
+109 ms and 134 ms (worst 138) at 50 friends a person, against the relay's 52 and 75. Four such calls
+fit well inside the CPU ceiling of §3.4. The cost is the chain links, one posterior per trust
+connection explored; a 16-point grid measured no different from 64 and halves it.
+
+**Original to grapevine, and unproven:** that multiplying learned reliabilities along chains is the
+right composition (it measures well; it is not shown optimal); the two caps on own history; both
+exposures, and a later thumb's discount from them; combining a trust-graph structure with a
+probabilistic aggregation at all (no paper found does); the certainty `W/(1 + W)` (measured to track
+correctness, not shown to be the right quantity), and the cautious value the bar draws from it (§1
+"The bar"); one shared fact reliability; attribute pairs as witnesses under the same axiom.
+
+**Rejected, and why**, beyond the alternatives measured in §2.2–§2.8:
+
+- **A copier type** — an exposure-weighted mixture of "independent" and "copies nearly everything",
+  with late disagreements held against the person — cannot be identified from a viewer's overlaps and
+  punishes friends. A per-thumb reaction chance equal to exposure, symmetric in agreeing and
+  disagreeing, carries what it was for (§2.3). There is no copy detection.
+- **A Markov random field on reliabilities** has no data behind its coupling and lets bots raise
+  their gatekeeper. Chains run outward only and are capped at the head (§2.4).
+- **EM over the viewer's unrated things** is misspecified for taste and a collusion channel (§2.3).
+  Facts, which have one answer, are where it belongs (§2.8).
+- **A per-thumb cap alone** bounds one thumb, not a region. The region's average bounds a region
+  (§2.4, §2.5).
+- **Per-topic reliability on attribute thumbs**, shrunk toward a person's taste, reads a contrarian's
+  "quiet" as "loud". Attribute thumbs are facts with their own reliability; kinds condition taste
+  reliability only through the things that carry them (§2.8).
+- **Low-rank correlations between all ratables** are unidentifiable per viewer and duplicate the
+  people weighting (§2.8).
+- **A fixed fade at every step**, as the relay has, fades every chain with its length whatever the
+  trust along it. Chains here fade only with trust, and pooling per region bounds a region without
+  any fade (§2.4).
+
+**Measured on the built core** (`docs/algorithm-notes.md` §5–§7). *Incentives*: honest reporting has
+the best held-out AUC on average (0.828, against 0.799 withholding half, 0.776 randomizing half, 0.772
+inverting a quarter), but some misreport beat the truth for 14 of 60 targets, against the relay's 9.
+*The accepted copier* — one account a victim accepted, copying all the victim's thumbs and promoting
+one thing — scores it `+0.41` for the victim (relay `+0.51`) and past `+0.1` for 181 of the
+victim's 322 friends (relay 4): a lone rater two steps out speaks for its region, slightly and inside
+the bound. *A filled gap's certainty* barely separates right fills from wrong ones (0.336
+against 0.308).
 
 ### 2.11 Attribute similarity: proposing attributes to apply
 
@@ -1114,13 +1129,13 @@ in reach already asked it. The suggestion is the ask. It is not a recommendation
 score: a chip proposes a question, and the answer is the viewer's own thumb. It is computed by
 `shared/src/suggest-attributes.ts`.
 
-**It reads the viewer's own ratings and nothing else.** Not the neighbourhood, not the walk's
-output, not any aggregate over anybody. This is stricter than the reach bound the rest of §2
+**It reads the viewer's own ratings and nothing else.** Not the neighbourhood, not the feed, not
+any aggregate over anybody. This is stricter than the reach bound the rest of §2
 works under, and the reason is an attack rather than a privacy rule: **if candidates came from
 the network, somebody could poison your suggestions by rating the things you rate.** Drawing
 only on your own vocabulary makes that impossible by construction. It also means the
 computation runs **on the client**, since a viewer already holds their own ratings — no budget,
-no server round trip, nothing taken from the walk, and the row re-ranks the instant you give a
+no server round trip, nothing taken from the recompute, and the row re-ranks the instant you give a
 thumb.
 
 **The consequence: it can only ever propose a word you have already used.** That is the feature
@@ -1193,7 +1208,8 @@ per-viewer work. **Nothing runs on a schedule outside the database** (§3.7). Re
 
     web/            Next.js app (static export). The only thing a user touches
     shared/         pure TypeScript used by web/ and the Edge Function: id
-                    normalization, the search fold, feed folding, the staleness rule
+                    normalization, the search fold, search, attribute suggestions,
+                    feed folding, the staleness rule, the neighbourhood cache's codec
     rust/           the one Rust crate, no I/O: the algorithm of §2, the simulator,
                     property tests; built to WebAssembly by wasm-pack
     supabase/       config.toml (auth providers and redirect URLs, in the repo),
@@ -1214,8 +1230,8 @@ and scales with the size of the population rather than the size of a neighbourho
 
 `rust/` is the only place the algorithm lives. It takes a snapshot in, returns results out, and
 does no I/O, so `cargo test` runs the simulator and the property suites in seconds against
-nothing. `scripts/build-wasm.sh` builds it for two targets: `web` for the Edge Functions, which
-Deno initializes from bytes they read themselves, and `nodejs` for `rust/examples/smoke.mjs`,
+nothing. `scripts/build-wasm.sh` builds it for two targets: `web` for the Edge Function, which
+Deno initializes from bytes it reads itself, and `nodejs` for `rust/examples/smoke.mjs`,
 the one thing that runs the boundary outside Deno; CI builds both. Neither build is committed.
 Rust rather than TypeScript because the per-viewer compute (§3.4) is on the request path under
 a CPU ceiling, and the simulator runs thousands of synthetic worlds.
@@ -1235,21 +1251,25 @@ items             (id text pk, search_id text not null, created_at, created_by u
                   -- client-written from `searchFold`, its own text_pattern_ops index,
                   -- checked by a script rather than by a trigger (below)
 ratings           (user_id, item_id, tag) pk, value smallint, rated_at timestamptz
+                  -- rated_at leaves the database only as one bit per shared rating:
+                  -- given after the reader's own thumb on it or not (§2.3, §3.4)
 reports           (user_id, item_id) pk, created_at      -- insert only; nobody reads one
-user_recs         (user_id pk, computed_at, entries jsonb, feed_hash text,
-                   error real not null)          -- max(truncation·L, settle movement); §1
+user_recs         (user_id pk, computed_at, entries jsonb, feed_hash text)
 user_model        (user_id pk, computed_at, checked_at, nodes_touched,
-                   rating_count, truncation, boundary_residual, settle_movement,
-                   passes, settled, recomputed, priors_at,
-                   reach jsonb, reach_hash text, reach_reuses,
+                   rating_count, recomputed, priors_at,
                    pair_n_d1, pair_n_d2, pair_n_d3,
                    pair_sum_d1, pair_sum_d2, pair_sum_d3,
                    pair_sumsq_d1, pair_sumsq_d2, pair_sumsq_d3,
-                   pair_overlap_d1, pair_overlap_d2, pair_overlap_d3)  -- §2.10's tallies
+                   pair_overlap_d1, pair_overlap_d2, pair_overlap_d3)  -- §2.9's tallies
 private.params        (one row: computed_at, kappa, a0_d1, a0_d2, a0_d3plus, samples)
 private.debug_events  (id, user_id, kind, detail, at, expires)
-private.ratings_changed (user_id pk, changed_at)                      -- trigger-written
+private.ratings_changed (user_id pk, changed_at, friends_changed_at)  -- trigger-written
+private.ratings_cleared (user_id, item_id, tag) pk, cleared_at        -- trigger-written, §3.4a
+private.snapshot_cache  (user_id pk, version, since, members uuid[],
+                         reloads_in, blob text)                       -- §3.4a, service role reads
+private.snapshot_epoch  (one row: epoch)                              -- bumped by every purge
 private.write_budget  (user_id, day) pk, writes                       -- trigger-written
+private.deleted_identities (fingerprint pk, day, writes)             -- §4, swept daily
 private.removed_names (id pk, removed_at)                             -- the owner's, §4
 private.admins        (user_id pk, added_at)                          -- written by hand, §4
 ```
@@ -1294,20 +1314,18 @@ private.admins        (user_id pk, added_at)                          -- written
 - **The feed is one row.** `entries` is one jsonb column, written in one statement, TOASTed out
   of line. `feed_hash`, the rounded feed signature, is what stops a recompute that landed on the
   same answer from moving `computed_at` (§3.4).
-- **`user_recs.error` is the bar's quantum, and it is not `truncation`.** It is
-  `max(truncation·L, settle_movement)` — the larger of the two errors §2.9 bounds, both on the
-  score's own scale (§1 "The bar") — copied onto the one row the viewer may read, since
-  `user_model` has no client verb of any kind and the bar cannot quantize itself to a bound it
-  cannot see. The recompute writes both halves to `user_model` and only their maximum here, and
-  either can be the larger, so a column named for one of them would be a trap. It rides out
-  inline with the entries too, so the common path needs no second read. It is not a score, it is
-  not about anybody, and nothing renders it: it is the step size of a drawing.
+- **An entry is a score and a certainty.** Each item's entry is `{ itemId, score, conf, tags }`:
+  `score` is `s_u`, `conf` is `W` (§2.6: how many of the viewer's own thumbs the evidence amounts
+  to), and `tags` maps each attribute to its score alone. Every rated thing in reach has one (§2.6:
+  no floor); a thing carried only by an attribute of it has `score` and `conf` zero. The client
+  draws and ranks by one value made of the two (§1 "The bar") and never renders either as a
+  number. The row grows with the number of distinct things rated within reach, which
+  at `N_max` can reach hundreds of kilobytes (§3.8).
 - **`user_model` is the recompute's own scratch row, with no client verb of any kind.** It holds
-  the two stamps of §3.4; the walk report — `truncation`, `settle_movement`, `passes`, `settled` (§2.2) and
-  `boundary_residual`, the mass that left the nearest `N_max` people, reported and never counted
-  against `ε_total` (§2.4), all of which a rescore over cached masses carries through unchanged
-  since it walked nothing; `reach`, `reach_hash` and the count of consecutive reuses that
-  `REACH_REUSE_MAX` bounds (§3.4); and §2.10's twelve `pair_*` tallies.
+  the two stamps of §3.4; `nodes_touched` (the people the core reached with a non-zero chain),
+  `rating_count`, `recomputed` and `priors_at`; and §2.9's twelve `pair_*` tallies. Nothing about
+  any other person is kept in it between calls (§3.4, §4): every reliability is recomputed from
+  the snapshot.
 
 Three things the schema says directly:
 
@@ -1319,7 +1337,7 @@ Three things the schema says directly:
   `check (value in (1, -1))`, and the thumb is keyed by `(user_id, item_id, tag)` — `tag` **not
   null**, with the empty string meaning the thing itself rather than one of its attributes. Each
   field carries the id `CHECK` on its own, and `tag` carries it or is empty. The sanitizers on
-  both sides of the wasm boundary stay — they are what protects a walk from a schema change —
+  both sides of the wasm boundary stay — they are what protects a recompute from a schema change —
   and they check the two fields separately.
 
   **Inside the core one map key per rated thing is still wanted**, and the two fields join
@@ -1407,7 +1425,7 @@ because its `CHECK` is what decides whether the row exists.
 **The catalog carries a second copy of every id with the accents and punctuation stripped off,
 and that is what search matches against.** `search_id` — `cafe bleu` beside `café bleu` — has its
 own `text_pattern_ops` index, so typing `cafe` finds `café bleu` in the catalog and not merely in
-the feed the viewer already holds. Two alternatives were rejected:
+the feed the viewer already holds. Two alternatives are rejected:
 
 - *Stripping only at query time* leaves the catalog's prefix search literal, so a viewer who
   types the unaccented name finds nothing, adds the thing again, and **splits the catalog** — a
@@ -1455,8 +1473,8 @@ Five conventions:
 
 - **Schema isolation.** Anything no client may touch lives in schema `private`, which is not in
   PostgREST's exposed list — not a policy that can be got wrong, an address that does not exist.
-  The params row, the diagnostics table, every policy helper and the neighbourhood loader live
-  there.
+  The params row, the diagnostics table, every policy helper, the neighbourhood loader and the
+  neighbourhood cache live there.
 - **Column privileges.** `GRANT INSERT (id, search_id)` on `items`: a column the client cannot
   write takes its default, and a column it cannot select is in no response. This is what makes
   `created_at`, `created_by`, `since`, `rated_at`, `at` and `expires` unforgeable.
@@ -1482,7 +1500,7 @@ ratings are readable by the people they are about; a rating is writable by its o
 friendship is deletable from either end and insertable by no client at all — `redeem_invite`
 writes both halves. `user_recs` is readable by its owner and writable by nobody, since the Edge
 Function writes as `service_role`, which bypasses RLS. `user_model` is readable by nobody at
-all, so alignment never leaves the server. Items are readable by every signed-in user and
+all, so agreement never leaves the server. Items are readable by every signed-in user and
 creatable by them, with no update and no delete for anyone but the owner's `remove_name`. A
 report is insertable by its author and readable by no client; an admin sees how many each name
 has, through `reported_names()` (§4).
@@ -1505,7 +1523,9 @@ Two triggers complete the schema and neither is callable: `handle_new_user()` on
 creates the profile row in the same transaction as the account, so "the profile is missing"
 cannot happen for a signed-in user; and `assert_symmetric()`, deferred to commit, is what makes
 a one-sided friendship impossible. The policy helper is the rest of schema `private`, alongside
-`neighbourhood` and `load_nodes`.
+the loaders (`neighbourhood`, `neighbourhood_cut`, `load_nodes`) and the cache's functions
+(`snapshot_delta`, `save_snapshot_cache`, `drop_snapshot_caches`), which only the service role may
+execute.
 
 **Two hazards are permanent.**
 
@@ -1520,8 +1540,9 @@ pattern, a prefix or an unbounded limit in its body is the enumeration it exists
 the same care is owed anywhere a policy clause looks tempting.
 
 *Postgres grants `EXECUTE` on a new function to `PUBLIC` by default.* `private.neighbourhood`
-returns the raw ratings of up to `N_max` people, so a `grant execute` on it, or moving it to a
-schema PostgREST serves, hands every viewer the ratings of everyone within two hops and breaks
+returns the raw ratings of up to `N_max` people, and `load_nodes` and `snapshot_delta` the same
+kind of rows, so a `grant execute` on any of them, or moving it to a schema PostgREST serves, hands
+every viewer the ratings of everyone in reach and breaks
 §4's "nothing about another user is ever computed on a client". Schema isolation is the
 mitigation; every migration is read with this in mind.
 
@@ -1539,8 +1560,9 @@ other check in this design guards against a client; this one guards against us.
 
 **The neighbourhood is one function call.** `private.neighbourhood(viewer, max_nodes, max_depth)`
 is a `WITH RECURSIVE` breadth-first walk carried in two arrays — the seen set and the current
-frontier, one row per level — joined to `friendships` and `ratings` and aggregated into exactly
-the `{ users, friendIds, loaded, ratings }` shape the wasm boundary takes. Since a rating is
+frontier, one row per level — joined to `friendships` and `ratings`, one row per loaded person
+(`id`, `friend_ids`, `ratings`), which the Edge Function assembles into the `{ users, friendIds,
+loaded, ratings }` shape the wasm boundary takes. Since a rating is
 keyed by columns (§3.2), a node's `ratings` come back **nested**, item to tag to value, with `""`
 for the thing itself: `{"café bleu": {"": 1, "coffee": -1}}`, one inner `jsonb_object_agg`
 grouped by item under the outer one grouped by node. Nested rather than an array of
@@ -1557,100 +1579,66 @@ reaches `N_max`, and the slice that cuts the crossing level is deterministic bec
 level's ids arrive sorted. The depth bound is a backstop against a pathological low-degree
 component spending unbounded recursion steps to reach `N_max`; at degree 15 the node cap binds
 at depth 3, and the depth bound must never be small enough to become the thing that fires,
-because a fixed horizon is exactly what §2.4 refuses.
+because a chain costs nothing for its length but the trust it takes (§2.4).
 
-The boundary set falls out for free: everyone named by a loaded node who is not themselves
-loaded is a boundary node, with no adjacency and no ratings, whose residual the core reports.
-The extra rounds chasing whatever residual is still worth reading are the same tail against an
-explicit id list (`private.load_nodes`), one call a round. `N_max` counts every node a recompute
-loads, rounds included. It does not bound reads so much as memory, CPU and egress, and egress is
-the scarce resource (§3.8); it stays where it is for the CPU ceiling.
+**Each rating carries one bit about time.** A rating comes back as `±1`, or as `±2` when it
+was given after the viewer's own thumb on the same thing (0015): the order relative to the viewer
+and nothing else — never `rated_at` itself — which is all §2.3 reads and costs almost no egress.
+`load_nodes` takes the viewer for the same reason. A tag rating arrives the same way, so the
+attributes a thing carries (§2.8) come with the ratings and need no read of their own.
+
+The boundary set falls out for free: everyone named by a loaded node who is not themselves loaded is
+a boundary node, with no adjacency and no ratings, and the core reports each one's **strength** —
+the strongest chain a loaded neighbour could pass on to them, `|chain(w)|·|2a₀ − 1|`, the viewer
+counting as a chain of one. Up to three extra rounds read the strongest 200 of them against an
+explicit id list (`private.load_nodes`), one call a round, while `N_max` has room and some boundary
+node has a strength above zero; a person no chain can reach is never worth a read. `N_max` counts
+every node a recompute loads, rounds included. It does not bound reads so much as memory, CPU and
+egress, and egress is the scarce resource (§3.8); it stays where it is for the CPU ceiling.
 
 **The recompute is one Edge Function**, `refresh-recs`, called by the client on open and on
 demand:
 
     verify the caller's JWT with GoTrue        -> uid, and from nowhere else
-    read now(), user_model (computed_at, checked_at, reach, reach_hash, reuses,
-         truncation, boundary_residual, settle_movement, passes, settled),
-         private.ratings_changed
+    read now(), user_model (computed_at, checked_at), user_recs.feed_hash,
+         private.ratings_changed, the cache's purge epoch
     staleness rule (keyed on checked_at, set or not)
-                    -> if the answer still stands, return it without walking
+                    -> if the answer still stands, return it without computing
     read private.params
-    private.neighbourhood(uid)                 -> snapshot, at most N_max people
-    hash the adjacency just loaded             -> rescoreUser(reach, stored walk report),
-                                                  or computeUser in full
-    computeUser(snapshot, uid, params)         -> §2.2's settling loop
-    up to 3 x private.load_nodes(...)          while N_max has room and the boundary
-                                                  residual is worth a read
-    truncation > ε_total -> return the PREVIOUS row, recomputed: false,
-         stamp checked_at, write no feed       (boundary_residual is not in this test)
+    load the neighbourhood (§3.4a)             -> the cached one patched by
+                                                  private.snapshot_delta, or in full by
+                                                  private.neighbourhood: at most N_max people
+    computeUser(snapshot, uid, params)         -> §2's scores and certainties
+    up to 3 x private.load_nodes(uid, ...)     200 boundary nodes a round, strongest first,
+                                                  then computeUser again
     fold to one entry per item, hash the feed
-    unchanged hash -> update checked_at only;  otherwise write user_recs and user_model
-    return { computedAt, recomputed, entries, error, truncation, settleMovement }
+    unchanged hash -> stamp checked_at only;   otherwise write user_recs and user_model
+    either way, in the same transaction, write the neighbourhood cache
+    return { computedAt, recomputed, entries }
 
-**`computeUser` is a loop** (§2.2). It walks, recomputes contestedness and alignment from what it
-found, and walks again until the largest movement of any score falls under `SETTLE_TOLERANCE` or
-the pass count reaches `SETTLE_MAX_PASSES`; the movement it stopped at comes back beside the
-truncation, the function writes their `max` (with `L` applied to the truncation) to
-`user_recs.error`, and both separately to `user_model`, beside `boundary_residual`, `passes` and
-`settled`. Reaching the cap is not an error and does not suppress the write — it makes the bar
-coarser and nothing else. **A rescore walks nothing, so it reports nothing new about the walk**:
-`rescoreUser` takes the stored walk report and hands it back unchanged, rather than claiming
-`settled: true, passes: 0` over a loop that had not settled.
-
-**`E_max` is a CPU backstop, sized from the invocation rather than from the graph.** A free Edge
-Function is metered on the order of two seconds, and one recompute may call the core up to four
-times — the first walk and three boundary rounds — so the walk's share is about 0.3 s of wasm
-CPU per call: 10 000 000 pushes at a generous 30 ns each, on demand and deep alike; a walk gets
-`min(reservation, E_max)` (§2.8). A converged loop over a full `N_max` measured 136 ms of
-`computeUser` in wasm at worst (2 000 people × 50 friends, about 80 ms of it crossing the
-snapshot and one scoring pass; 71–84 ms at 12–15 friends) and never more than 2.45 M pushes, so
-the backstop is there for a pathological graph, not an ordinary one, and nothing is trimmed from
-the loaded set to fit it (§2.4).
-
-**The one case that writes nothing is a walk that could not meet `ε_total` inside the loaded
-set** (§2.4). Mass that left the nearest `N_max` people is not part of that test: it is stored
-as `boundary_residual` and ignored, which is the scope of the accuracy guarantee and not a
-loophole in it. The function answers `200` with the *previous* `user_recs` row and
-`recomputed: false`, so the client goes on showing what it had, and stamps `checked_at` so the
-staleness window still applies and the next open does not pay for the same failure immediately —
-which holds for a viewer with no earlier feed too, because the staleness rule asks whether
-`checked_at` is set, not `computed_at`. Storing a feed from a walk that did not resolve would put
-a number on the bar that is really a report that the computation failed.
+**`computeUser` is one pass over what was loaded** (§2.10): base rates, chains, reliabilities,
+scores and certainty, and nothing iterates to a fixed point. **Every recompute produces a feed**:
+there is no accuracy test for it to fail, so the only way not to have one is an error — a
+non-finite score or certainty, which the core refuses and the function refuses again before the
+write — and that is a `500` with the stored row left as it was. **Nothing the core computes about
+anybody is kept between calls** (§4): every step reads ratings, so every reliability is recomputed
+from the snapshot and nothing derived can go stale. What is kept is the snapshot itself, the core's
+input (§3.4a).
 
 **Two stamps, not one.** `checked_at` is stamped by every recompute, including one that found
 nothing new, and is what the ten-minute staleness window keys on, so an idle viewer pays one
-walk per window rather than one per open. `computed_at` moves only when a reader would see
+recompute per window rather than one per open. `computed_at` moves only when a reader would see
 something different, which is what the feed hash decides. A viewer whose thumbs changed since
 the last *check* always recomputes — compared against `checked_at`, not `computed_at`, or a thumb
-that did not change the feed would force a walk on every later open — and that is one primary-key
+that did not change the feed would force a recompute on every later open — and that is one primary-key
 read of `private.ratings_changed`. Every stamp the recompute writes is the database's `now()`,
-read before the neighbourhood is: the function's own clock after the walk would date a thumb
-given mid-walk as already read.
+read before the neighbourhood is: the function's own clock afterwards would date a thumb
+given mid-recompute as already read.
 
-**The reach masses are cached, and that is a small win.** `user_model.reach` holds the `π̃` map
-the last full walk produced, at most `N_max` entries. The masses are a function of the friend
-graph and the alignments, which move slowly, so a recompute whose inputs have not moved skips the
-walk and rescores from the stored map. Whether they have moved is decided by checking, not by
-being told: the recompute reads the neighbourhood on every call anyway, so it hashes the
-adjacency it just loaded — the sorted friend lists of every loaded node — and compares against
-`user_model.reach_hash`. Equal means the graph the walk ran on has not moved; different means a
-full walk. That is exact, needs no trigger, no new table and no change feed, and costs one hash
-over data already in memory. Two further conditions force a full walk regardless:
-`private.ratings_changed` having moved for anyone whose alignment feeds an affinity the walk used
-— ratings do not change the graph but they do change the steering — and a count of consecutive
-reuses reaching `REACH_REUSE_MAX = 20`, a belt so that a long-lived cache cannot drift
-unexamined.
-
-What the cache does not save is the larger cost. The walk is on the order of milliseconds —
-0.2–0.3 ms at 300 people × 10 friends, 1.6–2.4 ms at 2 000 × 12–15 — crossing the snapshot into
-wasm costs more than the walk does, and the neighbourhood read costs more again. Skipping the
-walk saves the *third* largest of the three, and is worth doing only because it is nearly free.
-The change that would save the read — asking the database only for ratings changed since
-`checked_at` and applying them as deltas to `entries` — needs a per-ratable delta path, a
-reach-scoped change feed and a correctness argument against drift that nobody can check without
-real traffic. It is deliberately not built; the ten-minute window already stops a viewer paying
-repeatedly.
+**The neighbourhood is read in full only when it has to be** (§3.4a): the loaded snapshot is
+cached per viewer and patched with what changed since, which is exact because it is data. Applying
+deltas to the model's *numbers* — `entries` or any reliability — is deliberately not built: almost
+nothing in the model updates exactly from a delta, and an approximation drifts with no bound.
 
 **Every query runs as `service_role`, and says so.** The connection logs in as `postgres`, and a
 `role` startup parameter does not survive Supavisor, which forwards only `search_path`. So each
@@ -1661,26 +1649,287 @@ refuses an unauthenticated request, and it refuses before any query.
 
 **The feed is returned inline and also stored.** Inline because the function has the entries in
 hand and returning them saves a second round trip; stored because a cold start and an offline
-open need a row to read, and because a walk that did not resolve answers out of it (above).
-Nothing else writes that row, so the one Realtime subscription on it covers exactly one case —
+open need a row to read. Nothing else writes that row, so the one Realtime subscription on it covers exactly one case —
 another tab or device of the viewer's own having called the function — and its payload *is* the
 change.
 
-**The CPU ceiling is the real constraint, and deserialization dominates it.** At degree 15 and
-100 ratings a person, crossing ~23 000 rating entries into wasm costs more than the walk does.
-Headroom is real but not generous and it shrinks linearly in ratings per user. The knobs, in
-order: pass a smaller `edgeBudget`, which is a parameter and whose only consequence is that a
-pathological region stops short of `ε_total` and keeps its last feed rather than getting a new
-one; keep `N_max` where it is, since Postgres would happily return ten thousand nodes and the CPU
-ceiling is why we do not ask; and only then reopen the boundary, by handing the core a JSON
-string to parse inside wasm instead of a JS object. The third is a change to the core's signature
-and is deliberately not taken.
+**The CPU ceiling is the real constraint.** A free Edge Function is metered on the order of two
+seconds, and one recompute may call the core up to four times — the first pass and three boundary
+rounds. A whole `computeUser` over a full `N_max` measures 18–43 ms natively and 23–51 ms in
+WebAssembly at 8–13 friends a person, and 109 and 134 ms at 50 (§2.10); at degree 15 and 100
+ratings a person, crossing ~23 000 rating entries into wasm is a cost of the same order.
+Headroom is real but not generous and it shrinks linearly in ratings per user. `N_max` stays where
+it is although Postgres would happily return ten thousand nodes: the CPU ceiling is why we do not
+ask. If it binds, the knobs, in order: take fewer boundary rounds; lower `N_max`; and only then
+reopen the boundary, by handing the core a JSON string to parse inside wasm instead of a JS object.
+The last is a change to the core's signature and is deliberately not taken.
 
 **There is no background sweep of feeds.** A viewer's feed is recomputed when that viewer opens
 the app and at no other time: a sweep would spend CPU and egress on viewers who may never open it,
-and the walk is cheap enough that amortizing it buys nothing. If a warm feed turns out to be worth
+and a recompute is cheap enough that amortizing it buys nothing. If a warm feed turns out to be worth
 having, it comes back as a queue drained in slices, which is the right shape for a small
 per-viewer cost.
+
+### 3.4a Incremental recompute
+
+> **Status: built** (migration `0016`, `shared/src/snapshot-cache.ts`, `refresh-recs`). It keeps a
+> private copy of each viewer's neighbourhood, which §4 states. Measured on the prototype of §2;
+> the numbers below are the prototype's unless they say they are the build's.
+
+**The question.** Without a cache a refresh reads the viewer's whole neighbourhood every time: up to
+`N_max = 2 000` people's friend lists and ratings, which is the dominant cost on the free tier,
+because every byte the Edge Function reads through the pooler is egress. Can a refresh keep state and
+read only what changed? The computation itself is small (18–24 ms natively over 2 000 people on the
+realistic world, §2.10), so the goal is reading less, not computing less.
+
+**Answer: yes for the model's input, no for its numbers.** Caching the *loaded snapshot* and patching
+it with what changed is exact, because it is data: the patched snapshot is the snapshot a fresh load
+would return, and the unchanged core runs on it. Caching the model's *sufficient statistics* and
+updating them from deltas is not worth building: almost nothing in the model is local.
+
+#### What the model computes, and what one event invalidates
+
+| quantity | depends on | updates exactly from a delta? |
+|---|---|---|
+| reached set, hop distances, exposures `1/deg`, upstream degrees | the friend graph only | yes, but any friendship change in reach can move the `N_max` cut |
+| base rate counts `(up, total)` per ratable | every reached person's thumbs | **yes**: integers, `±1` per insert, flip or clear |
+| a reading (agreed, chance, exposure) | the two thumbs, the order bit, the base rate of that thing **with both left out**, a degree | yes as integers — but it changes whenever *anyone* rates that thing |
+| direct reliability `λ_f` | the readings on everything viewer and `f` both rated | no: a posterior over a grid, re-integrated whenever any reading moves |
+| chain link `λ_{w→v}` | readings on things `w` rated | same, and a link moves whenever anyone rates something `w` and `v` share |
+| chain, region | every link on the strongest path; a max over paths | no: a max-product path; one link can move the strongest path of everyone behind it |
+| own-history reliability | the chain (as prior mean) and the viewer's readings | no: follows every chain above it |
+| region evidence `E_f(x)`, starting point, certainty | every rater of `x`'s reliability and `b_x` | no: `LLR` is nonlinear in `λ`; the starting point takes a max per region |
+
+So a single thumb on `x` by anyone in reach moves `b_x`; that moves a reading in every posterior where
+two people both rated `x`; a moved `λ_f` scales every chain in `f`'s region; and every chain is the prior
+of that region's own-history reliabilities, which weigh every thing those people rated. Measured on the
+realistic 2 000-person world (two seeds, 20 viewers, 8 single events each):
+
+- one other person's thumb moves some reliability 54–58% of the time, and more than half of all
+  reliabilities 4% of the time; it changes someone's region 1–6% of the time;
+- an exact update would have to read 6–7% of the neighbourhood's rating rows for **each** event (the
+  ratings of everyone whose reliability moved, and every rater of the thing), and all of them 2% of the
+  time; a refresh sees hundreds of events (below), which together cover nearly all of it;
+- the cheap approximation — freeze every reliability at the last full recompute and rescore only the
+  things rated since — reads 1–3% / 16% / 38% of the rows after 10 / 100 / 500 events, but its largest
+  score error is 0.002–0.004 for the median viewer and up to 0.31 after 10 events, **0.22** for the
+  median viewer after 100 and 0.33–0.36 after 500 (a score is in `(−1, 1)`): a stale bar, with no bound.
+
+Every event type, then:
+
+| event | what it invalidates |
+|---|---|
+| the viewer's thumb given, flipped or cleared | the order bit of every other thumb on that thing; `b_x`; every direct and own-history reliability that shares `x`, so every chain and every score |
+| a thumb in reach | `b_x`; every reading on `x` (the viewer's history with each rater of `x`, and every explored link whose ends both rated it), so usually some reliability, and then every score its region touches |
+| a new or removed connection in reach | degrees and exposures of both ends, possibly which people are loaded (the cut), every strongest path through either end, regions |
+| an account deleted | its thumbs (as clears), its connections (as removals), and the loaded set |
+
+The snapshot cache handles all four the same way: it applies the change to the input and reruns
+everything, which is what makes it exact.
+
+#### What is built: cache the loaded snapshot, read what changed
+
+**What is kept, where.** Edge Functions have no persistent disk, so the cache is a table in `private`,
+one row per viewer. The service role may read it and nothing else; it is written only by
+`private.save_snapshot_cache` and deleted only by the purges and the sweep, all `security definer`:
+
+    private.snapshot_cache (
+      user_id     uuid primary key references public.profiles (id) on delete cascade,
+      version     int  not null,         -- the codec and the rules below; a mismatch reloads
+      since       timestamptz not null,  -- the watermark the blob is exact as of, and last use
+      members     uuid[] not null,       -- who is loaded, for the delta and the purges
+      reloads_in  int  not null,         -- refreshes until the next full check
+      blob        text not null          -- the snapshot, compact, gzipped, seven bits a character
+    )
+
+The blob is a dictionary of the people named (16 bytes each) and the thing and attribute keys, then
+each loaded person's friend list and thumbs (each with the one order bit, as the neighbourhood
+returns it) as varint indices into it, gzipped by the function with `CompressionStream`. Its codec and
+the patch are pure TypeScript in `shared/src/snapshot-cache.ts` with their own tests, so there is one
+implementation, used by the function. It caches what `private.neighbourhood` returns and not the
+boundary rounds (§3.4), which depend on the core's answer and are read every time; they add people
+only when the depth backstop fired below `N_max`, which ordinary graphs never do.
+
+**Two additions to the database**, because a patch needs to see every change and without them it
+cannot see two:
+
+- **A tombstone per cleared thumb**, `private.ratings_cleared (user_id, item_id, tag, cleared_at)`,
+  written by a delete trigger beside the one that stamps `private.ratings_changed`, and guarded the
+  same way on the profile existing, so a deleted account's keys leave none. A deleted row cannot say
+  when it went (§3.2), and "thumbs written since" misses exactly those. Swept after 8 days by a cron
+  job; the delta refuses a cache older than 7, which reloads in full.
+- **A friendship clock**, `private.ratings_changed.friends_changed_at`, stamped only by the friendship
+  trigger, so a delta reads a friend list only when it moved. Re-reading the friend list of everyone
+  whose ratings moved costs four times as much at 500 events (below).
+
+**The load step of §3.4**, in full; the staleness window, the two stamps and the feed hash are as
+§3.4 says:
+
+    read now() as the new watermark, and the purge epoch, before any data
+    one call, private.snapshot_delta(viewer, version, N_max, depth), in one snapshot:
+        no rows if there is no cache of this version younger than 7 days
+        the blob and reloads_in
+        the membership diff: the breadth-first cut (private.neighbourhood_cut, which
+          private.neighbourhood also uses) rerun over the current graph against members,
+          with the full rows of whoever it adds
+        kept members whose ratings_changed moved since - margin, and for them
+          thumbs with rated_at > since - margin (a flip moves rated_at), or with a newer
+            tombstone (cleared and given again), with the order bit
+          tombstones with cleared_at > since - margin and no row now
+          the friend list, if friends_changed_at > since - margin
+    no rows, a blob that does not decode, or a delta naming someone the blob lacks
+        -> private.neighbourhood (a full load)
+    patch: drop tombstoned thumbs, upsert written ones, replace changed friend lists, drop and add
+        members; on every thing whose viewer thumb was written or cleared since, set the order bit
+        of every thumb not rewritten since to "before" (it was given before `since`, so before
+        the viewer's new thumb)
+    reloads_in = 0 -> also load in full, compare (below), and use the full load
+    computeUser on the result: the full core, unchanged
+    write user_recs, user_model and, through private.save_snapshot_cache, the cache
+        (blob, members, since = the new watermark) in one transaction
+
+The cut stays in SQL: the function never reimplements it, it receives the diff. The delta never
+refuses a cut that moved: whoever it adds comes whole, so there is no move too large to patch, only
+one whose cost approaches a full load's.
+
+**When a full load is still required**, and what it checks:
+
+- no cache, a new `version` (bumped by any migration that writes `ratings` or `friendships` without the
+  triggers, and by any change to the codec or the patch rules), or a cache older than the tombstone
+  sweep;
+- **every hundredth refresh** (`RELOAD_EVERY`), as a safety check: load in full, compare the canonical
+  patched snapshot against the fresh one, log a `debug_events` row (counts only) on a difference, and
+  use the fresh one. A difference is a bug or a missed stamp, never drift: there is no arithmetic to
+  drift. Why a hundred and not a clock: at §3.8's activity an active viewer refreshes about three
+  times a day, so "once a day per viewer" would be a full load every third refresh, about 1.4 MB a
+  refresh on average, where one in a hundred is 41 KB. What the check is for is finding a bug, and a
+  bug in the stamps or the patch is systematic, so it is found across viewers rather than per viewer:
+  at a thousand users the checks run about six times a day, and the first mismatch is the alarm. The
+  price is that one viewer's patched feed can sit on a bug for up to a hundred of their refreshes —
+  about a month for the most active — and a cache unused for a week reloads in full anyway;
+- `remove_name` and account deletion drop caches (below).
+
+**Exactness.** A patched snapshot equals a fresh load when every change after the watermark is seen.
+Measured: 160 patches (two seeds, 20 viewers each over a 5 000-person world cut at 2 000, 10 to 2 000
+events of every kind — new thumbs, flips, clears, the viewer's own, connections made and removed —
+between refreshes), each compared field by field with a fresh load: **0 differ**, both with whole rows
+re-read and with thumbs and tombstones only; feeds from both agree to 1e-9 (the prototype sums through
+hash maps; the built core sums in a fixed order and is bit-identical on one snapshot, §2). What can
+break it, and the guard:
+
+- *A write that commits after the watermark but was stamped before it* (`now()` is the transaction's
+  start). The delta reads from `since − margin` — a re-read change is applied as its current value, so
+  overlap is harmless — with a margin of a minute; PostgREST writes are single short statements. The
+  exact alternative is stamping `pg_current_xact_id()` and keeping `pg_snapshot_xmin` as the
+  watermark, if a margin ever proves too small.
+- *A write that bypasses the triggers* (a restore under `session_replication_role = replica`, a
+  migration rewriting rows): bump `version`.
+- *A decoder or patch bug*: the periodic check, which reports it and heals it. The tests
+  (`shared/tests/snapshot-cache.test.ts`) repeat the same check against a model of the
+  database — thumbs, flips, clears, clears given again, the viewer's own, connections made and
+  removed, account deletions — patching the decoded blob each time and comparing it with a fresh
+  load, and `supabase/tests/29_snapshot_cache` checks the SQL delta returns what the model assumes.
+- *A refresh that read before a purge and writes after it*: an account deletion or a removed name
+  deletes caches, but a refresh already holding the old data would write it back. Every purge bumps
+  `private.snapshot_epoch` under an exclusive advisory lock; the save takes the lock shared and
+  writes only when the epoch is the one the refresh read before any data. A purge waits for saves in
+  flight and then sees their rows; a save after it refuses.
+
+**What it saves**, measured (realistic world of 5 000 people, a viewer's
+load cut at 2 000; median over 20 viewers, two seeds; events drawn in proportion to how much people
+rate, one in fifty by the viewer, 70% new thumbs, 15% flips, 10% clears, 5% connections made or
+removed):
+
+| per refresh | read |
+|---|---|
+| no cache: the whole neighbourhood, in its text wire shape | **4.1 MB**, about 82 000 rating rows |
+| no cache, the same rows as integer arrays over one dictionary | 1.15 MB |
+| cached blob, read every refresh (prototype codec) | **294 KB** (the text shape is 9.8 times the uncompressed blob) |
+| + delta after 10 / 100 / 500 / 2 000 events, thumbs and tombstones, friend lists only where changed | 0–1 / 7–11 / 48–56 / 281–334 KB |
+| … the same, re-reading whole rows of everyone whose clock moved | 16–20 / 153–165 / 721–730 / ~2 000 KB |
+
+Rows read inside Postgres fall from ~82 000 to a few hundred. The cost at 500 events has a tail (up to
+1.25 MB) when a new connection brings people into the cut, whose rows are read whole. How many events
+fall between one viewer's refreshes: at §3.8's activity (a fifth of people active a day, three
+recomputes each) and, say, five thumbs per active person, 2 000 people in reach produce about 2 000
+events a day, so a few hundred between refreshes. **So about 350 KB against 4.1 MB, twelve times less,
+and most of the saving is the compact, compressed blob; the reading-only-what-changed part is what lets
+the blob be read at all.**
+
+Against the free tier (5 GB egress, 500 MB storage a month), with a viewer's load growing as
+`min(U, 2 000)` people for `U` users, 2 KB a person in the text shape and 150 bytes in the blob, and
+§3.8's 18 recomputes per user a month: egress breaks at **about 370 users** with no cache — a
+two-hop reach of 226 people would put it in the thousands, but the cut fills to `N_max` — at about
+700 with the integer-array shape and no cache, and at about 1 300 with the prototype's cache (the
+build's is below). The cache's own
+storage is `150 B × U × min(U, 2 000)`: 150 MB at a thousand users, **500 MB at about 1 800** — so
+storage becomes the next line, just after egress.
+
+**What the build measures.** The built codec (`shared/src/snapshot-cache.ts`), run on the same
+neighbourhoods (the 40 of them — two seeds, 20 viewers, each 2 000 loaded,
+about 4 900 ids named, 82 400 thumbs, 38 000 friend-list entries — as the rows `private.neighbourhood`
+returns), gzips them to **235 KB**, 231–238, where a codec in the prototype's shape with the real
+16-byte ids and attributes gives **328 KB** (the prototype's 294 had 12-byte ids and no attributes).
+What it does: ids once, 16 bytes each (79 KB,
+random, a third of the blob whatever is done); thumb keys once, most rated first; each column on its
+own (counts, friend lists, keys, values), because gzip does better on like next to like; friend lists
+and keys sorted and written as gaps; a friendship between two loaded people once rather than from
+both ends, which reciprocity makes exact (a one-sided edge falls back to whole lists); values two bits
+each.
+
+Then the wire. postgres.js 3.4.7 asks for every result in the text format (its `Bind` sends no
+result-format codes), so a `bytea` comes back as hex, twice its size, and `encode(…, 'base64')` a third
+over. The binary format would take a second driver for one query (node-postgres has a `binary`
+option); PostgREST can return raw bytes, but only from a schema it serves, which this table must never
+be in; the Postgres protocol and Supavisor carry no compression. So the blob is stored as **text, seven
+bits a character** (0 as U+0080, since text cannot hold a NUL): an eighth over, **269 KB** a refresh
+(265–272).
+
+So a refresh reads the blob, 269 KB; the delta, about 10 KB after a hundred events and 50 after five
+hundred (above), say 30; and one full load in a hundred, 41 KB on average: **about 340 KB against
+4.1 MB, twelve times less**. Egress breaks at **about 1 250 users** and the cache's storage, about
+150 bytes per loaded person per viewer, at **about 1 800** (§3.8).
+
+**CPU** is unchanged: the full core runs every time (§3.4); decoding and patching add a few
+milliseconds of work over data already in memory.
+
+#### Costs, plainly
+
+- **Storage**: about 135 bytes of blob and 16 of `members` per loaded person per viewer, 300 KB for a
+  viewer with a full 2 000; the
+  largest thing stored per viewer, more than the feed. Plus tombstones for 8 days.
+- **Complexity**: a table, a tombstone table and trigger, a clock column, the cut as its own
+  function, one SQL delta function, a save and an epoch, a codec and a patch in `shared/` with
+  tests, a check path, two cron sweeps, drops on account deletion and in `remove_name`, and a rule
+  every future migration must respect (a write to `ratings` or `friendships` with the triggers off
+  ends with `delete from private.snapshot_cache`). The core does not change.
+- **Privacy — the real cost.** Without the cache the recompute would hold other people's thumbs for
+  the length of one call and no longer. With it, a copy of up to 2 000 people's thumbs, each with the
+  bit of whether it came before this viewer's, sits at rest per viewer. It is not a new *kind* of
+  data — it is what `ratings` already holds, which is why it is kept rather than sufficient
+  statistics, whose
+  per-person agreement tallies (who agrees with whom) are exactly the trust map §4 promises is never
+  kept — but it is a second copy, and it outlives the call:
+  - in `private`, readable by `service_role` only, never returned to a client;
+  - **deleting an account deletes every cache whose `members` contains the account or any of its
+    friends** (a `before delete` trigger on `profiles`, a scan of one row per viewer): the first holds
+    its thumbs, the second its id in a friend list, so neither survives in any copy. `remove_name`
+    drops every cache and every tombstone naming it (they rebuild on the next open);
+  - someone who leaves a viewer's reach stays in that cache until the viewer's next refresh; a cron
+    statement deletes caches not refreshed for 7 days, which bounds it;
+  - once backups exist (see `CLAUDE.md`), the caches are in them, encrypted, for their 30 days;
+  - `/privacy/` says that a private copy of nearby ratings is kept to refresh each list and deleted
+    after a week unused; §4 says the same.
+- **Failure modes**: a missed stamp gives a stale feed until the next check (at most a hundred
+  refreshes), not a wrong-but-plausible one forever; a codec bug is caught by the same check; two
+  tabs refreshing at once both patch from the same row and each writes an exact snapshot with its
+  own watermark, so the last write wins and is still exact; a cache that cannot be read or decoded
+  is treated as missing.
+
+**Decision.** The snapshot cache, with thumbs-and-tombstones deltas and the friendship clock;
+sufficient statistics are not cached. The alternative without a second copy — the integer-array wire
+shape alone, no cache — buys a factor of 3.5 in egress rather than twelve (about 700 users where no
+cache breaks at 370), and is still the next step for the full loads that remain.
 
 ### 3.5 Client
 
@@ -1748,10 +1997,10 @@ Three things follow:
 
 Google-only makes a fresh identity cost a Google account rather than a click, and **nothing in
 §2.1's threat table changes**, because no row of it rests on the cost of an account. Requirement 2
-is bounded by the friend *edges* connecting a sybil set to the honest network, not by the number
-of accounts, and §2.4's "adding accounts to `S` re-divides a fixed pie" says the same thing from
-the other side. What an attacker still has to buy is a friendship with a real person. A
-fresh-identity cost is not a sybil defence and must never be written up as one.
+is bounded by the friend *edges* connecting a sybil set to the honest network, not by the number of
+accounts, and §2.5's bound — one voice per accepted connection, "whatever the number of accounts" —
+says the same thing from the other side. What an attacker still has to buy is a friendship with a
+real person. A fresh-identity cost is not a sybil defence and must never be written up as one.
 
 **A link does not come with an anonymous account, deliberately.** The obvious way to let
 somebody holding a friend's link try grapevine before handing Google anything is an anonymous
@@ -1811,19 +2060,22 @@ What this does not change: an account is still a Google sign-in away, and it can
 write guessing a token. What it removes is an account that can rate, name things or make a link
 without anyone having vouched for it.
 
-### 3.7 Nothing runs on a schedule except four statements in the database
+### 3.7 Nothing runs on a schedule except six statements in the database
 
-Four `pg_cron` statements, three in migration `0005` and one in `0012`, are the only scheduled
-work in the project:
+Six `pg_cron` statements, three in migration `0005`, one in `0012` and two in `0016`, are the
+only scheduled work in the project:
 
-- **`κ` and `a₀(d)` pooling** (§2.10). A recompute already computes an alignment for every pair
-  in reach at a hop distance it already knows, so it reports its partial sums — count, sum, sum
-  of squares and total overlap per distance class — into the twelve `pair_*` columns of its own
-  `user_model` row, and a daily statement pools the rows checked in the last seven days into
-  `private.params` under the `N_min = 200` guard. Nothing reads the whole graph to estimate them.
+- **`κ` and `a₀` pooling** (§2.9). A recompute compares the viewer with every loaded person
+  connected to them at a hop distance it already knows, so it reports its partial sums — count,
+  sum, sum of squares and total overlap per distance class — into the twelve `pair_*` columns of
+  its own `user_model` row, and a daily statement pools the rows checked in the last seven days
+  into `private.params` under the `N_min = 200` guard, per distance class. The core reads `κ` and
+  the first class's `a₀`. Nothing reads the whole graph to estimate them.
 - **The diagnostics sweep**, which deletes expired `debug_events`.
 - **The write-budget sweep**, which deletes past days from `private.write_budget`.
 - **The fingerprint sweep**, which deletes past days from `private.deleted_identities` (§4).
+- **The cache sweeps** (§3.4a), which delete neighbourhood caches unused for seven days and
+  tombstones older than eight.
 
 The sweeps are load-bearing twice over: besides their own jobs, they are what keeps a free
 project from pausing after seven days without database activity, so deleting the last of them
@@ -1840,21 +2092,36 @@ Edge Function.
 
 ### 3.8 Cost, and where the free tier breaks
 
-Assumptions, so they can be argued with: friend degree 15, so a two-hop reach of about 226
-people; `R` ratings a user; responses gzipped by the API gateway; a fifth of users active daily
-at four opens, three of which pass the staleness window.
+Assumptions, so they can be argued with: a recompute loads `min(U, 2 000)` people for `U` users —
+the whole `N_max`, not a two-hop reach, since the cut fills to the cap in any connected world larger
+than it; about 2 KB a loaded person in the neighbourhood's text shape, and 135 bytes in the cache's
+blob as it crosses the wire (§3.4a, measured on the realistic world); a fifth of users active daily at four opens, three of
+which pass the staleness window, so 18 recomputes a user a month.
 
-Storage is about 48 KB a user at `R = 100` and 117 KB at `R = 500`, against 500 MB: fine at a
-thousand users, at the line at ten thousand. Egress is 120 KB per recompute at `R = 100` and
-540 KB at `R = 500`, against 5 GB a month: about half the allowance at a thousand users and
-`R = 100`, over it at `R = 500`. Invocations never bind. **Egress breaks first, at roughly one
-to three thousand users**, against about a hundred for a store billed per document (§3.1).
+**Egress** is what the Edge Function reads through the pooler. Reading the whole neighbourhood every
+time, with no cache, is 4.1 MB a recompute at a full `N_max`, and 5 GB a month breaks at **about 370
+users**. With the cache (§3.4a: the blob, the delta, and a full load every hundredth refresh) a
+recompute averages about 340 KB, and egress breaks at **about 1 250 users**. Invocations never
+bind.
+
+**Storage** gains the cache: about 135 bytes of blob and 16 of `members` per loaded person per viewer,
+so `150 B × U × min(U, 2 000)`: 150 MB at a thousand users, and 500 MB at **about 1 800** — the line
+after egress, and close behind it. The rest is about 48 KB a user at `R = 100` and 117 KB at
+`R = 500`, which alone would last to several thousand. Both are against about a hundred users for a
+store billed per document (§3.1).
+
+**The feed holds every rated thing in reach** (§2.6), so `user_recs.entries` and the response
+that carries it grow with the number of distinct things rated in reach: at degree 15 and
+`R = 100`, up to a few thousand entries of about seventy bytes each — a few hundred kilobytes
+before compression, per feed row and per recompute that writes one. That is storage and egress on
+top of the lines above, and is what the next paragraph's first change removes.
 
 What to change first, in order: stop shipping the whole feed on every open (send the top of it
-plus a hash and let the client ask for the rest); stop fetching ratings for reach nodes whose
-mass cannot matter, which needs the core to distinguish "has adjacency" from "has ratings" and
-is the single largest saving available, because the first walk of §2.2's loop depends on the
-graph alone and the graph is a tenth of the bytes a person's ratings are; and then pay, because
+plus a hash and let the client ask for the rest); stop fetching ratings for people whose chain
+is too weak to matter, which needs the core to distinguish "has adjacency" from "has ratings" and
+the loader to read in order of chain strength — a smaller saving than it looks, because every
+link of a chain is learned from both people's ratings (§2.4), so the graph alone does not say
+who matters; and then pay, because
 $25 a month buys 8 GB and 250 GB of egress and two thousand users is where a project has users
 worth paying for.
 
@@ -1870,11 +2137,6 @@ person rated, which matters more, because the neighbourhood is egress and `items
 `search_id` is usually the smaller of an item's two columns, since folding strips characters and
 never adds any.
 
-`user_model.reach` is a map of at most `N_max` entries, which at `N_max = 2 000` is the largest
-single thing the design stores per viewer after the feed itself. It is storage rather than egress
-— no client may read `user_model` at all — and it buys the third largest of three costs (§3.4),
-so it is the first thing to drop if storage ever binds before egress does.
-
 ## 4. Privacy and social safety
 
 The stance: nobody's individual ratings are ever shown, and inferring them should take
@@ -1882,20 +2144,36 @@ deliberate, repeated effort rather than a glance. We do not try to make inferenc
 that would cost recommendation quality for a guarantee nobody expects from a friends app.
 
 - No screen ever shows counts, raters, averages, "N friends liked this", or who created an
-  item. Scores are shown as a personal meter — four segments, a fill quantized to the error
-  the walk can carry (§1 "The bar") — never as a number and never with a word beside it.
+  item. Scores are shown as a personal meter — four segments, filled to one cautious value of the
+  score and the evidence behind it (§1 "The bar") — never as a number and never with a word beside
+  it.
 - Ratings are readable only by their owner, and by the Edge Function, which reads the
   neighbourhood of whoever is calling and writes back only that caller's own scores. No process
   reads everybody's ratings at once.
-- Minimum support `W_min` means an item does not surface from a lone second-hop source. A
-  single direct friend's thumb clears that floor whenever the population's own agreement
-  prior puts it there (§2.10 estimates that prior from the population as it accumulates, so
-  it is a fact about the data rather than a guarantee this design makes), so with exactly one
-  friend your feed is that friend's ratings, and with a few friends it still says that
-  *someone* close to you liked an item. The friction is: no counts, no recency ordering, a
-  coarse meter instead of a number, a staleness window, and the floor. The privacy page says
-  this in plain words.
-- An account's feed reveals the mass-weighted opinions of its reach. That is what any
+- **Every rated thing in reach shows, and here is what a viewer can infer from that.**
+  - *That somebody within reach rated a thing.* Every thing anyone connected to you rated has an
+    entry, so its presence in your list says someone within your nearest two thousand people
+    rated it. Names are already public (the catalog is searchable by everyone signed in); what
+    the list adds is "someone near me".
+  - *With exactly one friend, your feed is that friend's ratings*, and with a few friends it
+    still says that *someone* close to you liked a thing. The evidence behind a bar counts at most
+    one thumb's worth for each friend's side of your network (§2.6), so a bar near an end says
+    several of them weighed in and agreed.
+  - *A stranger's thumb*: someone reached only through a chain that predicts nothing weighs
+    nothing, and their thing sits at the middle — its existence is all that shows. Anyone
+    else is heard as strongly as the chain to them predicts you, never more strongly than the
+    friend at its head, and inside that friend's one voice (§2.4). With few friends, a thing that
+    leans can point at a person.
+  - *Order*: whether someone tends to rate things before or after you moves how much their
+    thumbs count in your feed (§2.3). The database hands the recompute one bit per shared rating
+    — before or after the viewer's own — never a time, and the feed shows no times; what leaks
+    is a slow, coarse function of that bit, behind the staleness window.
+  - *Bots' items* appear in every feed within reach of a bot that rated them, near the middle
+    unless the chain to the bot predicts the viewer, and never more than one voice per accepted friend
+    (§2.5).
+  The friction is: no counts, no recency ordering, a meter instead of a number, and a
+  staleness window. The privacy page says the one-friend case and the friction plainly.
+- An account's feed reveals the trust-weighted opinions of its reach. That is what any
   account, including a bot that a friend accepted, can learn about you: aggregate taste,
   never individual ratings.
 - Friend lists are private: each connection is visible to the two people at its ends and
@@ -1933,33 +2211,42 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   with DevTools, and leave thumbs pointing at it; a report is about text that should not be
   served at all. The same path is the remedy for a homograph of an existing name, which §3.2
   says is bounded rather than prevented.
-- Alignments are never shown, so there is no way to learn "the app thinks you and X
-  disagree". There is no per-friend trust map (§2.5), and `user_model` is readable by nobody,
-  not even its owner (§3.3). Nothing about alignment leaves the server.
+- Agreements are never shown, so there is no way to learn "the app thinks you and X
+  disagree". The recompute keeps no per-friend trust map between calls — no reliability, agreement
+  or tally about anybody — and `user_model` is readable by nobody, not even its owner (§3.3).
+  Nothing about agreement leaves the server.
 - The operator of the project (whoever holds the Supabase project) can read the database to
   keep it working or when the law requires it; the privacy page says so. "Only you and the
   recompute" is a statement about grapevine's users and the app, not about the operator.
 - An account whose only friend is you sees your thumbs as its feed, exactly as you would see
   theirs: the one-friend leak reads the same from either end of the edge.
-- The recompute reads the friend lists and ratings of everyone in the viewer's reach, for
-  the length of one call and no longer — at most the nearest `N_max = 2 000` of them, and what
-  lies beyond them does not reach the viewer's feed at all (§2.4). That read is a database
-  function in a schema the API does not serve, executed only by the server's own role: a client
-  cannot call it, and no client ever receives another person's ratings, pseudonymized or
-  otherwise.
+- The recompute reads the friend lists and ratings of everyone in the viewer's reach — at most
+  the nearest `N_max = 2 000` of them, and what lies beyond them does not reach the viewer's feed
+  at all (§3.4). That read is a database function in a schema the API does not serve, executed
+  only by the server's own role: a client cannot call it, and no client ever receives another
+  person's ratings, pseudonymized or otherwise.
+- **And it keeps a copy of what it read** (§3.4a): per viewer, the friend lists and thumbs of the
+  people it loaded — each thumb with the one bit of whether it came before the viewer's own — so the
+  next refresh reads only what changed. It is not a new kind of data, only a second copy of what
+  `ratings` and `friendships` hold; it is in `private`, readable by the server's own role and
+  written only through one function, and never returned to a client. It is rewritten on each of the
+  viewer's refreshes, deleted after a week unused, and all of it is deleted when a name is removed.
+  Someone who leaves a viewer's reach stays in that copy until the viewer's next refresh.
 - Nothing about another user is ever computed on a client. Whatever a client is served it can
   read — with DevTools, a modified bundle or a plain HTTP call — so serving another person's
-  ratings is disclosure, not inference. And no transformed version escapes that: a score is
-  `Σ_v π̃(v)·ℓ_uv·r_v`, linear in each person's ratings with weights the viewer can steer (befriend
-  only `v`, and the feed is `v`'s ratings), so a per-person digest, a pseudonymized bundle, or a
-  client that walks while the server scores all hand that person's ratings to the client in some
+  ratings is disclosure, not inference. And no transformed version escapes that: a score is built
+  from each person's thumbs with weights the viewer can steer (befriend only `v`, and the feed is
+  `v`'s ratings), so a per-person digest, a pseudonymized bundle, or a client that computes
+  reliabilities while the server scores all hand that person's ratings to the client in some
   encoding. The only per-viewer artefact that survives is the one the server already writes: the
   viewer's own feed.
 - **An account can be deleted by its owner, from the app, and by nobody else.**
   `delete_account()` is `security definer` with no argument, so the only account it can reach is
   `auth.uid()`; it deletes that `auth.users` row and the rest is the schema's own cascade:
   profile, ratings, both halves of every friendship, the link, the feed, the model row, the
-  ratings clock, the write budget, and GoTrue's identity and sessions. By hand it also drops the
+  ratings clock, the write budget, and GoTrue's identity and sessions. A trigger on the profile
+  deletes every neighbourhood copy (§3.4a) that loaded the person or any of their friends, so
+  neither their thumbs nor their id remain in anyone's. By hand it also drops the
   person's diagnostics, which carry no foreign key. Items they named stay, with `created_by`
   null (§3.2). It is a function rather than a second Edge Function because it is one
   statement under the caller's own identity. Friends see the person gone on their next read
@@ -1979,17 +2266,3 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
 - Diagnostic records carry an `expires` field and nobody reads one back. What deletes them
   is a scheduled statement in a migration, in the repo and applied by the deploy, rather
   than a console setting somebody has to remember to make and whose absence is silent.
-
-## 5. Taste search (removed)
-
-Taste search — the deep walk turned into friend suggestions, a discoverability switch, connect
-requests to the people it named, and the attributes two people agreed on against the grain shown
-under each — was built and then **removed** (migration `0011`), and connect requests with it,
-since a request could only go to somebody the search had named. A friend is made by a link and by
-nothing else.
-
-It is out for now, not rejected. The mechanism, its privacy argument and its measurements are in
-version control (this section, `rust/src/suggest.rs`, `supabase/functions/refresh-suggestions/`
-and `docs/algorithm-notes.md` §9). Bringing it back is new tables in a new migration and starts
-from that history: what it would reopen is a stranger's name and chips on screen, a second Edge
-Function reading other people's ratings, and §4's "a stranger reaches you in exactly one way".

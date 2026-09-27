@@ -23,9 +23,10 @@ Read DESIGN §1 before changing any screen.
                  migrations/ (schema, grants, policies, server-only functions, cron),
                  functions/refresh-recs/ (the per-viewer recompute, Deno),
                  tests/ (pgTAP), seed.sql
-    docs/        algorithm-notes.md (the measurements behind the algorithm's constants) and
-                 mark.svg (the mark). No code reads any of it except make-icons.mjs, which
-                 reads mark.svg.
+    docs/        witness-model.md (the proofs, and the prototype's measurements behind every
+                 choice), algorithm-notes.md (the built core's measurements) and mark.svg
+                 (the mark). No code reads any of it except make-icons.mjs, which reads
+                 mark.svg.
 
 `supabase/` lives at the repo root because the web app and every check point at the one local
 stack, and `supabase db push` and `supabase functions deploy` read that directory.
@@ -76,24 +77,28 @@ cd web && bun run check:signin   # a minted session renders the app, none render
                                  # one account names its owner signed out and is answered by
                                  # another. NOT the OAuth round trip (see "One door").
 cd web && bun run check:feed     # the one list: ranking, filtering by name and attribute, the
-                                 # add button, what a first rating writes, and every fill a
-                                 # multiple of the step `user_recs.error` allows
+                                 # add button, what a first rating writes, and every bar's fill
+                                 # the value it draws
 cd web && bun run seed:local     # a simulated world into the running local stack
 cd web && bun run check:search-id      # every `items` row has `search_id === searchFold(id)`,
                                        # importing the one implementation of the folding
-cd web && bun run check:recs-function  # the staleness contract: an immediate second call only
-                                       # stamps `checked_at`; the viewer's own thumb given,
-                                       # turned over or cleared recomputes; a far stranger's
-                                       # thumb inside the window does not
+cd web && bun run check:recs-function  # the staleness contract: a second call inside the
+                                       # window writes nothing; the viewer's own new thumb
+                                       # recomputes them and nobody else; past the window a
+                                       # recompute that finds nothing new moves `checked_at`
+                                       # and not `computed_at`. Also: `user_model` carries
+                                       # DESIGN §3.2's columns, a uid in the body is ignored,
+                                       # and a call with no session is a 401.
 cd web && bun run check:recs-parity    # the stored feed against `compute-user` on the same
                                        # dump, to 1e-9. Needs a Rust toolchain too.
 
 cd shared && bun install
 cd shared && bun test            # normalizeId, searchFold, confusable skeletons; entries.ts
-                                 # (folding, change detection, sanitizing)
+                                 # (folding, change detection, sanitizing); search.ts;
+                                 # snapshot-cache.ts; suggest-attributes.ts; name-rules.ts
 cd shared && bun run lint        # tsc + biome
 
-cd rust && cargo test --release                    # unit tests and the property suite, ~7.5 s
+cd rust && cargo test --release                    # unit tests and the property suites
 cd rust && cargo test --release --features serde   # and the boundary's own deserializer
 cd rust && cargo clippy --all-targets -- -D warnings
 cd rust && cargo fmt --check
@@ -104,7 +109,7 @@ bash scripts/build-wasm.sh nodejs
 bash scripts/build-wasm.sh web
 node rust/examples/smoke.mjs                 # 3-user snapshot through the wasm boundary
 
-# The ONLY thing that compiles the Edge Function (no tsconfig or biome config covers them, and
+# The ONLY thing that compiles the Edge Function (no tsconfig or biome config covers it, and
 # deploy's esbuild does not typecheck), so a signature change in `shared/src/entries.ts` can be
 # green everywhere else and break only here. Needs the `web` wasm.
 deno check supabase/functions/refresh-recs/index.ts
@@ -122,55 +127,57 @@ gate straight away.
 
 ## The algorithm in the crate
 
-DESIGN §2 is the specification and `docs/algorithm-notes.md` the measurements. What a contributor
-needs to not undo:
+DESIGN §2 is the specification, including the order the core computes in; `docs/witness-model.md`
+holds the proofs and the prototype's measurements, `docs/algorithm-notes.md` the built core's. What
+a contributor needs to not undo:
 
-- **The walk pushes a node, not an edge.** The residual lives on directed edges (the walk is
-  non-backtracking), but a pop takes every edge's residual waiting at a node at once and writes
-  each outgoing edge that sum less what came in along it. A sweep costs `Σ_v deg(v)` pushes;
-  popping per edge costs the mean degree times more (12 354 ms against 6.9 ms for one walk at
-  2 000 people × 50 friends). The queue pops largest-first to within a factor of two, one bucket
-  per binary exponent, FIFO inside — deterministic and tested. Each settling pass starts from the
-  last one's residual, which may be negative, so truncation is `Σ|r|·(1 − α)/α`.
-- **Do not trim the snapshot to fit a budget.** Unloading the furthest nodes left every viewer with
-  a neighbourhood past about a hundred people with no feed, because the boundary rounds skip
-  anything already loaded. The budget is `min(reservation, E_max)`, the reservation
-  `(SETTLE_MAX_PASSES + 1) × (F + (sweeps + 1) · Σ_v deg(v))` with
-  `sweeps = ⌈log₂(F / ε_total)⌉`. `E_max` (`Params::edge_budget`, 10 000 000 pushes for both the
-  default and `Params::deep()`) is a CPU backstop: 0.3 s at a pessimistic 30 ns a push, because
-  `refresh-recs` may call the core four times in a free invocation's roughly two seconds. The worst
-  converged loop measured is 136 ms of `computeUser` in wasm at 2 000 × 50, and none spent more
-  than 2.45 M pushes. The loop never starts a pass it cannot pay for at the last pass's price, and
-  a pass cut short anyway is thrown away: the last *completed* pass is the answer, with `settled`
-  false.
-- **Accuracy is relative to the nearest `N_max = 2 000` people, by decision.** `truncation` is the
-  residual left inside the loaded set; what walked out is `boundary_residual`, reported and stored
-  but not counted against `ε_total` (DESIGN §2.4). **A walk that cannot meet `ε_total` writes no
-  feed**: `refresh-recs` answers `200` with the previous `user_recs` row and `recomputed: false`,
-  and stamps `checked_at`.
-- **The settling loop** walks, recomputes contestedness and alignment, and walks again until no
-  score moved by more than `SETTLE_TOLERANCE = 1e-4` (two orders below the bar's smallest step) or
-  `SETTLE_MAX_PASSES = 12` (ordinary worlds settle in at most five, a 200-bot mimic clique in
-  eight; the movement shrinks over every *two* passes). Reaching the cap is not an error: the
-  movement leaves as `UserResult.settle_movement` and the caller decides.
-- **`κ = 8` and `L = 2` are load-bearing for that loop.** Alignment divides by `κ + A + D`, so a
-  large `κ` is what makes the loop a contraction; past a best-to-worst affinity ratio in the
-  thousands it stops settling at all, which is why the clamp keeps it at 7:1
-  (`docs/algorithm-notes.md` §3).
-- **`ω`'s support factor is `n/(n+1)`, not the Beta(1,1) posterior**: the posterior reads `≈ 4/n`
-  on a unanimous item where this reads zero, and that zero stops an account that copies consensus
-  earning alignment (DESIGN §2.1, §2.2).
-- **There is no learned edge trust — do not rebuild it.** A per-edge fit by descent was never
-  shown convex in its parameters (the scores are a resolvent of them) and added three chosen
-  constants. It carried DESIGN §2.1's requirement 3, blame the edge into the bot, which was dropped
-  rather than rehoused on DESIGN §2.9a's measurement; alignment cannot supply it, because an
-  account that copies the viewer maximises agreement. If it comes back, the shape is **Resnick &
-  Sami's influence limiter** (RecSys 2007). DESIGN §2.5 has the rest.
-- Nothing is `#[ignore]`d. Every entry point returns a `Result`; a non-finite mass is an error,
-  and the wasm boundary refuses a result whose truncation says the walk never resolved. Rating
-  values and keys are sanitized rather than refused, so one crafted row in reach cannot fail a
-  viewer's recompute. `is_normalized_id` does not claim canonicity: NFKC-normality is a database
-  `CHECK` and the crate has no Unicode tables.
+- **One pass, no loop.** `rust/src/witness/` is one pass per step: base rates, direct reliability,
+  the chains (a max-product search, strongest first), own history, `κ_a` per attribute, scores,
+  certainty, facts. Nothing iterates to a fixed point and nothing is cached between calls; there is
+  nothing to rescore.
+- **The core departs from the prototype's choices on purpose.** The prototype read population
+  statistics over everyone reached, capped per-attribute reliability at the head only and snapped
+  sharp priors to its grid; each of those breaks a claim of DESIGN §2 (`docs/witness-model.md`
+  §1.4, §1.7, §1.8). Both docs' numbers were measured on code since removed from the repository.
+- **A region is one voice, capped at its head; keep it exact.** Everyone reached through one
+  directly trusted person is averaged into that person's region; nobody's reliability exceeds the
+  head's; later thumbs raise nobody past their own chain; a region's say on the starting point is
+  its *strongest* rater's, never the sum. The other way round, each of these lets an attack through
+  (DESIGN §2.10's list). `tests/witness_sybil.rs` runs every plan.
+- **Both exposures are structural.** A later thumb of `v`'s own history is a reaction with
+  probability `1/(people v trusts)`; every thumb in a chain link, with `1/(v's connections nearer
+  the viewer)`. Counting all of `v`'s connections for a link lets a clique of bots hide its
+  exposure.
+- **Per-attribute reliability takes the same caps.** Centred on the person's capped reliability
+  off the attribute, capped again the same way; anyone whose every shared thing carries the
+  attribute reads at their overall reliability and does not vote on `κ_a`. Capping only at the
+  head lets a copier of the viewer reach it through any attribute. `κ_a` is chosen per region, over
+  the circle and that region, from `{1, 2, 4, …, 1024}`.
+- **Population statistics are the circle's** (`witness/circle.rs`): the viewer and the people they
+  trust directly. Base rates, which attributes a thing carries, the fact reliability and the
+  attributes' base rates are read over it, because nobody behind an accepted connection can be in
+  it; read over everyone reached, two hundred bots behind one connection move a thing past the
+  bound. Two things add one region and only for that region: `κ_a`, and the base rate a thumb's
+  evidence is judged against (`witness/score.rs`). Reliabilities are always learned against the
+  circle alone. Chains reach only people the loader read who are connected to the viewer; an
+  unloaded person is on the boundary with the strength a chain would reach them at.
+- **The parameter table is three numbers** (`params.rs`): `a₀ = 0.65`, `κ = 8`, `L = 2`.
+  `private.params` replaces `κ` and `a₀` field by field (`PriorEstimate::merge` reads `kappa` and
+  `a0_d1`); everything else is learned or structural. `N_max = 2 000` is the loader's
+  (`MAX_LOADED_NODES` in `refresh-recs`): the core computes over whatever snapshot it is handed.
+- **Scores are strictly inside `(−1, 1)`** and every sum runs in a fixed order, so one snapshot gives
+  bit-identical results. A posterior under a sharp prior (large `κ_a`) is integrated over a window at
+  the prior's own scale; everywhere else it is the measured 16-point grid.
+- **Order is one bit.** `Snapshot::stamps` orders thumbs; the boundary gives `±2` for a thumb
+  given after the viewer's own and `±1` otherwise (0015), and `to_snapshot` turns that into stamps
+  relative to the viewer. No clock ever reaches the core. Between two people who are not the
+  viewer the order is not known and not asked for.
+- **No floor.** Every ratable any reached person rated has an entry; certainty (`W`) moves where
+  it ranks and how far its bar reaches (below), it never hides it.
+- Nothing is `#[ignore]`d. Every entry point returns a `Result`; a non-finite score or certainty
+  is an error, never a result. Rating values and keys are sanitized rather than refused, so one
+  crafted row in reach cannot fail a viewer's recompute. `is_normalized_id` does not claim
+  canonicity: NFKC-normality is a database `CHECK` and the crate has no Unicode tables.
 
 ## The local stack
 
@@ -250,15 +257,16 @@ cannot be reached at all, because PostgREST does not serve it.
 The rules below are the ones that are easy to break:
 
 - **`profiles`**: readable by self and a friend, and nobody else; a link's holder sees a name
-  and photo through `invite_owner`, not this table. There are no handles and no lookup of a stranger by anything: nothing on this table may become a read
-  clause that does not name a live relationship. No email or phone column. `display_name`
+  and photo through `invite_owner`, not this table. There are no handles and no lookup of a
+  stranger by anything: nothing on this table may become a read clause that does not name a live
+  relationship. No email or phone column. `display_name`
   defaults to Google's first name, is the owner's to change, and a `CHECK` refuses control
   characters and bidi marks; the table has no INSERT (the `auth.users` trigger creates the row).
 - **`friendships`**: both directions stored; a deferred constraint trigger makes a one-sided
   friendship impossible at commit, and the core still checks reciprocity. No client inserts one:
-  `redeem_invite` writes both halves as its owner. Delete from either end. Taste search, the
-  discoverability switch, `user_prefs` and connect requests were dropped by 0011 (DESIGN §5); a
-  link is the only way to a friend.
+  `redeem_invite` writes both halves as its owner. Delete from either end. There is no taste
+  search, discoverability switch, `user_prefs` or connect request (0011); a link is the
+  only way to a friend.
 - **`invite_links`**: a person's friending link, at most one (`owner_id` is the key), with no
   expiry and no limit on uses. The token is stored as itself so the owner can copy it again:
   `token` and `created_at` are selectable, `owner_id` is not, and the select policy admits the
@@ -293,21 +301,33 @@ The rules below are the ones that are easy to break:
   no SELECT/UPDATE/DELETE for any client — see "Reports" for review and removal.
 - **`private.admins`**: one row per admin, no client grant, written by hand ("Admins").
 - **`ratings`**: key `(user_id, item_id, tag)`, owner-only; `tag = ''` is the thing itself.
-  `rated_at` is read by nothing (see "What the list is drawn from") and is not the staleness probe
+  `rated_at` leaves the database only as the order bit (below), and is not the staleness probe
   — `max(rated_at)` cannot see a flip or a clear, which is what `private.ratings_changed` is for.
-  `private.neighbourhood` and `private.load_nodes` return ratings nested, item to tag to value, and
-  must not build a joined key: text cannot hold the NUL the core joins with.
+  `private.neighbourhood` and `private.load_nodes(viewer, ids)` return ratings nested, item to tag
+  to value — `±2` for a thumb given after the viewer's own on the same thing (0015) — and must not
+  build a joined key: text cannot hold the NUL the core joins with.
 - **`user_recs`**: owner read, written only by `refresh-recs` as the service role, one row in one
-  statement. `feed_hash` stops a same-answer recompute moving `computed_at`. `error` is
-  `max(truncation·L, settle_movement)` and deliberately NOT called `truncation`, since either term
-  can be the larger; it is here because `user_model` has no client verb and the bar must see it.
-- **`user_model`**: NO client verb; the Edge Function's bookkeeping. `checked_at` (every
-  recompute) is what the ten-minute window keys on; `computed_at` moves only when the feed changed.
-  A rescore carries the
-  whole walk report through unchanged, because it walked nothing. The twelve `pair_*` tallies feed
-  DESIGN §2.10's priors via 0005.
+  statement: `computed_at`, `entries`, `feed_hash`. `feed_hash` stops a same-answer recompute
+  moving `computed_at`. An entry is a score and a certainty (`conf`, DESIGN §2.6's `W`), stored
+  apart, for every rated thing in reach; the client combines them (see "UI design language").
+- **`user_model`**: NO client verb; the Edge Function's bookkeeping: `computed_at`, `checked_at`,
+  `nodes_touched`, `rating_count`, `recomputed`, `priors_at` and the twelve `pair_*` tallies.
+  `checked_at` (every recompute) is what the ten-minute window keys on; `computed_at` moves only
+  when the feed changed. `nodes_touched` is the core's `reached`. The `pair_*` tallies feed DESIGN
+  §2.9's priors via 0005. Nothing the core computes about any other person is stored here: a
+  column that keeps a reliability, a chain or a reach between calls is a cache DESIGN §4 refuses.
 - **`private.params`**: the population priors, each field null until its own sample exists and
   merged field by field, so a missing row can only fail to move a number.
+- **`private.snapshot_cache`** (0016): one row per viewer, the neighbourhood their last refresh
+  loaded, gzipped, plus `members` (who it loaded) for the delta and the purges. The service role
+  may SELECT it and nothing else; every write is `private.save_snapshot_cache`, every delete a
+  purge or the cron. It holds up to `N_max` people's thumbs at rest, so it is the table the
+  enumeration and `security definer` hazards below matter most for: `private.snapshot_delta`
+  takes the viewer and returns only that viewer's cache and delta, and nothing that returns a blob
+  or `members` may ever be callable by a client. `private.ratings_cleared` (a tombstone per
+  cleared thumb, written by a trigger, none for a deleted account) and
+  `private.ratings_changed.friends_changed_at` are what make a clear and a friendship visible to
+  the delta.
 - **`private.write_budget`**: every rating insert or update, item, report, link turned
   on, replaced or redeemed (`private.spend_write` for the redeem) and debug event
   spends one of `private.daily_write_limit()` (the ONLY place the number is written) per account per
@@ -414,12 +434,14 @@ two people and two keyboards and does not pretend to stop a determined one.
 ## UI design language
 
 Tokens and components are in [`web/DESIGN-UI.md`](./web/DESIGN-UI.md); every new screen follows
-it: one 4 px radius, hexagonal avatars, a bar with no word beside it, the swipe. The bar reads as
-continuous but is **quantized**: its fill steps in units of `q = error / 2`, where `error` is
-`user_recs.error` for the feed on screen, so it can never draw a difference the walk cannot
-support. `q` is a required prop, and a bar without one renders "nothing known yet" rather than
-picking a default — a default would be a silent claim about precision. Ranking uses the
-unquantized score, or the quantum would manufacture ties.
+it: one 4 px radius, hexagonal avatars, a bar with no word beside it, the swipe. A thing's bar
+draws one cautious value, `c = s·W/(1 + W)` (`cautiousScore` in `utils/bar.ts`; DESIGN §1 "The
+bar", §2.6): the mean of the Beta on "you'd like it" with `W` thumbs' worth of evidence at
+`(1 + s)/2` plus the prior's one pseudo-thumb, mapped back to `(−1, 1)`. So a thing reaches an end
+only with a strong prediction and a lot behind it, and one with little behind it sits near the
+middle on either side. It is drawn as it is, with no step and no shading. An attribute's entry
+carries no `W`, and its bar draws `s`. No score, or `W = 0`, draws the empty track ("nothing known
+yet"). Storage keeps `s` and `W` apart; only the client combines them.
 
 `web/app/globals.css` carries the palette; `--shadow-*` does a second job as the 1 px rule
 around a panel.
@@ -434,24 +456,25 @@ listed one level at a time as `@source` lines in `globals.css`, `tailwind.config
 
 The list reads only the viewer's own feed and ratings, and searches in memory
 (`utils/discover.ts`), with the catalog merged in by prefix so a thing that exists is found rather
-than made twice. Empty, it is the feed plus everything the viewer has rated, since the feed leaves
-out whatever nobody else in reach rated. A thing's suggested rail is filled on the client from the
-viewer's own ratings (`shared/src/suggest-attributes.ts`, DESIGN §2.11), and is empty, never
-filler, for a viewer who has rated no attributes.
+than made twice. Empty, it is every entry of the feed plus everything the viewer has rated, since
+the feed has no entry for what nobody else in reach rated. A thing's suggested rail is filled on
+the client from the viewer's own ratings (`shared/src/suggest-attributes.ts`, DESIGN §2.11), and
+is empty, never filler, for a viewer who has rated no attributes.
 
-- **Nothing orders by when a thumb was given.** `rated_at` is written because a clock cannot be
-  backfilled, but nothing reads it and `/privacy/` does not mention it; using it is its own
-  decision, and revisits `/privacy/` in the same commit.
+- **Nothing orders by when a thumb was given.** The recompute reads one bit of `rated_at` — before
+  or after the viewer's own thumb — and `/privacy/` says ratings are stored with when; nothing on a
+  screen shows or sorts by time.
 - **The entry's id is what is drawn.** A ratings row can name an id nobody created, and showing it
   is harmless: it has been through the same folding and `CHECK`s.
-- **An absent tag is "nothing is known", not "no"** (DESIGN §2.6): the core drops every ratable
-  below `W_min` before the function writes it, so the client needs no `W`.
-- **Nothing on it is a number.** Typing ranks by strength — the per-word geometric mean of what
-  each piece of the query contributes, the thing's own score for its name and an attribute's
-  presence for an attribute, one minus either for a word typed with `!`, unknown as one half
-  (DESIGN §1 "Search") — then by the viewer's own `conf`, then alphabetically, and never renders
-  `conf`, `score` or any count. A rated row keeps its bar and tints its background; a chip
-  carries the attribute itself and no state word. DESIGN §4 is why.
+- **An absent tag is "nothing is known", not "no"** (DESIGN §2.6): nobody in reach gave it and
+  nothing predicted it.
+- **Nothing on it is a number.** Empty, it ranks by the cautious value `c` its bar draws. Typing
+  ranks by strength — the per-word geometric mean of what each piece of the query contributes, a
+  thing's `c` for its name and an attribute's presence for an attribute, each mapped to `[0, 1]`,
+  one minus either for a word typed with `!`, unknown as one half (DESIGN §1 "Search") — then by
+  the viewer's own `conf`, then alphabetically, and never renders `conf`, `score` or any count. A
+  rated row keeps its bar and tints its background; a chip carries the attribute itself and no
+  state word. DESIGN §4 is why.
 
 ## The recompute behind it
 
@@ -461,30 +484,58 @@ filler, for a viewer who has rated no attributes.
   returns the cached feed when it was *checked* under ten minutes ago and the viewer has not rated
   since, and when a recompute lands on the same answer, so `computed_at` moves only when there is
   something new; a friend's rating arrives on that window. The staleness check keys on `checked_at`,
-  never `computed_at` — otherwise a thumb that did not change the feed, or a walk that never resolves,
-  forces a walk on every open. Every stamp is the database's `now()` read *before* the
-  neighbourhood, or a thumb given mid-walk would be dated as already read.
+  never `computed_at` — otherwise a thumb that did not change the feed forces a recompute on every
+  open. Every stamp is the database's `now()` read *before* the neighbourhood, or a thumb given
+  mid-recompute would be dated as already read.
 - **The feed comes back inline, and the row is the fallback** for a cold start and an offline
   open; one Realtime channel carries the case where something other than this tab rewrote it.
   Nothing but a viewer's own open writes that row. First paint is `localStorage`, in a try/catch,
   under a per-viewer key.
-- **The neighbourhood is one call**, `private.neighbourhood(uid, N_max, depth)`, in the shape the
-  wasm boundary takes; up to three boundary rounds follow, each `private.load_nodes` on an explicit
-  id list. `N_max` counts every node loaded, the rounds included.
+- **The neighbourhood is cached and patched** (DESIGN §3.4a). One call,
+  `private.snapshot_delta(uid, CACHE_VERSION, N_max, depth)`, returns the viewer's stored blob and
+  what changed since it: people the cut (`private.neighbourhood_cut`, the one implementation of
+  who is loaded) added or dropped, and for kept people whose clock moved, thumbs written since,
+  tombstones (`private.ratings_cleared`) and the friend list if `friends_changed_at` moved.
+  `applyDelta` in `shared/src/snapshot-cache.ts` patches it; the core runs unchanged on the result.
+  A full `private.neighbourhood(uid, N_max, depth)` runs when there is no usable cache and on every
+  `RELOAD_EVERY = 100`th refresh (DESIGN §3.4a says why a count and not a clock), which compares
+  it with the patch, writes a `snapshot-cache-mismatch` debug event (counts only) on a difference,
+  and uses the full load.
+  The cache is written with the feed in one transaction by `private.save_snapshot_cache`, stamped
+  `since` = the `now()` read before any data. The rules that are easy to break:
+  - **A patch is exact only if every change is stamped.** A write to `ratings` or `friendships`
+    with the triggers off (a restore under `session_replication_role = replica`, a bulk rewrite)
+    must be followed by `delete from private.snapshot_cache`; a change to the codec, the patch
+    rules, `N_max` or the depth bumps `CACHE_VERSION`.
+  - **The epoch.** Every purge (`private.drop_snapshot_caches`: account deletion, `remove_name`)
+    bumps `private.snapshot_epoch` under an exclusive advisory lock; the save takes it shared and
+    refuses when the epoch it was handed (read in `readStamps`, before any data) is stale. Without
+    it a refresh that read before a deletion would write the deleted person back.
+  - The delta reads from `since` less a minute, because `now()` is a transaction's start; a change
+    read twice is applied as its current value.
+  - The blob is `text`, seven bits a character (`bytesToText`), not `bytea`: postgres.js reads every
+    result as text, so a bytea comes back as hex, twice its size, and the blob is most of a
+    refresh's egress.
+  - The boundary rounds are not cached: they depend on the core's answer and are read every time.
+- **Up to three boundary rounds follow** the neighbourhood, each `private.load_nodes(uid, ids)` on
+  the (up to 200) boundary nodes with the greatest `strength` (the chain that would reach them),
+  while `N_max` has room and some strength is above zero. `N_max` counts every node loaded, the
+  rounds included.
+- **Every recompute writes a feed.** There is no accuracy test and no keep-the-previous-feed
+  branch: the core's only failure is a non-finite result, which it throws on and `allFinite`
+  refuses again, and that is a 500 with the stored row untouched.
+- **Nothing the core computes about anybody is kept between calls** (DESIGN §4): no stored
+  chains or reliabilities. What is kept is the core's *input*, the cached neighbourhood — other
+  people's thumbs and friend lists, which `ratings` and `friendships` already hold. Do not add a
+  cache of anything the core computes about another person: DESIGN §3.4a measured that almost
+  nothing in the model updates exactly from a delta.
 - **The CPU ceiling is the thing to respect**: a free invocation is metered on the order of two
-  seconds. If it binds, what gives first is `N_max`, then the boundary itself (a core change).
-- **The walk is cached, and it is the smallest of the three costs.** `user_model.reach` holds the
-  last full walk's masses beside `reach_hash`, a hash of the loaded adjacency; equal means only a
-  rescore. A full walk is forced anyway when `private.ratings_changed` moves for anyone whose
-  alignment feeds an affinity the walk used, or when consecutive reuses reach
-  `REACH_REUSE_MAX = 20`. The walk (1.6–2.4 ms at 2 000 × 12–15 friends) costs less than crossing
-  the snapshot into wasm, and far less than the neighbourhood read, so the cache is kept because it
-  is nearly free, not because it made the recompute cheap. Applying only ratings changed since
-  `checked_at` as deltas would save the read and is deliberately NOT built: it needs a correctness
-  argument against drift that nobody can check without real traffic.
+  seconds, and a recompute may call the core four times. If it binds, what gives first is the
+  boundary rounds, then `N_max`, then the boundary itself (a core change).
 
 The pure half — folding, change detection, sanitizing, which boundary nodes a round takes — is
-`shared/src/entries.ts`, with its own test suite.
+`shared/src/entries.ts`; the cache's codec and patch are `shared/src/snapshot-cache.ts`, whose
+tests check a patched neighbourhood equals a fresh load over generated event sequences.
 
 ## Reports
 
@@ -529,13 +580,19 @@ then locked and loses their link. No user id goes in the repository.
 ## Priors and the schedule
 
 **`κ` and `a₀(d)` are running tallies**: each recompute reports partial sums into `user_model`'s
-`pair_*` columns and 0005 pools them into `private.params` under DESIGN §2.10's `N_min = 200`.
+`pair_*` columns and 0005 pools them into `private.params` under DESIGN §3.7's `N_min = 200`.
 `rust/src/priors.rs::estimate_priors` is the batch version the simulator uses, and
-`rust/tests/priors.rs` checks the tallies agree with it.
+`rust/tests/priors.rs` checks the tallies agree with it. A pair's tally is `(1 + λ̂)/2`, the
+channel inverted at its things' chance of a match, not the share of matching thumbs, and its
+"overlap" is a weight that makes 0005's frozen sampling term right for that rate (DESIGN §2.9);
+0005's own comment still says `A/(A+D)`. The core reads `kappa` and `a0_d1`;
+`a0_d2` and `a0_d3plus` are still pooled and read by nothing, because a chain replaces a prior by
+distance. Dropping them is a migration that also rewrites 0005's `params-priors` job.
 
-**Four statements run on a schedule, all inside the database (0005, and 0012's fingerprint
-sweep), and nothing else anywhere does**: the priors pooling, the diagnostics TTL sweep, the
-write-budget sweep and the deleted-identity sweep. The two 0005 sweeps are
+**Six statements run on a schedule, all inside the database (0005, 0012's fingerprint sweep and
+0016's two), and nothing else anywhere does**: the priors pooling, the diagnostics TTL sweep, the
+write-budget sweep, the deleted-identity sweep, and the sweeps of neighbourhood caches unused for
+seven days and of tombstones older than eight. The two 0005 sweeps are
 not optional: they are what stops a free project pausing after seven days without database
 activity. There is deliberately no scheduled GitHub workflow — GitHub disables one after 60 days of
 repository inactivity and nothing goes red.
@@ -558,8 +615,10 @@ person in your vine, your list is their ratings** (word for word — it is the `
 that friction, not secrecy, stands between a list and knowing who; that a thing's name is public
 text that can never change; that Google is the sign-in provider (so no password is stored, but the email address
 Google sends is, in `auth.users`) and the site loads no trackers. It states what is done rather
-than promising it: no counts and no attribution on any screen. It must **not** say a thumb is
-stored without a clock or that rating order cannot be reconstructed: `ratings.rated_at` exists.
+than promising it: no counts and no attribution on any screen, and that the server keeps a copy
+of your ratings to refresh other people's lists, deleted after a week unused
+(`private.snapshot_cache`). It must **not** say a thumb is stored without a clock or that rating
+order cannot be reconstructed: `ratings.rated_at` exists.
 
 ## Icons
 
@@ -610,10 +669,8 @@ by hand in the Google Cloud console. Nothing below is needed to run against the 
    pushed to production, so it names the one port somebody signs in on (`bun run dev`);
    `dev:local` needs none, because local sessions are minted.
 5. **`pg_cron` must be enabled** for `0005` to apply.
-6. **Realtime** carries `user_recs` and `friendships` (and carried `connect_requests` until 0011
-   dropped it), added to the publication
-   by `0006`, which also restricts it to `insert, update` (a DELETE event cannot be bounded by RLS;
-   0006 says why). RLS applies to Realtime, so nobody receives another viewer's row.
+6. **Realtime** carries `user_recs` and `friendships`, added to the publication by `0006`, which
+   also restricts it to `insert, update` (a DELETE event cannot be bounded by RLS; 0006 says why). RLS applies to Realtime, so nobody receives another viewer's row.
 7. **Repository secrets and one variable** — the whole of what the deploy is given:
    - `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` (secrets) — `link`, `db push`, `config push`,
      `functions deploy`.
@@ -649,7 +706,9 @@ free tier has no point-in-time recovery and `db push` has no undo. The procedure
 - **Encrypted before it lands**, `openssl enc -aes-256-cbc -pbkdf2` under a second Keychain
   passphrase: the `auth` half holds everybody's email address.
 - **Kept 30 days**, then deleted by the same script. The change that sets backups up must add to
-  `/privacy/`'s "leaving" section that a deleted account's rows survive in them for up to 30 days.
+  `/privacy/`'s "leaving" section that a deleted account's rows survive in them for up to 30 days —
+  and that includes their thumbs inside other viewers' neighbourhood caches
+  (`private.snapshot_cache`), which a backup holds as they were that night.
 - **Restore-tested**, monthly and after any migration: build a cluster the way `run-local.sh` does,
   load the `public` and `private` data with `set session_replication_role = replica` (the stand-in
   `auth.users` has too few columns for the real rows), and compare row counts per table against
@@ -695,12 +754,15 @@ one that drops or rewrites a column is reviewed as the irreversible thing it is,
 reset` belongs nowhere near the project.
 
 `ci.yml`'s `database` job fails a push or pull request that modifies, deletes or renames an
-existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0014` are not, and
-the next deploy applies all seven. Two of them destroy data on the project, irreversibly:
+existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0016` are not, and
+the next deploy applies all nine. Three of them destroy data on the project, irreversibly:
 `0009_invite_links.sql` drops `username` and `searchable` (every claimed handle; none had been
-claimed when it was written), and `0011_remove_taste_search.sql` drops taste search's tables.
-`0010_invite_only.sql` locks every account with no connection and deletes its link, so the owner's
-own account needs a connection or the admin row ("Admins") before it can make a link again.
+claimed when it was written), `0011_remove_taste_search.sql` drops taste search's tables, and
+`0015_witness.sql` drops `user_recs.error` and `user_model`'s `settle_movement`, `passes`,
+`settled`, `truncation`, `boundary_residual`, `reach`, `reach_hash` and `reach_reuses`, which the
+witness model does not produce. `0016_snapshot_cache.sql` adds the neighbourhood cache and its two
+sweeps. `0010_invite_only.sql` locks every account with no connection and deletes its link, so the
+owner's own account needs a connection or the admin row ("Admins") before it can make a link again.
 
 ### The domain (do once, by hand)
 
@@ -776,7 +838,7 @@ supabase start && supabase db lint && supabase test db   # (docker); else run-lo
 **The checks nobody runs.** Of the six check scripts in `web/scripts/`, only `check:pwa` needs
 no stack, so it is the only one run here, and CI runs none. So `check:recs-parity`,
 `check:recs-function` and `check:feed` run on no machine that exists. A
-`checks` job in `ci.yml` is writable (the `database` job already runs Docker), but nobody here can
+job in `ci.yml` that runs them is writable (the `database` job already runs Docker), but nobody here can
 run it once before committing it; closing the gap is that job, watched through its first green run
 by whoever has Docker.
 
@@ -790,8 +852,8 @@ By hand, against the deployed site:
 - **From a Google session, `supabase.auth.updateUser({ email: "someone-else@example.com" })` must
   not change `auth.users.email`** (`double_confirm_changes` and `enable_confirmations`, delivered
   only by `config push`).
-- **Both** functions answer 401 to a POST with no `Authorization` header and to one carrying only
-  the anon key: `verify_jwt = false`, so nothing in front refuses it for them.
+- `refresh-recs` answers 401 to a POST with no `Authorization` header and to one carrying only
+  the anon key: `verify_jwt = false`, so nothing in front of the function refuses it.
 - The repo is public and Pages is on with GitHub Actions as its source.
 - The Google consent screen's privacy-policy URL resolves to `/privacy/`.
 - `http://grapevine.hafa.cc/` redirects to `https://`, and Pages shows the custom domain with

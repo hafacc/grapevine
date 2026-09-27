@@ -66,16 +66,7 @@ export type Ratings = Readonly<
   Record<string, Readonly<Record<string, RatingValue>>>
 >;
 
-// One item in the viewer's own recommendations, as the recompute writes it
-// (DESIGN §3.2). Every number here is personal to the viewer: there is no
-// global score, and nothing says who any of it came from.
-export type RecsEntry = {
-  readonly itemId: string;
-  readonly score: number;
-  // Support behind the score. Below `W_min` an entry does not surface at all,
-  // so what is stored is already above the floor.
-  readonly conf: number;
-  // The viewer's personalized "does it have this tag?" score per tag, which is
-  // also where the item page's chips come from.
-  readonly tags: Readonly<Record<string, number>>;
-};
+// One item in the viewer's own recommendations. Every number in it is personal
+// to the viewer: there is no global score, and nothing says who any of it came
+// from.
+export type { RecsEntry } from "grapevine-shared/entries";

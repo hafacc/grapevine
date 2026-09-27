@@ -23,7 +23,12 @@ import {
   finish,
   seedWorld,
 } from "./harness.mjs";
-import { serviceRoleSql, uuidOf } from "./local-session.mjs";
+import {
+  LOCAL_ANON_KEY,
+  LOCAL_SUPABASE_URL,
+  serviceRoleSql,
+  uuidOf,
+} from "./local-session.mjs";
 
 /** Five of the seeded people, by the world's own names. */
 const VIEWERS = ["u0", "u1", "u2", "u3", "u4"];
@@ -82,11 +87,8 @@ for (const worldUid of VIEWERS) {
   expect(
     `${worldUid}'s model carries the columns DESIGN §3.2 names`,
     feed.model !== null &&
-      typeof feed.model.reach === "object" &&
-      typeof feed.model.settle_movement === "number" &&
       typeof feed.model.nodes_touched === "number" &&
       typeof feed.model.rating_count === "number" &&
-      typeof feed.model.truncation === "number" &&
       typeof feed.model.recomputed === "boolean",
     JSON.stringify(feed.model && Object.keys(feed.model)),
   );
@@ -119,7 +121,7 @@ for (const worldUid of VIEWERS) {
     `${first.get(worldUid).computedAt} -> ${feed.computedAt}`,
   );
   // Inside the window nothing is recomputed at all, so there is nothing to
-  // record: `checked_at` buys the NEXT window, and this call did not walk.
+  // record: `checked_at` buys the NEXT window, and this call did not recompute.
   expect(
     `${worldUid}'s checked_at did not move either`,
     feed.checkedAt === first.get(worldUid).checkedAt,
@@ -211,11 +213,11 @@ for (const worldUid of VIEWERS) {
 }
 
 // DESIGN §3.4: staleness keys on `checked_at`, so a viewer whose window has run
-// out walks again — and a walk that finds nothing new records the check without
-// moving `computed_at`, which is what stops an idle viewer paying a full walk on
-// every open past the ten-minute mark. Backdating the stamp is the only way to
-// get there without waiting ten minutes; the rater is the viewer to do it to,
-// because their last recompute already carries their own new thumb, so this walk
+// out is recomputed — and a recompute that finds nothing new records the check
+// without moving `computed_at`, which is what stops an idle viewer's feed row
+// being rewritten on every open past the ten-minute mark. Backdating the stamp
+// is the only way to get there without waiting ten minutes; the rater is the viewer to do it to,
+// because their last recompute already carries their own new thumb, so this one
 // has nothing left to find.
 console.log("\nwhen the staleness window has run out and nothing has changed");
 const stale = await feedOf(RATER);
@@ -225,7 +227,7 @@ await sql`
    where user_id = ${raterUid}::uuid`;
 const rechecked = await refreshAs(RATER);
 const afterRecheck = await feedOf(RATER);
-expect("the walk finds nothing new", rechecked.recomputed === false);
+expect("the recompute finds nothing new", rechecked.recomputed === false);
 expect(
   "computed_at stays where it was",
   afterRecheck.computedAt === stale.computedAt,

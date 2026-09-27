@@ -1,6 +1,7 @@
-// One viewer's recompute (DESIGN §3.4): load the neighbourhood, call the core,
-// write the feed, return it. It exists because a viewer's walk reads other
-// people's ratings, which no client may hold (DESIGN §4).
+// One viewer's recompute (DESIGN §3.4, §3.4a): patch the cached neighbourhood
+// with what changed since (or load it in full), call the core, write the feed
+// and the cache, return the feed. It exists because a viewer's feed is computed from
+// other people's ratings, which no client may hold (DESIGN §4).
 //
 // Two identities are in play here and they must not be confused. The **caller**
 // is whoever holds the bearer token, and the only thing that decides who that is
@@ -21,15 +22,25 @@ import {
   NO_PRIORS,
   pairTallies,
   type Priors,
-  type RecsEntry,
   type RefreshResult,
-  sanitizeFriendIds,
-  sanitizeRatings,
   type ScoreData,
   type StoredPriors,
   storedPriors,
 } from "../../../shared/src/entries.ts";
-import init, { computeUser, rescoreUser } from "./core-wasm/grapevine_core.js";
+import {
+  applyDelta,
+  CACHE_VERSION,
+  type CachedNeighbourhood,
+  canonicalNeighbourhood,
+  type DeltaRow,
+  neighbourhoodDifference,
+  neighbourhoodFromRows,
+  type NodeRow,
+  packNeighbourhood,
+  RELOAD_EVERY,
+  unpackNeighbourhood,
+} from "../../../shared/src/snapshot-cache.ts";
+import init, { computeUser } from "./core-wasm/grapevine_core.js";
 
 /**
  * `T_stale` (DESIGN §3.4): how long a feed stays current after it was last
@@ -49,46 +60,13 @@ const MAX_LOADED_NODES = 2_000;
 const MAX_DEPTH = 6;
 
 /**
- * `ε_total`: the truncation a feed may carry and still be written, and the
- * boundary residual below which another boundary round would not move a score.
- */
-const ERROR_BUDGET = 0.02;
-
-/**
- * DESIGN §3.4 — after this many rounds, whatever mass is still waiting at the
- * boundary is left there. It is reported (`user_model.boundary_residual`) and
- * not counted against `ε_total`: the accuracy a feed promises is relative to
- * the `N_max` people nearest the viewer, and influence from beyond them is
- * ignored rather than refused.
+ * DESIGN §3.4 — after this many rounds, whoever is still at the boundary is left
+ * there: what a feed says is relative to the `N_max` people nearest the viewer.
  */
 const MAX_BOUNDARY_ROUNDS = 3;
 
-/** How many boundary nodes one extra round pulls in, largest residual first. */
+/** How many boundary nodes one extra round pulls in, strongest chain first. */
 const BOUNDARY_NODES_PER_ROUND = 200;
-
-/**
- * DESIGN §3.4: how many consecutive rescores over the cached masses are allowed
- * before a full walk happens anyway. A belt and not a bound — the adjacency
- * hash is what decides staleness — so that a long-lived cache cannot drift
- * unexamined.
- */
-const REACH_REUSE_MAX = 20;
-
-/**
- * `L` from DESIGN §2.8's table, and the one number of that table this function
- * keeps a copy of.
- *
- * The core reports `truncation` in friend-units and the bar's step is in score
- * units, so the conversion is `·L`; `UserResult::error` does the same
- * multiplication inside the crate, but the wasm boundary hands back the two
- * halves rather than their maximum.
- *
- * No parameter table is passed to the core, so the rest of §2.8 lives in one
- * place. `E_max` is not a knob here either: the work is derived from the
- * neighbourhood (`Budget::for_snapshot`), and `E_max` is only the CPU backstop
- * the core applies on top of that.
- */
-const ALIGNMENT_CLAMP = 2;
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -165,44 +143,21 @@ type Snapshot = {
 };
 
 /**
- * What the walk behind a set of masses reported. A rescore reuses the masses,
- * so it hands these back unchanged rather than inventing a better walk than the
- * one that was paid for.
+ * `computeUser`'s result (`ResultData` in rust/src/data.rs), declared here
+ * because the wasm-pack typings say `any`.
  */
-type WalkReport = {
-  readonly truncation: number;
-  readonly boundaryResidual: number;
-  readonly settleMovement: number;
-  readonly passes: number;
-  readonly settled: boolean;
-};
-
 type CoreResult = {
-  readonly reach: number;
-  /** `π̃` per reached person: what `user_model.reach` stores and a rescore reads. */
-  readonly reachMasses: Readonly<Record<string, number>>;
-  readonly truncation: number;
-  readonly settleMovement: number;
-  readonly passes: number;
-  readonly settled: boolean;
-  readonly boundaryResidual: number;
+  /** People with a non-zero chain: what `user_model.nodes_touched` stores. */
+  readonly reached: number;
+  /** Strongest first; what the loader reads for another round. */
   readonly boundaryNodes: readonly BoundaryNodeData[];
-  /** DESIGN §2.10's tallies, by distance class. `pairTallies` flattens them. */
+  /** DESIGN §2.9's tallies, by distance class. `pairTallies` flattens them. */
   readonly pairs: unknown;
   readonly scores: Readonly<Record<string, ScoreData>>;
 };
 
-/** `max(truncation·L, settleMovement)`: the step the bar's fill may move in. */
-function feedError(result: CoreResult): number {
-  return Math.max(result.truncation * ALIGNMENT_CLAMP, result.settleMovement);
-}
-
 function millis(value: unknown): number {
   return value instanceof Date ? value.getTime() : 0;
-}
-
-function number(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function json(status: number, body: unknown): Response {
@@ -244,17 +199,16 @@ async function callerUid(request: Request): Promise<string | null> {
  * the maximum of what is left.
  *
  * `now` is taken here, before the neighbourhood is read, and is what the
- * recompute stamps its rows with. Not the function's own clock after the walk:
- * a thumb given while the walk ran, and missing from it, would be dated older
+ * recompute stamps its rows with. Not the function's own clock afterwards:
+ * a thumb given while the recompute ran, and missing from it, would be dated older
  * than the feed, so the feed would read as current and the thumb would wait for
  * the next window.
  */
 async function readStamps(uid: string) {
   const [row] = await asServiceRole(
     (tx) => tx`
-      select now() as now, m.computed_at, m.checked_at, m.truncation, m.settle_movement,
-             m.boundary_residual, m.passes, m.settled, m.reach_hash, m.reach_reuses,
-             c.changed_at, f.feed_hash, f.error,
+      select now() as now, m.computed_at, m.checked_at, c.changed_at, f.feed_hash,
+             (select e.epoch::text from private.snapshot_epoch e) as epoch,
              private.is_unlocked(v.id) as unlocked
       from (select ${uid}::uuid as id) v
       left join public.user_model m on m.user_id = v.id
@@ -268,45 +222,17 @@ async function readStamps(uid: string) {
     now: row.now,
     computedAt: millis(row.computed_at),
     checkedAt: millis(row.checked_at),
-    // The stamp itself, not its milliseconds: the "has anyone in reach rated
-    // since?" query compares against it in the database's own clock.
-    checkedAtStamp: row.checked_at instanceof Date ? row.checked_at : null,
     ratingsChangedAt: millis(row.changed_at),
     feedHash: typeof row.feed_hash === "string" ? row.feed_hash : null,
-    error: number(row.error),
-    truncation: number(row.truncation),
-    settleMovement: number(row.settle_movement),
-    walk: storedWalk(row),
-    reachHash: typeof row.reach_hash === "string" ? row.reach_hash : null,
-    reachReuses: number(row.reach_reuses) ?? 0,
+    // Read before any of the data, so a purge after this point is one the save
+    // sees (0016).
+    cacheEpoch: typeof row.epoch === "string" ? row.epoch : null,
     unlocked: row.unlocked === true,
   };
 }
 
-type Stamps = Awaited<ReturnType<typeof readStamps>>;
-
 /**
- * The walk report behind the cached masses, or null when any part of it is
- * missing — a rescore carries every field through, so without all of them there
- * is nothing to reuse.
- */
-function storedWalk(row: Record<string, unknown>): WalkReport | null {
-  const truncation = number(row.truncation);
-  const boundaryResidual = number(row.boundary_residual);
-  const settleMovement = number(row.settle_movement);
-  const passes = number(row.passes);
-  if (
-    truncation === null || boundaryResidual === null || settleMovement === null ||
-    passes === null || typeof row.settled !== "boolean"
-  ) {
-    return null;
-  } else {
-    return { truncation, boundaryResidual, settleMovement, passes, settled: row.settled };
-  }
-}
-
-/**
- * The population's estimate of `κ` and `a₀(d)`, or DESIGN §2.8's table.
+ * The population's estimate of `κ` and `a₀`, or DESIGN §2.9's table.
  *
  * `storedPriors` is what decides which: every column is read on its own, and a
  * row half-written by the pooling statement, or one written before a column
@@ -349,17 +275,17 @@ type Neighbourhood = {
   readonly seen: Set<string>;
 };
 
-type NodeRow = { id: string; friend_ids: unknown; ratings: unknown };
-
 function absorb(neighbourhood: Neighbourhood, rows: readonly NodeRow[]): void {
-  for (const row of rows) {
-    neighbourhood.loaded.add(row.id);
-    neighbourhood.seen.add(row.id);
-    const friends = sanitizeFriendIds(row.friend_ids);
-    neighbourhood.friendIds[row.id] = friends;
-    for (const friend of friends) neighbourhood.seen.add(friend);
-    const kept = sanitizeRatings(row.ratings);
-    if (kept) neighbourhood.ratings[row.id] = kept;
+  addNodes(neighbourhood, neighbourhoodFromRows(rows));
+}
+
+function addNodes(neighbourhood: Neighbourhood, nodes: CachedNeighbourhood): void {
+  for (const [id, node] of nodes) {
+    neighbourhood.loaded.add(id);
+    neighbourhood.seen.add(id);
+    neighbourhood.friendIds[id] = [...node.friendIds];
+    for (const friend of node.friendIds) neighbourhood.seen.add(friend);
+    if (Object.keys(node.ratings).length > 0) neighbourhood.ratings[id] = { ...node.ratings };
   }
 }
 
@@ -372,98 +298,83 @@ function toSnapshot(neighbourhood: Neighbourhood): Snapshot {
   };
 }
 
-/** The neighbourhood `private.neighbourhood` returns, before any extra round. */
-async function loadNeighbourhood(viewer: string): Promise<Neighbourhood> {
-  const neighbourhood: Neighbourhood = {
-    friendIds: {},
-    loaded: new Set(),
-    ratings: {},
-    seen: new Set([viewer]),
-  };
-  absorb(
-    neighbourhood,
+/** What `private.neighbourhood` returns now, before any extra round. */
+async function loadInFull(viewer: string): Promise<CachedNeighbourhood> {
+  return neighbourhoodFromRows(
     (await asServiceRole(
       (tx) => tx`
         select id, friend_ids, ratings
         from private.neighbourhood(${viewer}::uuid, ${MAX_LOADED_NODES}, ${MAX_DEPTH})`,
     )) as unknown as NodeRow[],
   );
-  return neighbourhood;
 }
+
+/** Where the neighbourhood came from, and how many refreshes until the next check. */
+type Base = {
+  readonly nodes: CachedNeighbourhood;
+  readonly source: "patched" | "full" | "checked";
+  readonly reloadsIn: number;
+};
+
+type CacheRow = DeltaRow & { blob: string | null; reloads_in: number | null };
 
 /**
- * The graph the walk would run on, as one string (DESIGN §3.4): every loaded
- * node with its friend list, both in order.
- *
- * This is the whole of the cache's staleness test, and it needs no trigger, no
- * change feed and no new table because the recompute reads the neighbourhood on
- * every call anyway. A walk that took a boundary round hashes the larger set it
- * ended on, so the next call's hash of the plain neighbourhood does not match
- * and it walks in full — which is what keeps a reuse a reuse of exactly the
- * graph the masses came from.
+ * DESIGN §3.4a: the cached neighbourhood patched with what changed since it was
+ * written, or a full load when there is no usable cache — none, another
+ * version, a week old, unreadable, or one the delta does not fit — and on every
+ * `RELOAD_EVERY`th refresh, when the patch is compared with a full load, a
+ * difference is logged, and the full load is what is used.
  */
-async function adjacencyHash(neighbourhood: Neighbourhood): Promise<string> {
-  const lines = [...neighbourhood.loaded]
-    .sort()
-    .map((id) => `${id}:${(neighbourhood.friendIds[id] ?? []).join(",")}`);
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(lines.join("\n")),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-/**
- * Whether anyone whose alignment steers this viewer's walk has rated since the
- * last check.
- *
- * Ratings do not change the graph, so the adjacency hash cannot see them — but
- * they change the steering, which is why this is asked separately and about
- * everyone loaded rather than about the viewer alone.
- */
-async function ratingsMovedInReach(
-  loaded: ReadonlySet<string>,
-  since: Date,
-): Promise<boolean> {
-  const rows = await asServiceRole(
-    (tx) => tx`
-      select 1 from private.ratings_changed c
-      where c.user_id = any(${[...loaded]}::uuid[]) and c.changed_at > ${since}
-      limit 1`,
-  );
-  return rows.length > 0;
-}
-
-/** The masses the last full walk left, or null when there is no usable map. */
-async function readReach(uid: string): Promise<Record<string, number> | null> {
-  const [row] = await asServiceRole(
-    (tx) => tx`select reach from public.user_model where user_id = ${uid}::uuid`,
-  );
-  const stored = row?.reach;
-  if (typeof stored !== "object" || stored === null) return null;
-  const masses: Record<string, number> = {};
-  for (const [id, mass] of Object.entries(stored)) {
-    if (typeof mass === "number" && Number.isFinite(mass)) masses[id] = mass;
+async function loadBase(viewer: string): Promise<Base> {
+  let rows: CacheRow[] = [];
+  try {
+    rows = (await asServiceRole(
+      (tx) => tx`
+        select state, id, friend_ids, ratings, cleared, reloads_in, blob
+        from private.snapshot_delta(${viewer}::uuid, ${CACHE_VERSION}, ${MAX_LOADED_NODES},
+                                    ${MAX_DEPTH})`,
+    )) as unknown as CacheRow[];
+  } catch (error) {
+    // The cache only saves reading; failing to read it is a full load, not a 500.
+    console.error(JSON.stringify({ fn: "refresh-recs", at: "snapshotDelta", error: String(error) }));
   }
-  return Object.keys(masses).length > 0 ? masses : null;
+  const header = rows.find((row) => row.state === "cache");
+  const stored = header?.blob ? await unpackNeighbourhood(header.blob) : null;
+  const patched = stored ? applyDelta(stored, viewer, rows) : null;
+  if (!patched) {
+    if (header) {
+      console.error(JSON.stringify({ fn: "refresh-recs", at: "loadBase", unusableCache: true }));
+    }
+    return { nodes: await loadInFull(viewer), source: "full", reloadsIn: RELOAD_EVERY - 1 };
+  }
+  const reloadsIn = header?.reloads_in ?? 0;
+  if (reloadsIn > 0) {
+    return { nodes: patched, source: "patched", reloadsIn: reloadsIn - 1 };
+  }
+  const fresh = await loadInFull(viewer);
+  if (canonicalNeighbourhood(patched) !== canonicalNeighbourhood(fresh)) {
+    // A missed stamp or a patch bug, never drift: there is no arithmetic to
+    // drift. Counts only, so the event names nobody in the neighbourhood.
+    const detail = JSON.stringify(neighbourhoodDifference(patched, fresh));
+    console.error(JSON.stringify({ fn: "refresh-recs", at: "cacheCheck", detail }));
+    await asServiceRole(
+      (tx) => tx`
+        insert into private.debug_events (user_id, kind, detail)
+        values (${viewer}::uuid, 'snapshot-cache-mismatch', ${detail})`,
+    );
+  }
+  return { nodes: fresh, source: "checked", reloadsIn: RELOAD_EVERY - 1 };
 }
 
 /**
- * The core, plus DESIGN §3.4's extra rounds: while the mass waiting at the
- * boundary could still move a score, read the nodes holding most of it and
- * compute again.
- *
- * `truncation` and `boundaryResidual` are separate answers — the first is what
- * the walk left in flight inside the loaded set, the second what is waiting on
- * nodes nobody read — so this can tell "one more read is worth it" from "the
- * walk is done". Only the first decides whether a feed is written; whatever is
- * still at the boundary after the last round is reported and ignored.
+ * The core, plus DESIGN §3.4's extra rounds: while the node budget has room and
+ * some chain reaches past the loaded set, read the people it reaches most
+ * strongly and compute again.
  *
  * Every round is another crossing of the wasm boundary over the whole snapshot,
- * and that crossing costs more than the walk does. `N_max` counts the nodes a
- * round adds, so a first pass that stopped at the cap has nothing to spend here.
+ * and that crossing costs more than the computation does. `N_max` counts the
+ * nodes a round adds, so a first pass that stopped at the cap has nothing to
+ * spend here.
  */
 async function computeWithBoundaryRounds(
   neighbourhood: Neighbourhood,
@@ -472,7 +383,6 @@ async function computeWithBoundaryRounds(
 ): Promise<CoreResult> {
   let result = computeUser(toSnapshot(neighbourhood), viewer, null, priors) as CoreResult;
   for (let round = 0; round < MAX_BOUNDARY_ROUNDS; round += 1) {
-    if (result.boundaryResidual <= ERROR_BUDGET) break;
     const next = nextBoundaryNodes(
       result.boundaryNodes,
       neighbourhood.loaded,
@@ -485,7 +395,7 @@ async function computeWithBoundaryRounds(
       (await asServiceRole(
         (tx) => tx`
           select id, friend_ids, ratings
-          from private.load_nodes(${next}::uuid[])`,
+          from private.load_nodes(${viewer}::uuid, ${next}::uuid[])`,
       )) as unknown as NodeRow[],
     );
     result = computeUser(toSnapshot(neighbourhood), viewer, null, priors) as CoreResult;
@@ -494,46 +404,12 @@ async function computeWithBoundaryRounds(
 }
 
 /**
- * The cached masses rescored, when this call may have them, or null.
- *
- * Three conditions, and the first is the whole of the design: the adjacency
- * just loaded hashes to what the stored masses were walked on. The other two
- * are the ones a hash cannot see — someone in reach rating, which moves the
- * steering without moving the graph, and a run of reuses long enough that a
- * full walk is worth paying for anyway.
- */
-async function reuseReach(
-  neighbourhood: Neighbourhood,
-  viewer: string,
-  hash: string,
-  stamps: Stamps,
-  priors: Priors | null,
-): Promise<CoreResult | null> {
-  if (stamps.reachHash !== hash) return null;
-  if (stamps.reachReuses >= REACH_REUSE_MAX) return null;
-  if (stamps.walk === null) return null;
-  if (stamps.checkedAtStamp === null) return null;
-  if (await ratingsMovedInReach(neighbourhood.loaded, stamps.checkedAtStamp)) return null;
-  const reach = await readReach(viewer);
-  if (reach === null) return null;
-  return rescoreUser(
-    toSnapshot(neighbourhood),
-    viewer,
-    reach,
-    stamps.walk,
-    null,
-    priors,
-  ) as CoreResult;
-}
-
-/**
  * One upsert of the recompute's own scratch row, naming whatever the caller
  * actually has to say.
  *
- * Every branch below writes a different part of `user_model`, and writing the
- * whole row from each of them would mean a branch with nothing to say about the
- * cached masses erasing them. So the row is an object and the statement names
- * its keys.
+ * The same-answer branch writes only part of `user_model`, and writing the whole
+ * row from it would null the columns it has nothing to say about (`computed_at`,
+ * `nodes_touched`). So the row is an object and the statement names its keys.
  */
 function upsertModel(
   tx: postgres.TransactionSql,
@@ -543,40 +419,6 @@ function upsertModel(
   return tx`
     insert into public.user_model ${tx(row)}
     on conflict (user_id) do update set ${tx(row, ...columns)}`;
-}
-
-/**
- * The feed as it stands, for the one case that writes none: a walk that could
- * not meet `ε_total`.
- *
- * The client goes on showing what it had, and a cold start gets the stored row
- * rather than nothing — storing this walk's answer instead would put a number
- * on the bar that is really a report that the computation failed. `checked_at`
- * still moves, so the staleness window applies and the next open does not pay
- * for the same failure immediately.
- *
- * The pair tallies are NOT written here. They are moments of the agreement
- * rates this walk computed, and a walk that did not resolve is exactly the case
- * where those rates are a report about the budget rather than about anybody.
- */
-async function keepPreviousFeed(uid: string, stamps: Stamps): Promise<RefreshResult> {
-  const [row] = await asServiceRole(async (tx) => {
-    await upsertModel(tx, {
-      user_id: uid,
-      checked_at: stamps.now,
-      recomputed: false,
-    });
-    return tx`select entries, error from public.user_recs where user_id = ${uid}::uuid`;
-  });
-  const entries = Array.isArray(row?.entries) ? (row.entries as RecsEntry[]) : null;
-  return {
-    computedAt: stamps.computedAt,
-    recomputed: false,
-    entries,
-    error: number(row?.error),
-    truncation: stamps.truncation,
-    settleMovement: stamps.settleMovement,
-  };
 }
 
 /**
@@ -593,104 +435,62 @@ async function refreshFeed(uid: string): Promise<RefreshResult | null> {
   // A locked account (0010) writes nothing, this function's rows included.
   if (!stamps.unlocked) return null;
   if (!needsRecompute(stamps, stamps.now.getTime(), STALE_AFTER_MS)) {
-    return {
-      computedAt: stamps.computedAt,
-      recomputed: false,
-      entries: null,
-      error: stamps.error,
-      truncation: stamps.truncation,
-      settleMovement: stamps.settleMovement,
-    };
+    return { computedAt: stamps.computedAt, recomputed: false, entries: null };
   }
 
   const priors = await readPriors();
-  const neighbourhood = await loadNeighbourhood(uid);
-  const hash = await adjacencyHash(neighbourhood);
-  const reused = await reuseReach(neighbourhood, uid, hash, stamps, priors.priors);
-  const result = reused ?? (await computeWithBoundaryRounds(neighbourhood, uid, priors.priors));
-
-  // The one case that writes nothing: the walk left more than `ε_total` in
-  // flight inside the people it loaded. Mass waiting beyond them
-  // (`boundaryResidual`) does not count here — the guarantee is relative to the
-  // nearest `N_max` — so it is stored for reporting and nothing else.
-  if (!Number.isFinite(result.truncation) || result.truncation > ERROR_BUDGET) {
-    console.warn(
-      JSON.stringify({
-        fn: "refresh-recs",
-        at: "unresolved",
-        truncation: result.truncation,
-        boundaryResidual: result.boundaryResidual,
-        loaded: neighbourhood.loaded.size,
-      }),
-    );
-    return keepPreviousFeed(uid, stamps);
-  }
+  const base = await loadBase(uid);
+  // The cache holds what `private.neighbourhood` returns and not the boundary
+  // rounds', which are read again every time: they depend on the core's answer.
+  const neighbourhood: Neighbourhood = {
+    friendIds: {},
+    loaded: new Set(),
+    ratings: {},
+    seen: new Set([uid]),
+  };
+  addNodes(neighbourhood, base.nodes);
+  const result = await computeWithBoundaryRounds(neighbourhood, uid, priors.priors);
+  const blob = await packNeighbourhood(base.nodes);
 
   const entries = foldScores(result.scores);
-  const error = feedError(result);
-  if (
-    !allFinite(entries, [
-      result.truncation,
-      result.boundaryResidual,
-      result.settleMovement,
-      error,
-    ])
-  ) {
+  if (!allFinite(entries)) {
     // Nothing here is recoverable by the caller and nothing partial may land:
     // the stored feed is a real answer about an earlier moment, and half of a
     // broken one is not.
     throw new Error("the recompute did not produce a feed");
   }
 
-  // Hashed AFTER the rounds, so the set hashed is the set that was walked: a
-  // later call hashes the plain neighbourhood, which differs whenever a round
-  // added a node, and walks in full rather than rescoring masses that came from
-  // a larger graph.
-  const walkedHash = reused ? hash : await adjacencyHash(neighbourhood);
-  // A rescore stored nothing new about the masses — it reused them — so it
-  // spends one of its allowance and leaves the map and the hash alone.
-  const cache = reused
-    ? { reach_reuses: stamps.reachReuses + 1 }
-    : {
-      // `sql.json`, not a string: a jsonb column handed a JS string stores the
-      // string itself, and the map comes back double-encoded.
-      reach: sql.json(result.reachMasses as Record<string, number>),
-      reach_hash: walkedHash,
-      reach_reuses: 0,
-    };
-  // The tallies are this walk's, not this feed's: a recompute that landed on
-  // the same answer still aligned every pair it walked, and DESIGN §2.10's
-  // estimate is over every pair anybody computed. So they ride on the stamp the
-  // check writes anyway.
+  // The tallies are this recompute's, not this feed's: one that landed on the
+  // same answer still compared every pair it loaded, and DESIGN §2.9's estimate
+  // is over every pair anybody computed. So they ride on the stamp the check
+  // writes anyway.
   const model = {
-    truncation: result.truncation,
-    boundary_residual: result.boundaryResidual,
-    settle_movement: result.settleMovement,
-    passes: result.passes,
-    settled: result.settled,
     priors_at: priors.computedAt,
-    ...cache,
     ...pairTallies(result.pairs),
+  };
+
+  // Exact as of `stamps.now`, which was read before any of it. Refused by the
+  // database when a purge ran after that read (0016), and then nothing is kept.
+  const saveCache = async (tx: postgres.TransactionSql) => {
+    if (!blob || stamps.cacheEpoch === null) return;
+    await tx`
+      select private.save_snapshot_cache(
+        ${uid}::uuid, ${stamps.cacheEpoch}::bigint, ${CACHE_VERSION}, ${stamps.now},
+        ${[...base.nodes.keys()]}::uuid[], ${base.reloadsIn}, ${blob}::text)`;
   };
 
   const hashOfFeed = feedSignature(entries);
   if (hashOfFeed === stamps.feedHash && stamps.computedAt > 0) {
-    await asServiceRole((tx) =>
-      upsertModel(tx, {
+    await asServiceRole(async (tx) => {
+      await upsertModel(tx, {
         user_id: uid,
         checked_at: stamps.now,
         recomputed: false,
         ...model,
-      })
-    );
-    return {
-      computedAt: stamps.computedAt,
-      recomputed: false,
-      entries: null,
-      error: stamps.error,
-      truncation: result.truncation,
-      settleMovement: result.settleMovement,
-    };
+      });
+      await saveCache(tx);
+    });
+    return { computedAt: stamps.computedAt, recomputed: false, entries: null };
   }
 
   const ratingCount = Object.keys(neighbourhood.ratings[uid] ?? {}).length;
@@ -699,47 +499,36 @@ async function refreshFeed(uid: string): Promise<RefreshResult | null> {
   // answer: a reader must never see a moved stamp beside the old feed.
   await asServiceRole(async (tx) => {
     await tx`
-      insert into public.user_recs (user_id, computed_at, entries, feed_hash, error)
-      values (${uid}::uuid, ${computedAt}, ${tx.json([...entries])}, ${hashOfFeed}, ${error})
+      insert into public.user_recs (user_id, computed_at, entries, feed_hash)
+      values (${uid}::uuid, ${computedAt}, ${tx.json([...entries])}, ${hashOfFeed})
       on conflict (user_id) do update set
         computed_at = excluded.computed_at,
         entries = excluded.entries,
-        feed_hash = excluded.feed_hash,
-        error = excluded.error`;
+        feed_hash = excluded.feed_hash`;
     await upsertModel(tx, {
       user_id: uid,
       computed_at: computedAt,
       checked_at: computedAt,
-      nodes_touched: result.reach,
+      nodes_touched: result.reached,
       rating_count: ratingCount,
       recomputed: true,
       ...model,
     });
+    await saveCache(tx);
   });
 
   console.log(
     JSON.stringify({
       fn: "refresh-recs",
+      source: base.source,
+      cacheBytes: blob?.length ?? 0,
       loaded: neighbourhood.loaded.size,
       seen: neighbourhood.seen.size,
+      reached: result.reached,
       entries: entries.length,
-      reused: reused !== null,
-      truncation: result.truncation,
-      boundaryResidual: result.boundaryResidual,
-      settleMovement: result.settleMovement,
-      passes: result.passes,
-      settled: result.settled,
-      error,
     }),
   );
-  return {
-    computedAt: computedAt.getTime(),
-    recomputed: true,
-    entries,
-    error,
-    truncation: result.truncation,
-    settleMovement: result.settleMovement,
-  };
+  return { computedAt: computedAt.getTime(), recomputed: true, entries };
 }
 
 Deno.serve(async (request: Request): Promise<Response> => {
@@ -755,8 +544,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
     return json(200, result);
   } catch (error) {
     // The viewer is told nothing but that it failed: what went wrong is a
-    // database error or a walk that did not resolve, and neither is theirs to
-    // act on or to read.
+    // database error or a non-finite result, and neither is theirs to act on or
+    // to read.
     console.error(JSON.stringify({ fn: "refresh-recs", uid, error: String(error) }));
     return json(500, { error: "the recompute did not produce a feed" });
   }

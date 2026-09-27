@@ -80,12 +80,10 @@ function chipsFor(row: FeedRow): readonly Attribute[] {
 
 function ItemRow({
   row,
-  quantum,
   onOpen,
   onRate,
 }: {
   row: FeedRow;
-  quantum: number | null;
   onOpen: () => void;
   onRate: (next: RatingValue | null) => void;
 }): ReactElement {
@@ -151,10 +149,7 @@ function ItemRow({
         // The matched attribute owns the bar when a typed word found one, so
         // the bar answers the same question the row does (DESIGN §1).
         subject={row.matchedTag ?? row.itemId}
-        score={row.barScore ?? 0}
-        // A row nothing in reach has scored draws the bar's nothing-known
-        // state, which is what a missing step renders.
-        quantum={row.barScore === null ? null : quantum}
+        score={row.barScore}
       />
     </button>
   );
@@ -224,7 +219,6 @@ export default function FeedView(): ReactElement {
   const {
     entries,
     computedAt,
-    error,
     ready,
     failed: feedFailed,
     refreshFailed,
@@ -332,10 +326,6 @@ export default function FeedView(): ReactElement {
       hiddenByEye(entries, ratings, { query: listQuery, hideRated, catalog }),
     [entries, ratings, listQuery, hideRated, catalog],
   );
-
-  // `user_recs.error` is on the score's own scale and the bar's is half as
-  // wide, so the halving is the whole of the arithmetic (DESIGN §1 "The bar").
-  const quantum = error === null ? null : error / 2;
 
   // Over everything the viewer could reach, not `rows`: the query has already
   // filtered the look-alike out of those, since it is a name the query does not
@@ -472,7 +462,6 @@ export default function FeedView(): ReactElement {
             <ItemRow
               key={row.itemId}
               row={row}
-              quantum={quantum}
               onOpen={() => navigate({ kind: "item", id: row.itemId })}
               onRate={(next) => void rate(row.itemId, next)}
             />

@@ -104,19 +104,32 @@ describe("feedRows, with nothing typed", () => {
     ]);
   });
 
-  it("draws the thing's own score on the bar", () => {
+  // One thumb of evidence against the prior's one: half the score.
+  it("draws the thing's cautious score on the bar", () => {
     const [top] = feedRows(entries, NOTHING_RATED, ALL);
-    expect(top.barScore).toBe(0.9);
+    expect(top.barScore).toBeCloseTo(0.45, 10);
     expect(top.matchedTag).toBe(null);
   });
 
-  // `conf: 0` is the recompute's mark for a thing carried only by an attribute
-  // of it (DESIGN §3.4): its screen shows the chips, the ranking leaves it out.
-  it("leaves out a thing with no support of its own", () => {
-    const carried = [...entries, entry("delta", 0, { cheap: 0.8 }, 0)];
+  // Every rated thing shows (DESIGN §2.6), a thing carried only by an
+  // attribute of it included: nothing known, ranked as the middle.
+  it("shows a thing with no support of its own, as nothing known", () => {
+    const carried = [...entries, entry("delta", 0.3, { cheap: 0.8 }, 0)];
+    const rows = feedRows(carried, NOTHING_RATED, ALL);
+    expect(rows.map((row) => row.itemId)).toEqual([
+      "bravo",
+      "alpha",
+      "delta",
+      "charlie",
+    ]);
+    expect(rows[2]?.barScore).toBe(null);
+  });
+
+  it("ranks by the score and how much stands behind it together", () => {
+    const weighed = [entry("sure", 0.6, {}, 9), entry("thin", 0.9, {}, 0.2)];
     expect(
-      feedRows(carried, NOTHING_RATED, ALL).map((row) => row.itemId),
-    ).not.toContain("delta");
+      feedRows(weighed, NOTHING_RATED, ALL).map((row) => row.itemId),
+    ).toEqual(["sure", "thin"]);
   });
 
   it("hides exactly the things the viewer has rated", () => {
@@ -296,9 +309,10 @@ describe("searchFeed, with several words", () => {
   const entries = [
     entry("the annex", 0.1, { "hip work": 0.8, coffee: 0.8 }, 1),
     entry("the mill", 0.1, { hip: 0.6, work: 0.6, coffee: 0.6 }, 1),
-    entry("hip work coffee", 0.5, {}, 1),
+    // Five thumbs behind 0.6: a cautious 0.5.
+    entry("hip work coffee", 0.6, {}, 5),
     entry("kiosk", 0.1, { coffee: 0.9 }, 1),
-    entry("hilltop pizza", 0.5, {}, 1),
+    entry("hilltop pizza", 0.6, {}, 5),
   ];
   const search = (query: string) =>
     searchFeed(entries, NOTHING_RATED, { ...ALL, query });
@@ -347,9 +361,10 @@ describe("searchFeed, with several words", () => {
 // contributing how good the thing is and the attribute how quiet.
 describe("searchFeed, with a name and an attribute", () => {
   const entries = [
-    entry("starbucks main st", 0.6, { quiet: 0.8 }, 1),
-    entry("starbucks 5th ave", 0.6, { quiet: -0.6 }, 1),
-    entry("starbucks pike", 0.2, { quiet: 0.8 }, 1),
+    // Five thumbs each, so cautious scores of 0.6, 0.6 and 0.2.
+    entry("starbucks main st", 0.72, { quiet: 0.8 }, 5),
+    entry("starbucks 5th ave", 0.72, { quiet: -0.6 }, 5),
+    entry("starbucks pike", 0.24, { quiet: 0.8 }, 5),
     entry("reading room", 0.3, { quiet: 0.9 }, 1),
   ];
   const ids = (query: string) =>
