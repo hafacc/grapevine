@@ -136,11 +136,14 @@ select throws_ok(
   'nor re-dated by hand');
 
 -- Clearing a thumb really removes the row rather than storing a third value.
+-- Ordered under "C": the database's own collation decides whether `日本` sorts
+-- before `café bleu`, and a local cluster and the platform disagree.
 select lives_ok(
   $$delete from public.ratings where item_id = 'café bleu' and tag = 'late night'$$,
   'and cleared');
 select is(
-  (select string_agg(item_id || '/' || tag || '=' || value, ',' order by item_id, tag)
+  (select string_agg(item_id || '/' || tag || '=' || value, ','
+                     order by item_id collate "C", tag collate "C")
      from public.ratings),
   'café bleu/=-1,日本/=1', 'leaving exactly what was left');
 set local role postgres;
