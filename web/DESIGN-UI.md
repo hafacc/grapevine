@@ -42,8 +42,14 @@ not as a lit berry. If a retrace produces three visible rim sides, the inner hex
   4 px across its flats with 1 px between, so the upright sides land on pixel edges.
 - Centre the bunch by its weight, not its box: a 3–2–1 triangle centred by its box hangs high.
   In a maskable icon's safe circle, centre the smallest circle around it.
-- The install icon is just the grapes in `accent`, on no background. Only the maskable and
-  Apple icons, which the platform crops or composites on black, sit on an `accent` square.
+- The install icon is just the grapes in `accent`, on no background. The maskable and Apple
+  icons, which the platform crops or composites on black, put them on a square of the light
+  theme's `bg` — the manifest's `background_color` — so Android's launch screen, which draws the
+  maskable icon in a circle on that colour, shows just the grapes.
+- The launch screen cannot follow the theme on Android: it is drawn from the manifest, which has
+  one `background_color`, and Chrome's dark-mode manifest field never shipped. Planned, not built:
+  iPhone launch images (`apple-touch-startup-image`) in a light and a dark variant per screen
+  size, which do follow the phone's own setting. The in-app theme choice reaches neither.
 
 ## Shape
 
