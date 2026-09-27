@@ -4,7 +4,7 @@
 -- locked.
 
 begin;
-select plan(29);
+select plan(31);
 
 insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'owner@example.com',    now()),
@@ -93,7 +93,14 @@ select is(
   (select count(*)::int from public.invite_owner((select token from made where label = 'owner'))),
   0, 'and revokes that one''s link');
 
+set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
+select lives_ok($$select public.delete_account()$$, 'a locked account can delete itself');
+
 set local role postgres;
+select is(
+  (select array_agg(id::text order by id) from auth.users),
+  array['11111111-1111-1111-1111-111111111111'],
+  'nothing else deletes a locked account');
 select is((select count(*)::int from cron.job where jobname = 'unjoined-accounts-sweep'), 0,
   'and nothing sweeps one');
 select ok(

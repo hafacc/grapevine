@@ -25,6 +25,7 @@ import { useIsDesktop } from "../utils/media";
 import { matchesPerson, type PersonRow } from "../utils/people";
 import { useGrapevine } from "../utils/store";
 import Avatar from "./avatar";
+import DeleteAccountLine from "./delete-account";
 import { useAction, useDialog } from "./dialog";
 import RenameSheet from "./rename-sheet";
 import ThemeButton from "./theme-button";
@@ -399,6 +400,10 @@ export default function PeopleView(): ReactElement {
               nobody here by that name. to add someone, send them a link.
             </p>
           ) : null}
+
+          {/* Last, under everything, so it is never where a thumb lands by
+              habit; hidden while filtering, which is about other people. */}
+          {query.length === 0 ? <DeleteAccountLine /> : null}
         </div>
       </div>
 
