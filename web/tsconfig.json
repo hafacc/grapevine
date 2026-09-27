@@ -30,7 +30,10 @@
       // `index.ts` would put it in the Edge Functions' bundles.
       "grapevine-shared/suggest-attributes": [
         "../shared/src/suggest-attributes.ts"
-      ]
+      ],
+      // The list's query language, for the same reason: only the client reads
+      // it.
+      "grapevine-shared/search": ["../shared/src/search.ts"]
     },
     "allowImportingTsExtensions": true,
     "isolatedModules": true,

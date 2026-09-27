@@ -1,10 +1,12 @@
 "use client";
 
 import { normalizeId } from "grapevine-shared";
+import { parseQuery, relationFrom } from "grapevine-shared/search";
 import Link from "next/link";
 import {
   type ReactElement,
   type PointerEvent as ReactPointerEvent,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -13,9 +15,9 @@ import {
 import {
   type Attribute,
   type FeedRow,
-  feedRows,
   hiddenByEye,
   lookAlike,
+  searchFeed,
 } from "../utils/discover";
 import { searchItems, validateItemId } from "../utils/items";
 import { clearRating, setRating, useMyRatings } from "../utils/ratings";
@@ -50,21 +52,25 @@ const TAP_SLOP = 8;
 
 const NO_ITEMS: readonly Item[] = [];
 
-function chipTone(attribute: Attribute, matchedTag: string | null): ChipTone {
-  if (attribute.tag === matchedTag) return "match";
+function chipTone(
+  attribute: Attribute,
+  matchedTags: readonly string[],
+): ChipTone {
+  if (matchedTags.includes(attribute.tag)) return "match";
   else if (attribute.own === 1) return "yes";
   else if (attribute.own === -1) return "no";
   else return "plain";
 }
 
-// The matched attribute first, because it is the row's answer to "why is this
-// here"; the rest keep `attributesOf`'s order.
+// The matched attributes first, because they are the row's answer to "why is
+// this here" and show how the words were read; the rest keep `attributesOf`'s
+// order.
 function chipsFor(row: FeedRow): readonly Attribute[] {
-  const matched = row.attributes.filter(
-    (attribute) => attribute.tag === row.matchedTag,
+  const matched = row.attributes.filter((attribute) =>
+    row.matchedTags.includes(attribute.tag),
   );
   const rest = row.attributes.filter(
-    (attribute) => attribute.tag !== row.matchedTag,
+    (attribute) => !row.matchedTags.includes(attribute.tag),
   );
   return [...matched, ...rest].slice(0, CHIPS_PER_ROW);
 }
@@ -132,7 +138,7 @@ function ItemRow({
               <Chip
                 key={attribute.tag}
                 label={attribute.tag}
-                tone={chipTone(attribute, row.matchedTag)}
+                tone={chipTone(attribute, row.matchedTags)}
               />
             ))}
           </span>
@@ -219,9 +225,19 @@ export default function FeedView(): ReactElement {
   const [problem, setProblem] = useState<string | null>(null);
   const scroller = useRef<HTMLElement>(null);
 
+  // Only words: `!`, `@` and `#` steer a search over what the viewer already
+  // holds, and nothing typed with one is a name that could be found or added.
+  const plain = parseQuery(query).plain;
+  // What a disabled add shows: the query as a name would be folded, operators
+  // and all, since it cannot be one.
+  const shownQuery = query
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\s+/gu, " ")
+    .trim();
   // The folded id, not the raw text: it is what the catalog ranges over, so
   // "Blue Bottle" and "blue bottle" are one query and a capital costs no read.
-  const asId = normalizeId(query) ?? "";
+  const asId = plain ? (normalizeId(query) ?? "") : "";
 
   useEffect(() => {
     if (asId.length === 0) {
@@ -261,13 +277,32 @@ export default function FeedView(): ReactElement {
     });
   }, []);
 
-  const rows = useMemo(
-    () => feedRows(entries, ratings, { query, hideRated, catalog }),
-    [entries, ratings, query, hideRated, catalog],
+  // From the viewer's own feed and nothing else, so it discloses nothing
+  // (DESIGN §4); recomputed only when the feed changes.
+  const relation = useMemo(
+    () =>
+      relationFrom(
+        entries.map((entry) => ({ weight: entry.conf, tags: entry.tags })),
+      ),
+    [entries],
+  );
+  // Deferred, so a keystroke lands in the field before a long feed has been
+  // searched again: several words cost several times one (DESIGN §1 "Search").
+  const listQuery = useDeferredValue(query);
+  const { rows, unmatched } = useMemo(
+    () =>
+      searchFeed(entries, ratings, {
+        query: listQuery,
+        hideRated,
+        catalog,
+        relation,
+      }),
+    [entries, ratings, listQuery, hideRated, catalog, relation],
   );
   const allHidden = useMemo(
-    () => hiddenByEye(entries, ratings, { query, hideRated, catalog }),
-    [entries, ratings, query, hideRated, catalog],
+    () =>
+      hiddenByEye(entries, ratings, { query: listQuery, hideRated, catalog }),
+    [entries, ratings, listQuery, hideRated, catalog],
   );
 
   // `user_recs.error` is on the score's own scale and the bar's is half as
@@ -279,15 +314,16 @@ export default function FeedView(): ReactElement {
   // match.
   const sameLooking = useMemo(
     () =>
-      query.length > 0
+      query.length > 0 && plain
         ? lookAlike(query, [
             ...entries.map((entry) => entry.itemId),
             ...catalog.map((item) => item.id),
           ])
         : null,
-    [query, entries, catalog],
+    [query, plain, entries, catalog],
   );
-  const idProblem = query.trim().length > 0 ? validateItemId(query) : null;
+  const idProblem =
+    plain && query.trim().length > 0 ? validateItemId(query) : null;
   // What adding would create, which is not what was typed: the id is the
   // folded text, and a label with the capitals left in names a thing that
   // will never exist.
@@ -442,9 +478,20 @@ export default function FeedView(): ReactElement {
               <span className="text-accent-ink">{sameLooking}</span>
             </button>
           ) : null}
+          {/* Said, because a word nothing here matches changes no row and
+            would otherwise look ignored. */}
+          {unmatched.length > 0 ? (
+            <FieldNote>
+              nothing matches {unmatched.map((word) => `“${word}”`).join(", ")}
+            </FieldNote>
+          ) : null}
           {idProblem ? <FieldNote>{idProblem}</FieldNote> : null}
           {typedId ? (
             <AddButton label={`add “${typedId}”`} onTap={addTyped} />
+          ) : !plain && query.trim().length > 0 ? (
+            // Disabled rather than gone: the add is always where it was, and
+            // an operator is not part of a name (DESIGN §1 "Search").
+            <AddButton label={`add “${shownQuery}”`} disabled />
           ) : null}
           <div className="flex items-center gap-2.5">
             <SearchField

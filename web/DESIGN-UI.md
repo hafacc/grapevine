@@ -189,7 +189,7 @@ network thinks, beside what the viewer said.
 
 **Chip** — 28 px tall, 4 px radius, 12 px horizontal, display 500 at 15. Five tones:
 *plain* (`surface-muted` fill, `border`, `muted` text) for an attribute; *match*
-(`surface` fill, `accent` border, `accent-ink` text) for the attribute a search matched;
+(`surface` fill, `accent` border, `accent-ink` text) for each attribute a search matched;
 *yes* / *no* (`*-soft` fill, `accent`/`danger` border, `*-ink` text) for one the viewer
 answered; *add* (`surface` fill, **dashed** `accent` border, `accent-ink` text) for a
 suggested attribute you can apply. A chip is never a button unless it does something — the
@@ -212,6 +212,8 @@ row until there is one; after that the findable line stands there instead.
 **Add button** — above the field, full width, 40 px, `surface`, **1 px dashed `border`**,
 plus glyph and label in `muted`, left-aligned. Deliberately the quietest thing on the screen:
 it is available on every keystroke, so it must not compete with the results it sits over.
+With a `!`, `@` or `#` starting a word of the query it stays in place, disabled — half
+opacity, no pointer, as every disabled button — because an operator is not part of a name.
 
 **Eye toggle** — 44 px icon button beside the field. Open eye in `muted` on `surface` when
 everything is shown; **crossed-out** eye in `accent-ink` on `accent-soft` when rated things

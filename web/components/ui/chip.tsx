@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 
-// *plain* is an attribute; *match* is the one a search matched; *yes* and *no*
+// *plain* is an attribute; *match* is one a search matched; *yes* and *no*
 // are one the viewer has answered; *add* is a suggested attribute they can
 // apply. Nothing here is a state word — a chip carries the attribute itself and
 // its tone.

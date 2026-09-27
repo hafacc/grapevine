@@ -14,15 +14,18 @@ import { LuPlus } from "react-icons/lu";
 export default function AddButton({
   label,
   onTap,
+  disabled = false,
 }: {
   label: string;
-  onTap: () => void;
+  onTap?: () => void;
+  disabled?: boolean;
 }): ReactElement {
   return (
     <button
       type="button"
       onClick={onTap}
-      className="font-display flex h-[40px] w-full items-center gap-2 rounded-sm border border-dashed border-border bg-surface px-3 text-left text-[15px] font-medium whitespace-nowrap text-muted"
+      disabled={disabled}
+      className="font-display flex h-[40px] w-full items-center gap-2 rounded-sm border border-dashed border-border bg-surface px-3 text-left text-[15px] font-medium whitespace-nowrap text-muted disabled:pointer-events-none disabled:opacity-50"
     >
       <LuPlus size={16} aria-hidden="true" className="shrink-0" />
       {/* Its own span, for the reason the chip's label is: an ellipsis never

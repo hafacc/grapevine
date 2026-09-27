@@ -58,7 +58,9 @@ the avatar in the corner. Everything user-facing is lower case.
    the viewer has rated, which the feed may not carry — with no friends it carries none of it
    (a thing nothing in reach has scored sorts as zero). Typing filters the feed by an item's
    name **and** by its attributes, fuzzy-matched, so a misspelling finds the thing that
-   already exists rather than offering to make a second one. A row carries the
+   already exists rather than offering to make a second one. Several words each read as the name
+   or an attribute and rank by how well the thing has them all; `!` puts the low-rated first,
+   `@` looks at names only and `#` at attributes only (proposal: "Search" below). A row carries the
    name, its attribute chips, and one bar. The bar belongs to **whatever matched**: an
    attribute match shows that attribute's score for this viewer, a name match the item's own.
    That is the whole answer to "why is this here", and it is an answer about the viewer's own
@@ -198,6 +200,145 @@ drawing is quantized, or the quantum would manufacture ties in the order.
 that cannot read `user_model`. It is deliberately not called `truncation`: a column named for
 one of the two quantities while holding the maximum of both is a trap. `web/DESIGN-UI.md`
 "The bar" is the component.
+
+### Search (proposal)
+
+> **Status: proposal, built so it can be tried** (`shared/src/search.ts`, `searchFeed` in
+> `web/utils/discover.ts`). Migration `0008` reserves `!`, `@` and `#` and is not yet applied to
+> the project.
+
+**What is typed is free text.** Split on whitespace. A word may start with `!`, then `@` or
+`#`:
+
+- `x` finds a name or an attribute, high-rated first;
+- `!x` finds the same, low-rated first — `!` excludes nothing, it turns the order over;
+- `@x` finds names only, `#x` attributes only; `!@x` and `!#x` put the low-rated first.
+
+That is the whole syntax: no quotes, no OR, no parentheses. Which words belong together —
+`late night` one attribute or two words — is not syntax. A word with an operator starts a new
+piece, which may run on over the plain words after it and takes that word's operators:
+`@dune messiah` is one name.
+
+**Any piece, any reading, any split.** The query is cut into pieces of one or more consecutive
+words, and each piece independently reads as the thing's **name** (all of it, or some of its
+words, or the start of one) or as one of its **attributes**. `hip work coffee` can be the two
+attributes `hip work` and `coffee`, the three `hip`, `work`, `coffee`, or a thing of that name;
+`starbucks quiet` is a name piece and an attribute piece, and finds every starbucks ranked by
+how good and how quiet each is. Every row takes whichever split scores it highest.
+
+**What a piece contributes, in `[0, 1]`.**
+
+- **An attribute: its presence**, `(1 + s_u(i,t)) / 2`, or the viewer's own thumb as 1 or 0.
+  §2.6's score is a shrunk estimate of the mean thumb, and a thumb is `±1`, so `(1 + s) / 2` is
+  the estimated chance a rater says yes. No evidence shrinks `s` to 0, which lands exactly on
+  one half, so **unknown is 0.5 without being chosen**: above "said not", below any yes.
+- **The name: the thing's own presence**, the same mapping of the thing's own score `s_u(i)`
+  (or the viewer's thumb on it). A name piece says *this* thing; how good it is is what it adds.
+- **A word that no reading on the row answers: 0.5**, the same unknown. A thing that lacks a
+  word is lower, not gone. A word may be left unread only when nothing on the row reads it, or
+  the best split would simply skip every "not".
+- **Match quality discounts toward unknown**: `0.5 + w·(presence − 0.5)`. A match that is only
+  `w` likely to be what was meant is, the rest of the time, no information — this is the
+  expectation of the two. `w` is characters, not a constant per kind of match: of the stretch
+  the piece landed on (the words it touched, for a name; the whole attribute, since an attribute
+  is one concept), the share the typing confirmed. A whole word is 1; `cof` is half of `coffee`;
+  `night` is half of `late night`; a typo confirms what was typed less its edits; scattered
+  letters in order (kept so `bbmint` still finds `blue bottle, mint st`, and only from four
+  letters, since three letters in order are in most names) confirm their own share of the text.
+  Typos are allowed by length: none up to three characters, one up to six, two past that.
+
+**A row's strength is the geometric mean per typed word**:
+
+    strength  =  exp( Σ_pieces  words(piece) · ln contribution(piece)  /  words typed )
+
+The product is the chance the thing is everything asked for, reading the pieces as independent.
+It has to be normalized, or a split into more, shorter pieces multiplies more factors below one
+and loses to a split into fewer, longer ones for no reason but the count. Normalizing **per
+word** rather than per piece makes each typed word count once however it is grouped: a
+per-piece mean would let a weak match that swallows two unknown words (one factor instead of two
+halves) climb past an honest reading. It also makes strengths of the same query comparable across
+rows that split it differently, which ranking needs. The best split is a dynamic programme over
+split points (at most six words to a piece), maximizing the same sum — `6n` readings per row,
+not `2^(n−1)` splits. Ties go to `conf` (known to your network first), then alphabetical.
+
+**A thing is on the list** when any piece of the query reads on it — its name or an attribute
+it carries — or when learned nearness (below) says it probably has a word. Nothing about the
+strength is drawn.
+
+**`!` flips a piece, and removes nothing.** A `!` piece is read exactly as it would be without
+the `!` — the same name or attribute, the same typo tolerance, the same learned nearness — and
+contributes `1 − contribution` instead. Unknown stays 0.5, so "leans no" ranks above unknown
+and unknown above "leans yes". `@` and `#` only narrow which readings a piece may take: `@`
+the name, `#` the attributes and what learned nearness reaches from them.
+
+**`!`, `@` and `#` are reserved in names.** No id may have a word that starts with one
+(`isNormalizedId`, and `private.is_normalized_id` by migration `0008`), so no name is ever
+unsearchable by being read as an operator. `yahoo!`, `c#` and `panic! at the disco` stay legal.
+`0008` refuses to apply if an existing row breaks the rule, because Postgres does not re-check
+old rows when a CHECK's function changes and an id cannot be renamed.
+
+**Learned nearness, from the viewer's own feed.** When no spelled reading answers a piece, an
+attribute that moves with (or against) one it spells can:
+
+    ρ(a,b)  =  Σ_i W(i)·s(i,a)·s(i,b)  /  ( κ_s + sqrt(Σ_i W(i)·s(i,a)² · Σ_i W(i)·s(i,b)²) )
+
+over the things in the viewer's feed, each weighted by its support `W_u(i)` as §2.6 weights
+evidence and shrunk by the same `κ_s = 1`, so one co-occurrence is a hint rather than a law. A
+cosine rather than a centred correlation, because 0 on §2.6's scale already means "nothing
+known": an attribute missing from a thing is that 0. The piece then contributes
+`0.5 + w·ρ·(presence(b) − 0.5)` — the regression of one standardized quantity on another,
+discounted by how well the piece spelled `a` — so `quiet` on a thing the feed calls `loud` reads
+below unknown. A relation can add a thing it implies has the word, and lower a thing already
+found; it never removes one and never excludes. It is computed on the client from
+`user_recs.entries`, which the viewer already holds, so nothing new leaves the server (§4), and
+it is recomputed only when the feed changes. `TagRelation` is the seam: a later joint model
+replaces `relationFrom` without search changing. What it cannot escape is §2.11's worry — people
+in reach co-rating two attributes move `ρ` — bounded by `κ_s` and by the fact that the same
+ratings already move the feed.
+
+**When a word matches nothing** on the whole list, a note above the field says *nothing matches
+"xyzzy"*, quoting the word as typed (*"!#hipp"*). It changes no row's order — every row carries its 0.5 — but
+would otherwise look ignored.
+
+**On screen.** No new component. Every attribute a query read gets the *match* chip tone and goes
+first, which is how a viewer sees `late night` was read as one attribute. The bar belongs to the
+spelled attribute that contributes least — the one that limits the fit — and to the thing's own
+score when only the name was read. With an operator in the query the *add* button stays where it
+is, **disabled** (the design language's disabled state: half opacity, no pointer), because an
+operator is not part of a name; the catalog lookup is skipped for the same reason.
+
+**What it does not reveal** (§4): everything it reads is the viewer's own feed and ratings,
+already on the client. No count, no rater, no number; a note names only words the viewer typed.
+
+**Cost on a phone.** Folding and splitting each name and attribute is cached across keystrokes,
+the list recomputes on React's deferred value so typing stays ahead of it, and the relation is
+built once per feed. On a synthetic 3 000-thing feed with twelve attributes each, under Bun on an
+M-series Mac: about 13 ms for one word and 25–40 ms for four, against 10–12 ms for the matcher
+this replaces; the relation about 16 ms. A phone is several times slower, and a feed of 3 000
+things is far past the usual.
+
+**Rejected:**
+
+- **Match every word or be dropped.** A thing missing one word of four is often what was wanted;
+  ranking it lower says that, dropping it does not.
+- **Ranking by the kind of match first** (exact, then prefix, then typo). A tier ladder ignores
+  how good and how present; the product weighs both.
+- **One split for the whole list.** It cannot read `late night coffee` as a name on one row and
+  two attributes on another.
+- **`-hip` as well as `!hip`.** One marker is one rule to reserve; `-` begins real words.
+- **`!` as exclusion.** A wrong exclusion is a row that silently isn't there, and the exact,
+  typo-free matching that made one safe was a second matcher. Turning the order over keeps
+  every row and reads the word the way every other word is read.
+- **`field:value`.** `@` and `#` say the same in one character, and the colon is ordinary
+  punctuation in titles.
+- **Quoted phrases.** The split finds `late night` on its own, and quotes are a second keyboard
+  layer.
+- **A fuzzy-search library.** `shared/` has no dependencies, and a library's score is opaque
+  where this one is a probability.
+- **Server-side search** (trigrams in Postgres). The feed already lives on the client; a server
+  search over it would need the feed sent back. The catalog lookup stays a prefix range.
+- **Refusing every `!`, `@` and `#` in an id.** It would outlaw `yahoo!` and `c#` for no gain;
+  only a word's first character is ambiguous.
 
 ### Non-goals (v1)
 

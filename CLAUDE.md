@@ -408,10 +408,12 @@ filler, for a viewer who has rated no attributes.
   is harmless: it has been through the same folding and `CHECK`s.
 - **An absent tag is "nothing is known", not "no"** (DESIGN §2.6): the core drops every ratable
   below `W_min` before the function writes it, so the client needs no `W`.
-- **Nothing on it is a number.** Typing ranks by the viewer's own `conf` (known to your network
-  first), then alphabetically, and never renders `conf`, `score` or any count. A rated row keeps
-  its bar and tints its background; a chip carries the attribute itself and no state word. DESIGN
-  §4 is why.
+- **Nothing on it is a number.** Typing ranks by strength — the per-word geometric mean of what
+  each piece of the query contributes, the thing's own score for its name and an attribute's
+  presence for an attribute, one minus either for a word typed with `!`, unknown as one half
+  (DESIGN §1 "Search") — then by the viewer's own `conf`, then alphabetically, and never renders
+  `conf`, `score` or any count. A rated row keeps its bar and tints its background; a chip
+  carries the attribute itself and no state word. DESIGN §4 is why.
 
 ## The recompute behind it
 
