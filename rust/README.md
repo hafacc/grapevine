@@ -28,19 +28,18 @@ them would let one crafted account fail the recompute of every viewer within rea
 | `ids` | `UserId`, `ItemId`, `TagId`, `Ratable` (an item, or an item–tag pair), the id check |
 | `snapshot` | the friend graph and everyone's ratings, names interned to integers; a user may be *unloaded* |
 | `graph` | the `Graph` trait (adjacency may be missing, as it is for an unloaded user), BFS hop distances |
-| `params` | the table of DESIGN §2.8: `Params::default()` on demand, `Params::deep()` for taste search |
+| `params` | the table of DESIGN §2.8: `Params::default()` on demand, `Params::deep()`, the wider budget the sybil suite also runs |
 | `walk` | the non-backtracking push of §2.4: `π̃`, truncation, boundary residual and the nodes holding it; `Budget` is the `E_max` it spends |
 | `informativeness` | `ω` per item (§2.2), the viewer's own vote included at `π̃ = 1` |
 | `alignment` | `A`, `D`, `â`, `ℓ` over item ratables (§2.3) |
 | `score` | `E`, `W`, `s` for items and tags (§2.6) |
 | `compute` | the settling loop: `compute_user`, `compute_user_detail`, `compute_all`, and `rescore_user` over cached masses |
-| `suggest` | taste search (§5): the same computation at the deep budget, and the candidate filters |
 | `priors` | `κ` and `a₀(d)` by method of moments (§2.10): the per-recompute `PairTallies` the database pools, the same estimate over a whole snapshot for the simulator, and the per-field merge into the table |
 | `rng`, `sim` | seeded xorshift; latent-taste worlds with clusters, homophily and an agreement oracle |
 | `attack` | sybil regions: `PromoteOnly`, `CopyConsensus`, `ManufactureContested`, `MimicFeed`, `TagSpam`, wired as a clique, a chain or a star of chains |
 | `data` | the string-id boundary form — directed `friendIds`, the `loaded` set, permissive rating values — and the JSON a world dump carries |
 | `error` | `CoreError`: what the core refuses to answer |
-| `wasm` | `computeUser`, `rescoreUser` and `suggestFor` behind the `wasm` feature (below) |
+| `wasm` | `computeUser` and `rescoreUser` behind the `wasm` feature (below) |
 
 Decisions worth knowing before reading the code:
 
@@ -129,7 +128,6 @@ cargo run --release --features serde --example dump-world -- --seed 7 --out worl
 cargo run --release --features serde --example compute-user -- world.json u3
 cargo run --release --example fixed-point -- --seed 7           # docs/algorithm-notes.md §3
 cargo run --release --features serde --example recompute-cost   # §8
-cargo run --release --features serde --example suggest-cost     # §9
 cargo run --release --example spread                            # §5
 ```
 
@@ -141,7 +139,7 @@ WebAssembly, from the repo root:
 ```sh
 bash scripts/build-wasm.sh nodejs   # rust/core-wasm/, for the smoke script
 node rust/examples/smoke.mjs
-bash scripts/build-wasm.sh web      # a copy in each Edge Function's directory
+bash scripts/build-wasm.sh web      # into supabase/functions/refresh-recs/
 ```
 
 ## The WebAssembly boundary
@@ -157,11 +155,6 @@ bash scripts/build-wasm.sh web      # a copy in each Edge Function's directory
   previous `computeUser` produced, with no walk: `reach` is its `reachMasses`, and `walk` is
   `{ truncation, boundaryResidual, settleMovement, passes, settled }` from the same result,
   carried through unchanged because it bounds the error in exactly those masses.
-- `suggestFor(snapshot, viewer, discoverable, dismissed, params, priors)` — taste search over the
-  caller's neighbourhood: `discoverable` and `dismissed` are uid lists, `params` is
-  `{ deep, live }` (`null` for the deep budget paired with the on-demand one). Returns at most
-  five `{ uid, strength, overlap }`, strongest first. Only the uid and the order are for a
-  viewer; `strength` and `overlap` are there for the checks.
 
 ## What the property tests assert
 
@@ -215,11 +208,6 @@ copying earns nothing.
 
 `tests/discovery.rs` — the walk follows aligned paths four hops out where the uniform pass does
 not, and nothing surfaces on one stranger.
-
-`tests/suggest.rs` — taste search on six identical lanes: five aligned people fill the list;
-friends, the already influential, the private and the dismissed are excluded; a consensus-copying
-farm and edgeless sybils change nothing; a region behind one edge takes at most one slot and the
-honest field keeps the rest; the answer is deterministic.
 
 `tests/priors.rs` — `a₀(d)` and `κ` read back off a population against what generated it, a
 class below `N_min` keeps the table, one world gives one estimate, and the pooled tallies land

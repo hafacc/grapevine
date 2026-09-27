@@ -22,19 +22,16 @@ import {
 import { useInstall } from "../utils/install";
 import { inviteUrl } from "../utils/invites";
 import { useIsDesktop } from "../utils/media";
-import { matchesPerson, type PersonRow, usePeople } from "../utils/people";
+import { matchesPerson, type PersonRow } from "../utils/people";
 import { useGrapevine } from "../utils/store";
-import { switchAfter, switchSides } from "../utils/switches";
 import Avatar from "./avatar";
 import { useAction, useDialog } from "./dialog";
 import RenameSheet from "./rename-sheet";
 import ThemeButton from "./theme-button";
 import Button from "./ui/button";
-import Chip from "./ui/chip";
 import IconButton from "./ui/icon-button";
 import RateRow from "./ui/rate-row";
 import SearchField from "./ui/search-field";
-import SwipeRow from "./ui/swipe-row";
 
 function Heading({ children }: { children: ReactNode }): ReactElement {
   return (
@@ -42,29 +39,17 @@ function Heading({ children }: { children: ReactNode }): ReactElement {
   );
 }
 
-// A row of the people list: avatar, name, and beneath it the
-// attributes the two of you agree on against the grain — at most three, in the
-// order the server gave them. No bar: a person does not have a score.
+// A row of the people list: avatar and name. No bar: a person does not have a
+// score.
 function PersonLine({ person }: { person: PersonRow }): ReactElement {
   return (
     <div
-      // The one thing on the row that names who it is without naming anything
-      // about them, which is what `check:suggestions` finds a row by.
       data-person={person.uid}
       className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5"
     >
       <Avatar name={person.displayName} photoURL={person.photoURL} size={40} />
-      <span className="flex min-w-0 flex-grow flex-col">
-        <span className="truncate text-[16px] font-medium">
-          {person.displayName || "someone"}
-        </span>
-        {person.attributes.length > 0 ? (
-          <span className="mt-1.5 flex flex-wrap gap-1.5">
-            {person.attributes.map((attribute) => (
-              <Chip key={attribute} label={attribute} />
-            ))}
-          </span>
-        ) : null}
+      <span className="min-w-0 flex-grow truncate text-[16px] font-medium">
+        {person.displayName || "someone"}
       </span>
     </div>
   );
@@ -226,7 +211,7 @@ function LinkRow(): ReactElement {
 
   if (myLink === undefined) {
     return (
-      <p className="border-t border-border bg-surface px-4 py-3 text-[16px] text-muted">
+      <p className="border-y border-border bg-surface px-4 py-3 text-[16px] text-muted">
         loading…
       </p>
     );
@@ -332,130 +317,19 @@ function InstallLine(): ReactElement | null {
   );
 }
 
-/**
- * One of the two switches: a full-width line that IS the control (DESIGN-UI,
- * "Switch lines").
- *
- * Swiped on a phone, where it moves only the ways that change something
- * (`switchSides`). At desktop width it is one button with switch semantics
- * rather than the two side buttons a rating row gets: a switch has two states,
- * and a pair of yes and no buttons around one would offer a no that does
- * nothing while it is off.
- */
-function SwitchLine({
-  subject,
-  on,
-  rule,
-  onChange,
-  children,
-}: {
-  // What the switch controls, for its accessible name.
-  subject: string;
-  on: boolean;
-  // Which of its edges carry a rule, which depends on what is next to it.
-  rule: string;
-  onChange: (on: boolean) => void;
-  children: ReactNode;
-}): ReactElement {
-  const desktop = useIsDesktop();
-  const line = `${rule} border-border px-4 py-3 text-[16px] ${
-    on ? "bg-accent-soft text-accent-ink" : "bg-surface-muted text-muted"
-  }`;
-  if (desktop) {
-    return (
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-label={subject}
-        onClick={() => onChange(!on)}
-        className={`block w-full text-left focus-visible:outline-offset-[-2px] ${line}`}
-      >
-        {children}
-      </button>
-    );
-  } else {
-    return (
-      <SwipeRow
-        value={on ? 1 : null}
-        sides={switchSides(on)}
-        onRate={(next) => onChange(switchAfter(next))}
-        className={line}
-      >
-        <p>{children}</p>
-      </SwipeRow>
-    );
-  }
-}
-
-// One line, one sentence, because the setting is one sentence: off means you are
-// named to nobody and your own list is written empty (DESIGN §5.1). Nothing may
-// draw it as a state before the row has answered — the default reads "off",
-// which is a claim about a privacy switch.
-function DiscoverabilityLine(): ReactElement {
-  const { prefs, prefsReady, prefsUnreachable, setDiscoverableByTaste } =
-    useGrapevine();
-  const run = useAction();
-
-  if (!prefsReady) {
-    return (
-      <p className="border-y border-border bg-surface-muted px-4 py-3 text-[16px] text-muted">
-        {prefsUnreachable
-          ? "couldn't load whether you show up in friend suggestions"
-          : "loading…"}
-      </p>
-    );
-  } else {
-    const shown = prefs.discoverableByTaste;
-    return (
-      <SwitchLine
-        subject="showing up in friend suggestions"
-        on={shown}
-        rule="border-y"
-        onChange={(next) =>
-          run(
-            () => setDiscoverableByTaste(next),
-            "that didn't save. check your connection and try again.",
-          )
-        }
-      >
-        {shown
-          ? "suggested to people with similar taste"
-          : "swipe to show up in friend suggestions"}
-      </SwitchLine>
-    );
-  }
-}
-
 export default function PeopleView(): ReactElement {
   const [query, setQuery] = useState("");
-  const { asks, friends, suggested, searched, failed } = usePeople();
-  const {
-    prefs,
-    prefsReady,
-    sendFriendRequest,
-    acceptRequest,
-    declineRequest,
-    dismissSuggestion,
-    unfriend,
-    back,
-  } = useGrapevine();
-  const { alert, confirm } = useDialog();
+  const { friends, unfriend, back } = useGrapevine();
+  const { confirm } = useDialog();
   const run = useAction();
 
-  const matching = useMemo(() => {
-    if (query.length === 0) return { asks, friends, suggested };
-    const keep = (people: readonly PersonRow[]): readonly PersonRow[] =>
-      people.filter((person) => matchesPerson(person, query));
-    return {
-      asks: keep(asks),
-      friends: keep(friends),
-      suggested: keep(suggested),
-    };
-  }, [asks, friends, suggested, query]);
-
-  const shown =
-    matching.asks.length + matching.friends.length + matching.suggested.length;
+  const matching = useMemo(
+    () =>
+      query.length === 0
+        ? friends
+        : friends.filter((person) => matchesPerson(person, query)),
+    [friends, query],
+  );
 
   async function dropFriend(person: PersonRow): Promise<void> {
     // The last connection locks the account (0010), which is said first.
@@ -474,18 +348,6 @@ export default function PeopleView(): ReactElement {
       "that didn't work. check your connection and try again.",
     );
   }
-
-  // A search has answered and there is nobody in it, which is a different thing
-  // from a search that has not answered yet — and both are different from the
-  // switch being off, which the line above already explains.
-  const nothingSimilar =
-    query.length === 0 && matching.suggested.length === 0
-      ? failed
-        ? "couldn't look for people with similar taste just now."
-        : searched && prefsReady && prefs.discoverableByTaste
-          ? "nobody with similar taste yet."
-          : null
-      : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -508,44 +370,12 @@ export default function PeopleView(): ReactElement {
         <div>
           <MeLine />
           <LinkRow />
-          <DiscoverabilityLine />
           <InstallLine />
 
-          {matching.asks.length > 0 ? (
-            <>
-              <Heading>wants to connect</Heading>
-              {matching.asks.map((person) => (
-                <div key={person.uid} className="border-b border-border">
-                  <RateRow
-                    subject={`${person.displayName || "someone"}'s request`}
-                    value={null}
-                    onRate={(next) => {
-                      const request = person.request;
-                      if (!request) return;
-                      run(async () => {
-                        if (next !== 1) {
-                          await declineRequest(request);
-                        } else if ((await acceptRequest(request)) === "gone") {
-                          await alert({
-                            title: "that ask is no longer there",
-                            body: "they may have taken it back.",
-                          });
-                        }
-                      }, "that didn't work. check your connection and try again.");
-                    }}
-                    contentClassName="bg-surface"
-                  >
-                    <PersonLine person={person} />
-                  </RateRow>
-                </div>
-              ))}
-            </>
-          ) : null}
-
-          {matching.friends.length > 0 ? (
+          {matching.length > 0 ? (
             <>
               <Heading>your vine</Heading>
-              {matching.friends.map((person) => (
+              {matching.map((person) => (
                 <div key={person.uid} className="border-b border-border">
                   {/* No is the only answer a friend row takes: there is nothing
                     to say yes to, and the word says what no does here. */}
@@ -564,42 +394,7 @@ export default function PeopleView(): ReactElement {
             </>
           ) : null}
 
-          {matching.suggested.length > 0 || nothingSimilar ? (
-            <>
-              <Heading>similar taste</Heading>
-              {matching.suggested.map((person) => (
-                <div key={person.uid} className="border-b border-border">
-                  {/* Yes sends a connect request — a suggestion is the only
-                    person one may go to — which hides this person until they
-                    accept; no is the dismissal, which is a preference and is
-                    never re-shown. */}
-                  <RateRow
-                    subject={`connecting with ${person.displayName || "someone"}`}
-                    value={null}
-                    onRate={(next) =>
-                      run(
-                        () =>
-                          next === 1
-                            ? sendFriendRequest(person.uid)
-                            : dismissSuggestion(person.uid),
-                        "that didn't work. check your connection and try again.",
-                      )
-                    }
-                    contentClassName="bg-surface"
-                  >
-                    <PersonLine person={person} />
-                  </RateRow>
-                </div>
-              ))}
-              {nothingSimilar ? (
-                <p className="px-4 py-2.5 text-[16px] text-muted">
-                  {nothingSimilar}
-                </p>
-              ) : null}
-            </>
-          ) : null}
-
-          {query.length > 0 && shown === 0 ? (
+          {query.length > 0 && matching.length === 0 ? (
             <p className="px-4 py-4 text-[16px] text-muted">
               nobody here by that name. to add someone, send them a link.
             </p>

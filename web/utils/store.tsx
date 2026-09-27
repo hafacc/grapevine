@@ -32,25 +32,12 @@ import {
   takeInvite,
 } from "./invites";
 import {
-  DEFAULT_PREFS,
-  fetchPrefs,
-  dismissSuggestion as pgDismissSuggestion,
-  setDiscoverableByTaste as pgSetDiscoverableByTaste,
-} from "./prefs";
-import {
   HEALTHY,
   onChannelJoined as joinedHealth,
   onChannelLoss,
 } from "./reattach";
 import { forgetCachedFeeds } from "./recs";
 import { explainWriteFailure, lockedAfterUnfriend } from "./refusal";
-import {
-  fetchIncomingRequests,
-  fetchOutgoingRequests,
-  acceptRequest as pgAcceptRequest,
-  declineRequest as pgDeclineRequest,
-  sendRequest as pgSendRequest,
-} from "./requests";
 import { nextSessionUser, type SessionUser } from "./session-user";
 import {
   exchangeFailure,
@@ -59,9 +46,7 @@ import {
   takeSignInReturn,
   withoutCode,
 } from "./sign-in-return";
-import { fetchSuggestions } from "./suggestions";
 import {
-  errorCode,
   onChannelJoined,
   onChannelLost,
   retryTransient,
@@ -70,21 +55,13 @@ import {
   supabaseConfigured,
   whenSocketOpen,
 } from "./supabase";
-import type {
-  ConnectRequest,
-  Friend,
-  Prefs,
-  Profile,
-  Screen,
-  Suggestion,
-} from "./types";
+import type { Friend, Profile, Screen } from "./types";
 
 export type { SessionUser };
 
-// How long a tab may go unwatched before coming back is worth a re-read. The
-// four things that are fetched rather than subscribed change by the viewer's own
-// action or by a search the viewer's own screen asked for, so this is about a
-// laptop that was shut, not a list that moves.
+// How long a tab may go unwatched before coming back is worth a re-read. What
+// is fetched rather than subscribed changes by the viewer's own action, so this
+// is about a laptop that was shut, not a list that moves.
 const REFETCH_AFTER_MS = 30_000;
 
 // How long a re-attach may wait for the socket before the screen says it has
@@ -123,19 +100,6 @@ type ContextShape = {
   // No answer is coming right now, which is distinct from "no profile".
   profileUnreachable: boolean;
   friends: Friend[];
-  incomingRequests: ConnectRequest[];
-  outgoingRequests: ConnectRequest[];
-  // The owner's own switches, at their defaults until the row answers — so
-  // nothing may render one as a STATE until `prefsReady`. `DEFAULT_PREFS` says
-  // "discoverable by taste: off", which is a claim about a privacy switch and
-  // false for anyone who turned it on and whose read has not landed.
-  prefs: Prefs;
-  prefsReady: boolean;
-  // No answer is coming right now, which is distinct from "at their defaults".
-  prefsUnreachable: boolean;
-  // People the viewer's last taste search found (DESIGN §5), strongest first.
-  // `visibleSuggestions` is what a screen renders — this is what was stored.
-  suggestions: readonly Suggestion[];
   // A friending link this device was handed and has not answered yet: taken out
   // of the address on arrival and kept across the trip to Google (`invites.ts`).
   inviteToken: string | null;
@@ -157,10 +121,6 @@ type ContextShape = {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
-  setDiscoverableByTaste: (discoverable: boolean) => Promise<void>;
-  dismissSuggestion: (suggestedUid: string) => Promise<void>;
-  // To somebody taste search suggested, the only person a request may go to.
-  sendFriendRequest: (suggestedUid: string) => Promise<void>;
   // The owner's id, or null when the link stopped working. Once the server has
   // answered, either way, the waiting token is spent.
   redeemInvite: (token: string) => Promise<string | null>;
@@ -169,9 +129,6 @@ type ContextShape = {
   // Turns the viewer's link on, or replaces it; the old one stops working.
   setInviteLink: () => Promise<string>;
   turnOffLink: () => Promise<void>;
-  // "gone" when the ask was withdrawn or declined elsewhere before this landed.
-  acceptRequest: (request: ConnectRequest) => Promise<"accepted" | "gone">;
-  declineRequest: (request: ConnectRequest) => Promise<void>;
   unfriend: (friendUid: string) => Promise<void>;
   // Asks the server whether the account is locked and shows the answer.
   recheckLocked: () => Promise<boolean>;
@@ -183,8 +140,6 @@ type ContextShape = {
 const Ctx = createContext<ContextShape | null>(null);
 
 const EMPTY_FRIENDS: Friend[] = [];
-const EMPTY_REQUESTS: ConnectRequest[] = [];
-const EMPTY_SUGGESTIONS: readonly Suggestion[] = [];
 
 const LIST_SCREEN: Screen = { kind: "list" };
 const PEOPLE_SCREEN: Screen = { kind: "people" };
@@ -364,15 +319,6 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
   // time, so only one set of channels is made when the socket returns.
   const socketWait = useRef<(() => void) | null>(null);
   const [friends, setFriends] = useState<Friend[]>(EMPTY_FRIENDS);
-  const [incomingRequests, setIncoming] =
-    useState<ConnectRequest[]>(EMPTY_REQUESTS);
-  const [outgoingRequests, setOutgoing] =
-    useState<ConnectRequest[]>(EMPTY_REQUESTS);
-  const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
-  const [prefsReady, setPrefsReady] = useState(false);
-  const [prefsUnreachable, setPrefsUnreachable] = useState(false);
-  const [suggestions, setSuggestions] =
-    useState<readonly Suggestion[]>(EMPTY_SUGGESTIONS);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [inviteFrom, setInviteFrom] = useState<InviteOwner | null | undefined>(
     undefined,
@@ -624,18 +570,6 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     setInviteLookups((count) => count + 1);
   }, []);
 
-  // The two lists the inbox channel re-reads, and what an accept, a decline or a
-  // withdrawal applies for itself rather than waiting to be told about.
-  const refreshRequests = useCallback(async (): Promise<void> => {
-    if (!uid) return;
-    const [incoming, outgoing] = await Promise.all([
-      fetchIncomingRequests(uid),
-      fetchOutgoingRequests(uid),
-    ]);
-    setIncoming(incoming);
-    setOutgoing(outgoing);
-  }, [uid]);
-
   const refreshFriends = useCallback(async (): Promise<void> => {
     if (!uid) return;
     setFriends(await fetchFriends(uid));
@@ -655,11 +589,10 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
    * Everything the signed-in viewer owns, read on mount and again when the tab
    * comes back.
    *
-   * These four change either by the viewer's own action — which this tab already
-   * knows about, and writes through below — or by a search this viewer's own
-   * screen asked for, so a channel each would be four subscriptions bought to
-   * deliver nothing. The two that DO move
-   * under a reader, the feed and the inbox, have one apiece.
+   * These change by the viewer's own action — which this tab already knows
+   * about, and writes through below — so a channel each would be subscriptions
+   * bought to deliver nothing. What DOES move under a reader, the feed and a new
+   * friend, has a channel of its own.
    */
   // biome-ignore lint/correctness/useExhaustiveDependencies: `generation` is unread on purpose — bumping it is how a lost channel gets re-read.
   useEffect(() => {
@@ -669,12 +602,6 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
       setProfileReady(false);
       setUnreachable(false);
       setFriends(EMPTY_FRIENDS);
-      setIncoming(EMPTY_REQUESTS);
-      setOutgoing(EMPTY_REQUESTS);
-      setPrefs(DEFAULT_PREFS);
-      setPrefsReady(false);
-      setPrefsUnreachable(false);
-      setSuggestions(EMPTY_SUGGESTIONS);
       setMyLink(undefined);
       return;
     }
@@ -715,45 +642,15 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    /**
-     * The one row a SCREEN reports the state of, so it is read on its own.
-     *
-     * Same shape as `loadProfile` above and for the same reason: `DEFAULT_PREFS`
-     * is what an account that never moved a switch looks like, and rendering it
-     * for a read that failed tells somebody who turned suggestions on that they
-     * are off. Apart from the `Promise.all` below, so that one of those failing
-     * cannot take the switch with it.
-     */
-    const loadPrefs = async (): Promise<void> => {
-      try {
-        const next = await retryTransient(() => fetchPrefs(mine));
-        if (!live) return;
-        setPrefs(next);
-        setPrefsReady(true);
-        setPrefsUnreachable(false);
-      } catch (error) {
-        if (!live) return;
-        console.error("prefs", error);
-        setPrefsUnreachable(true);
-      }
-    };
-
     const loadSocial = async (): Promise<void> => {
-      const [offered, link] = await Promise.all([
-        fetchSuggestions(mine),
-        fetchMyLink(),
-        refreshFriends(),
-        refreshRequests(),
-      ]);
+      const [link] = await Promise.all([fetchMyLink(), refreshFriends()]);
       if (!live) return;
-      setSuggestions(offered);
       setMyLink(link);
     };
 
     const loadAll = (): void => {
       last = Date.now();
       void loadProfile();
-      void loadPrefs();
       void retryTransient(loadSocial).catch((error) =>
         console.error("social", error),
       );
@@ -781,64 +678,25 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("focus", onWake);
       document.removeEventListener("visibilitychange", onWake);
     };
-  }, [configured, uid, generation, refreshFriends, refreshRequests]);
+  }, [configured, uid, generation, refreshFriends]);
 
   /**
-   * The inbox, live.
+   * A new friend, live.
    *
-   * An ask has to arrive without the recipient reloading, and the sender has to
-   * learn it was accepted. Deletes are not published (`0006_realtime.sql`):
-   * Realtime applies a SELECT policy to a changed row, a deleted row is not
-   * there to apply one to, and `connect_requests`' primary key is both parties'
-   * uuids, so a client subscribing with no filter would be handed a pair for
-   * every accept, decline and withdrawal in the instance. The acceptance is
-   * read off the INSERT of the sender's own friendship row instead, which a
-   * policy does bound.
+   * Somebody opening the viewer's link makes a friendship the viewer did not
+   * act in, so it arrives as the INSERT of the viewer's own half of the pair,
+   * which the `friendships` read policy bounds. Deletes are not published
+   * (`0006_realtime.sql`): a deleted row has nothing to apply a policy to, and
+   * its key is both uuids, so an unfriending is seen on the next load.
    *
-   * So the other party learns of a decline or a withdrawal on their next load.
-   * Whoever performed one re-reads for themselves.
-   *
-   * The payload is not read: both lists want the profile at the far end anyway,
+   * The payload is not read: the row wants the profile at the far end anyway,
    * so an event is a signal to re-read rather than a row to apply.
    */
   // biome-ignore lint/correctness/useExhaustiveDependencies: `generation` is unread on purpose — bumping it is how a lost channel gets re-attached.
   useEffect(() => {
     if (!configured || !uid) return;
-    const rereadRequests = (): void => {
-      void refreshRequests().catch((error) => console.error("requests", error));
-    };
-    const rereadBoth = (): void => {
-      void Promise.all([refreshFriends(), refreshRequests()]).catch((error) =>
-        console.error("requests", error),
-      );
-    };
     const channel = supabase()
-      .channel(`requests:${uid}`)
-      // INSERT rather than `*`, because there is no update verb on a request
-      // and no delete event to receive: those are the only two things that ever
-      // reach this table.
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "connect_requests",
-          filter: `to_id=eq.${uid}`,
-        },
-        rereadRequests,
-      )
-      // The same person asking from a second tab or a second device.
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "connect_requests",
-          filter: `from_id=eq.${uid}`,
-        },
-        rereadRequests,
-      )
-      // "You are now friends", from the half of the pair that describes you.
+      .channel(`friends:${uid}`)
       .on(
         "postgres_changes",
         {
@@ -847,13 +705,17 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
           table: "friendships",
           filter: `user_id=eq.${uid}`,
         },
-        rereadBoth,
+        () => {
+          void refreshFriends().catch((error) =>
+            console.error("friends", error),
+          );
+        },
       );
-    subscribeChannel(channel, "requests");
+    subscribeChannel(channel, "friends");
     return () => {
       void supabase().removeChannel(channel);
     };
-  }, [configured, uid, generation, refreshFriends, refreshRequests]);
+  }, [configured, uid, generation, refreshFriends]);
 
   const signIn = useCallback(() => googleSignIn(), []);
 
@@ -875,44 +737,8 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Neither this nor a dismissal touches the suggestions rows, which no client
-  // may write — the viewer's next search reads the preference and honours it.
-  const setDiscoverableByTaste = useCallback(
-    async (discoverable: boolean) => {
-      if (!uid) throw new Error("not signed in");
-      await pgSetDiscoverableByTaste(uid, discoverable);
-      setPrefs((current) => ({
-        ...current,
-        discoverableByTaste: discoverable,
-      }));
-    },
-    [uid],
-  );
-
-  const dismissSuggestion = useCallback(
-    async (suggestedUid: string) => {
-      if (!uid) throw new Error("not signed in");
-      await pgDismissSuggestion(suggestedUid);
-      // `visibleSuggestions` filters on this, so the row leaves the screen at
-      // once; the list itself is the search's, and the next one honours it.
-      setPrefs((current) =>
-        current.dismissedSuggestions.includes(suggestedUid)
-          ? current
-          : {
-              ...current,
-              dismissedSuggestions: [
-                ...current.dismissedSuggestions,
-                suggestedUid,
-              ],
-            },
-      );
-    },
-    [uid],
-  );
-
   // One row, and every friend sees the new name the next time they read a
-  // profile: there is no copy of it on an edge, in a request or in a suggestion
-  // to go around rewriting.
+  // profile: there is no copy of it on an edge to go around rewriting.
   const updateDisplayName = useCallback(
     async (displayName: string) => {
       if (!uid) throw new Error("not signed in");
@@ -925,17 +751,6 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
       );
     },
     [uid],
-  );
-
-  // The request is re-read rather than patched in: it is what hides the person
-  // from the suggestions until they answer.
-  const sendFriendRequest = useCallback(
-    async (suggestedUid: string) => {
-      if (!uid) throw new Error("not signed in");
-      await pgSendRequest(uid, suggestedUid);
-      await refreshRequests();
-    },
-    [uid, refreshRequests],
   );
 
   // Forgotten once the server has answered, whatever it said. A write that
@@ -974,35 +789,6 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     await pgTurnOffLink(token);
     setMyLink(null);
   }, [myLink]);
-
-  const acceptRequest = useCallback(
-    async (request: ConnectRequest) => {
-      try {
-        await pgAcceptRequest(request);
-      } catch (error) {
-        // `accept_connect_request` raises this when there is no pending ask to
-        // accept — the sender withdrew it, or it was answered on another
-        // device. Declines and withdrawals are not live (0006), so the row on
-        // screen was stale; re-reading is what takes it off.
-        if (errorCode(error) !== "42501") throw error;
-        await refreshRequests();
-        return "gone" as const;
-      }
-      // Both sides of the edge and the request's removal commit together, so
-      // one re-read is the whole of what changed.
-      await Promise.all([refreshFriends(), refreshRequests()]);
-      return "accepted" as const;
-    },
-    [refreshFriends, refreshRequests],
-  );
-
-  const declineRequest = useCallback(
-    async (request: ConnectRequest) => {
-      await pgDeclineRequest(request);
-      await refreshRequests();
-    },
-    [refreshRequests],
-  );
 
   // A locked account's link is revoked with the lock (0010).
   const showLocked = useCallback((locked: boolean): void => {
@@ -1049,12 +835,6 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     profileReady,
     profileUnreachable,
     friends,
-    incomingRequests,
-    outgoingRequests,
-    prefs,
-    prefsReady,
-    prefsUnreachable,
-    suggestions,
     inviteToken,
     inviteFrom,
     inviteLookupFailed,
@@ -1067,15 +847,10 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     updateDisplayName,
-    setDiscoverableByTaste,
-    dismissSuggestion,
-    sendFriendRequest,
     redeemInvite,
     dismissInvite,
     setInviteLink,
     turnOffLink,
-    acceptRequest,
-    declineRequest,
     unfriend,
     recheckLocked,
     explainFailure,

@@ -42,12 +42,11 @@ and check it.
   `+1` / `-1` per user, changeable at any time, removable. A pair is **two fields**, never one
   joined string (§3.2).
 - **Rating**: `(user, item, tag) -> +1 | -1`, with an empty `tag` meaning the thing itself.
-  Private to the user who made it. Only the two server-side functions — the feed recompute
-  (§3.4) and taste search (§5) — read other people's ratings.
+  Private to the user who made it. Only the server-side feed recompute (§3.4) reads other
+  people's ratings.
 - **Friend edge**: mutual. Made by a **link** one person hands another off the platform —
-  a message, a chat, in person — and the other opening it and saying yes (§1 item 6), or by a
-  connect request to somebody taste search suggested (§5) and its acceptance. There are no
-  handles and nobody is found by typing anything. Your friend list is visible only to you.
+  a message, a chat, in person — and the other opening it and saying yes (§1 item 6), and by
+  nothing else. There are no handles and nobody is found by typing anything. Your friend list is visible only to you.
 - **Display name**: what a person is called, and the only thing that says who they are. It
   defaults to the first name Google gives (`given_name`, else the first word of the full
   name), is editable at any time, and may be anything up to 50 characters except a control
@@ -86,8 +85,8 @@ the avatar in the corner. Everything user-facing is lower case.
    buttons anywhere on mobile.** A rated row keeps its bar and tints its background, green for
    yes and red for no.
 4. **A thing.** Opening a row replaces the list with the thing's own screen, drawn the same
-   way. Its title bar carries a back button, the name, the item's own bar and the avatar — with
-   its request badge, so an ask is never out of sight — and **is** the item's rating
+   way. Its title bar carries a back button, the name, the item's own bar and the avatar, and
+   **is** the item's rating
    control: swiping the title bar rates the item, and only that bar takes the tint. Below it
    each attribute is a plain row — name, its own bar — rated on its own by the same swipe.
    Attributes are ordered **most uncertain first**, which on §2.6's `−1..1` scale is
@@ -115,16 +114,9 @@ the avatar in the corner. Everything user-facing is lower case.
      since neither side is a rating: off, right is *turn on*; on, left is *turn off* and right
      is *new link*. On, it carries *copy* and, where the device has a share sheet, *share*
      (item 6).
-   - **Suggestions**, a full-width line that **is** a switch, swiped like everything else, one
-     sentence because the setting is one sentence. Default **off**: grey, reading *swipe to
-     show up in friend suggestions*. On: green, reading *suggested to people with similar
-     taste*. Reciprocal in both directions (§5.1) — off means you are named to nobody and your
-     own list is written empty.
 
-   Then the install line where the browser offers one, then pending asks, then friends under
-   *your vine*, then *similar taste*. A pending ask and a similar-taste row carry, beneath the
-   name, **the attributes you agree on** (§5.1). That is the entire basis for deciding: no alignment level is shown, and there
-   is no person page.
+   Then the install line where the browser offers one, then friends under *your vine*: a photo and a name, no
+   level of agreement, and no person page.
    **A friend's row swipes one way only**: left, revealing the word *remove* rather than a
    thumb, because no is the only answer a friendship takes here. It asks first — *remove
    &lt;name&gt; from your vine?*, *you'll no longer shape each other's lists. to undo it, one of you
@@ -165,14 +157,8 @@ the avatar in the corner. Everything user-facing is lower case.
    *&lt;name&gt; is already in your vine*.
 
    The page's search field filters the names already shown and reaches nobody past them: there
-   is no browsing for people and no searching for them either. A similar-taste row's yes sends a
-   connect request, the only kind there is, and a request can go only to somebody suggested to
-   the sender (§5.1). Asking someone hides them from suggestions until they accept, so nobody
-   can be asked twice. The cost: **a pending ask is invisible to the asker** — they see neither the person nor the
-   request they sent, only that the person is gone. The alternative is a state that can be
-   re-sent, and re-sending is the thing worth preventing. It follows that **a sent ask cannot
-   be withdrawn**: there is nothing on screen to withdraw it from. It ends when the other person
-   accepts or declines.
+   is no browsing for people and no searching for them either, and no request to send. A link
+   is the only way two people become friends.
 
    **A link is also the only way in** (§3.6). Signed out with no link, the welcome screen says
    nothing about the vine, the door reads *sign in*, and the line under it *grapevine is
@@ -690,7 +676,8 @@ could change no score by more than the budget, or when a budget is exhausted:
 
 `N_max` bounds the nodes a walk touches, hence its memory, CPU and egress; since the
 neighbourhood is in the function's memory (§3.4) it bounds no reads. The **deep** budget is the
-same walk followed much further and tighter, and it is what friend suggestions run under (§5).
+same walk followed much further and tighter; nothing in the product runs under it now that
+taste search is gone (§5), and the sybil suite still checks it.
 
 **A node push, because an edge push costs the degree squared.** A pop pushes one share along
 each edge out of `v`, so a **sweep** of the loaded neighbourhood costs
@@ -962,9 +949,8 @@ Every number in the design, by what kind of thing it is.
 | chosen | `ω`'s support factor | `n/(n+1)` | one pseudo-vote of doubt; kept over the exact posterior because it reads exactly zero on a unanimous item (§2.2) |
 | unit | `κ_s` | 1 | scoring shrinkage of one friend-unit (§2.6) |
 | product | `W_min` | 0.5 | display floor: half a friend-unit. Measured against `L`, `α` and the friend-unit, which are chosen and do not move — not against what a fresh friend's thumb happens to weigh, since `a₀(1)` is estimated from the population (§2.10) and a ratio to it moves with the estimate |
-| product | §5 thresholds | 20 overlaps, 5 suggestions | taste search |
 | budget | `ε_total` | 0.02 on demand, 0.001 deep | walk error tolerance, friend-units |
-| budget | `N_max` | 2 000 on demand, 50 000 deep | nodes a walk may load: memory, CPU and egress, not reads (§2.4, §3.4). The deep column is what friend suggestions run under (§5) |
+| budget | `N_max` | 2 000 on demand, 50 000 deep | nodes a walk may load: memory, CPU and egress, not reads (§2.4, §3.4). The deep column is checked by the sybil suite and used by nothing in the product (§5) |
 | budget | `E_max` | 10 000 000 pushes, on demand and deep alike | a CPU backstop: 0.3 s at 30 ns a push (measured about 11 ns in wasm, 18 ns native), because §3.4 may call the core up to four times inside a free invocation's roughly two seconds. The budget a walk gets is `min(reservation, E_max)`, the reservation being `(SETTLE_MAX_PASSES + 1) × (F + (⌈log₂(F/ε_total)⌉ + 1) · Σ_v deg(v))`. No converged loop measured spent more than 2.45 M pushes (§2.4), so it bounds a pathological graph, not an ordinary one |
 | budget | `SETTLE_TOLERANCE`, `SETTLE_MAX_PASSES` | 1e-4, 12 | when §2.2's loop stops. The tolerance is two orders below the smallest step the bar can draw; the cap is room for a graph contracting several times more slowly than anything measured, and reaching it is reported, not an error |
 | budget | `REACH_REUSE_MAX` | 20 | consecutive recomputes that may reuse the cached reach masses before one full walk is forced anyway (§3.4) |
@@ -1012,7 +998,7 @@ table: it runs on the client over the viewer's own ratings and never touches the
   branch without anything being learned. Through a friend with
   few other friends the non-backtracking walk has nowhere else to go: a chain `u – f – g – h`
   of degree-2 nodes gives `h` exactly `0.25`, effective `0.5` at `ℓ = 2`. Deep discovery is
-  real but modest; suggestions (§5) are how a distant kindred spirit becomes a direct friend.
+  real but modest; a distant kindred spirit becomes a direct friend only by a link.
 - **Truncation**: with `ε_total = 0.02` and `L = 2`, no score moves by more than
   `ε_total·L / (1 + W) = 0.04 / (1 + W)` versus the exact walk over the loaded set *at a given
   pass* — mass beyond the nearest `N_max` people is outside it (§2.4). **This is not the whole
@@ -1196,11 +1182,11 @@ The rule that a chip tapped but never thumbed creates nothing is §1's (item 4 o
 
 Next.js static export on GitHub Pages, React, Tailwind, Biome, Bun for scripts and tests. The
 backend is **Supabase**: Postgres with row-level security, PostgREST in front of it, GoTrue for
-auth, Realtime for the two channels that have to feel live, and two Deno Edge Functions for the
+auth, Realtime for the two channels that have to feel live, and one Deno Edge Function for the
 per-viewer work. **Nothing runs on a schedule outside the database** (§3.7). Repo layout:
 
     web/            Next.js app (static export). The only thing a user touches
-    shared/         pure TypeScript used by web/ and both Edge Functions: id
+    shared/         pure TypeScript used by web/ and the Edge Function: id
                     normalization, the search fold, feed folding, the staleness rule
     rust/           the one Rust crate, no I/O: the algorithm of §2, the simulator,
                     property tests; built to WebAssembly by wasm-pack
@@ -1236,7 +1222,6 @@ Column names are `snake_case`; the client sees them through PostgREST under the 
 profiles          (id uuid pk -> auth.users, display_name text, photo_url text,
                    created_at timestamptz)
 friendships       (user_id, friend_id) pk, since timestamptz          -- both directions stored
-connect_requests  (from_id, to_id) pk, created_at
 invite_links      (owner_id uuid pk, token text unique, created_at)
                   -- at most one link per person; the token is readable by its owner only
 items             (id text pk, search_id text not null, created_at, created_by uuid)
@@ -1244,10 +1229,9 @@ items             (id text pk, search_id text not null, created_at, created_by u
                   -- client-written from `searchFold`, its own text_pattern_ops index,
                   -- checked by a script rather than by a trigger (below)
 ratings           (user_id, item_id, tag) pk, value smallint, rated_at timestamptz
-user_prefs        (user_id pk, discoverable_by_taste bool, dismissed_suggestions uuid[])
 user_recs         (user_id pk, computed_at, entries jsonb, feed_hash text,
                    error real not null)          -- max(truncation·L, settle movement); §1
-user_model        (user_id pk, computed_at, checked_at, suggestions_at, nodes_touched,
+user_model        (user_id pk, computed_at, checked_at, nodes_touched,
                    rating_count, truncation, boundary_residual, settle_movement,
                    passes, settled, recomputed, priors_at,
                    reach jsonb, reach_hash text, reach_reuses,
@@ -1255,9 +1239,6 @@ user_model        (user_id pk, computed_at, checked_at, suggestions_at, nodes_to
                    pair_sum_d1, pair_sum_d2, pair_sum_d3,
                    pair_sumsq_d1, pair_sumsq_d2, pair_sumsq_d3,
                    pair_overlap_d1, pair_overlap_d2, pair_overlap_d3)  -- §2.10's tallies
-suggestions       (user_id, rank) pk, suggested_id uuid
-                  -- a name and an order, nothing else; the chips are computed on request
-                  -- by `public.shared_attributes(uuid)` and stored nowhere (§5.1)
 private.params        (one row: computed_at, kappa, a0_d1, a0_d2, a0_d3plus, samples)
 private.debug_events  (id, user_id, kind, detail, at, expires)
 private.ratings_changed (user_id pk, changed_at)                      -- trigger-written
@@ -1277,9 +1258,8 @@ private.write_budget  (user_id, day) pk, writes                       -- trigger
   friendships a link would make anyway. `invite_owner(text)` and `redeem_invite(text)` take the
   exact token and touch at most one row. There is no insert and no update grant: a token is made
   on the server.
-- **A name is stored once.** No friend edge, connect request or suggestion carries a copy of
-  anybody's name or photo: a friend, a pending asker and someone you are suggested to can each
-  read your profile under RLS (§3.3), so a rename is a change to the only copy.
+- **A name is stored once.** No friend edge carries a copy of anybody's name or photo: a friend
+  reads your profile under RLS (§3.3), so a rename is a change to the only copy.
 - **An item's id is its display text, and there is no `tags` table.** `items` holds `id`,
   `search_id`, `created_at` and `created_by`; the grants are `insert (id, search_id)` and
   `select (id, search_id)`, so the client writes both, from the one `searchFold` in `shared/`,
@@ -1314,9 +1294,7 @@ private.write_budget  (user_id, day) pk, writes                       -- trigger
   inline with the entries too, so the common path needs no second read. It is not a score, it is
   not about anybody, and nothing renders it: it is the step size of a drawing.
 - **`user_model` is the recompute's own scratch row, with no client verb of any kind.** It holds
-  the two stamps of §3.4; `suggestions_at`, taste search's own ten-minute window (§5.1), which
-  cannot be read off the `suggestions` rows because a search that found nobody writes none; the
-  walk report — `truncation`, `settle_movement`, `passes`, `settled` (§2.2) and
+  the two stamps of §3.4; the walk report — `truncation`, `settle_movement`, `passes`, `settled` (§2.2) and
   `boundary_residual`, the mass that left the nearest `N_max` people, reported and never counted
   against `ε_total` (§2.4), all of which a rescore over cached masses carries through unchanged
   since it walked nothing; `reach`, `reach_hash` and the count of consecutive reuses that
@@ -1475,78 +1453,45 @@ Five conventions:
   `created_at`, `created_by`, `since`, `rated_at`, `at` and `expires` unforgeable.
 - **Table privileges.** "No update verb and no delete verb, for anyone" is a `REVOKE`.
 - **A daily write budget, in the database.** Every rating insert or update, every item created,
-  every connect request sent, every link turned on, replaced or redeemed and every diagnostics event draws on one allowance per account per
+  every link turned on, replaced or redeemed and every diagnostics event draws on one allowance per account per
   UTC day, a number written once, in `private.daily_write_limit()`; deletes draw nothing. A
   `security definer` BEFORE trigger counts against `auth.uid()` in `private.write_budget` and
   refuses the write past the allowance with SQLSTATE `PT429`, which PostgREST serves as HTTP 429
   and the client says in a sentence with no number in it. The client cannot be what holds itself
-  to this, since a crafted client is the case a budget exists for. Connect requests are on the
-  list because a request is an INSERT event on the target's Realtime channel, and without a
-  budget a send-and-delete loop would be an unbounded stream of them aimed at one person. A
-  connection with no request identity — the Edge Functions, which write none of those tables —
+  to this, since a crafted client is the case a budget exists for. A
+  connection with no request identity — the Edge Function, which writes none of those tables —
   is not counted, and a scheduled statement deletes past days.
 - **No policy reads another table directly.** Every cross-table predicate goes through a
-  `security definer stable` helper in `private` — `is_friend`, `has_incoming_request_from`,
-  `has_open_outgoing_request_to`, `is_suggested_to_me`, `is_discoverable` — so
-  RLS never nests and never recurses. Policies say `(select auth.uid())`, never bare
+  `security definer stable` helper in `private` — today only `is_friend` — so RLS never nests
+  and never recurses. Policies say `(select auth.uid())`, never bare
   `auth.uid()`, so the planner evaluates it once per statement instead of once per row.
 
-The policies themselves are short. A profile is readable by its owner, by a friend, by someone
-who has asked to be their friend, by someone still discoverable whom they have asked, and by
-anyone it is suggested to **while it stays discoverable** — `is_discoverable(p)` is
-`discoverable_by_taste`, and the `suggestions` read policy and `shared_attributes` check the same
-helper, so the switch going off withdraws the profile, the row and the chips at once rather than
-at each other viewer's next search (a row naming someone outlives their switching off, because
-only its owner's own search rewrites it). The two halves of a pending ask are separate clauses
-because they are separate permissions, and only the sender's expires when the target switches
-off. A connect request may be inserted only to somebody suggested to the sender and still
-discoverable (`is_suggested_to_me`): knowing a uid is not a route to anyone. An invite link is
-readable and deletable by its owner alone (§3.2). Friendships, connect requests, ratings and prefs are readable and writable
-by the people they are about. `user_recs` and `suggestions` are readable by their owner and
-writable by nobody, since the Edge Functions write as `service_role`, which bypasses RLS — a
-planted suggestion row would be a stranger presented as vouched for by the algorithm, so there
-is no client write verb on that table even for its owner. `user_model` is readable by nobody at
-all; the only form in which alignment leaves the server is §5.1's chips, which name attributes
-and never a person's standing. Items are readable by every signed-in user and creatable by them,
-with no update and no delete for anyone.
+The policies themselves are short. A profile is readable by its owner and by a friend, and by
+nobody else: a link's holder sees the owner's name and photo through `invite_owner`, not through
+the table. An invite link is readable and deletable by its owner alone (§3.2). Friendships and
+ratings are readable by the people they are about; a rating is writable by its owner, and a
+friendship is deletable from either end and insertable by no client at all — `redeem_invite`
+writes both halves. `user_recs` is readable by its owner and writable by nobody, since the Edge
+Function writes as `service_role`, which bypasses RLS. `user_model` is readable by nobody at
+all, so alignment never leaves the server. Items are readable by every signed-in user and
+creatable by them, with no update and no delete for anyone.
 
 **The whole of what a client may call**, and it is short, because a stored procedure here is a
 transaction rather than a server: `set_invite_link()` (after `has_credential()`; mints a token
 over the caller's one link and returns it), `invite_owner(text)` (the name and photo behind one
 exact token, or nothing; the one call `anon` may make, since the link is the authority to see
 them), `redeem_invite(text)` (after `has_credential()`; spends one write
-whether or not the token matches, then writes both friendship rows and deletes any pending ask
-between the two — `security definer`, because it writes the owner's half of the edge, which the
-owner authorized by handing the link over, and the caller by saying yes), `accept_connect_request(uuid)` (`security invoker`, so
-every policy still applies to it — two friendship rows and the request's deletion in one
-transaction), `dismiss_suggestion(uuid)`, `record_debug_event(text, text)`, which is the only write verb on a table in `private` and
-supplies none of the three columns it stamps, `account_locked()` (§3.6; whether the caller has no connection), and
-`shared_attributes(uuid)`, which returns at
-most three attribute words for one exact other person and an empty array for anyone the caller is
-not entitled to ask about (§5.1).
-
-**Taste search itself is not a stored procedure and cannot be one.** It runs §5.1's deep walk,
-the deep walk is the wasm core, and no `security definer` SQL function can host it — so it is a
-second Edge Function beside `refresh-recs`, `supabase/functions/refresh-suggestions/`, and
-nothing a client calls through PostgREST at all. The split is along that line: the half that is
-one statement over two tables is a function here, and the half that needs the core is a server.
-
-**`shared_attributes` is in schema `public`, on purpose, and that is not a relaxation.**
-PostgREST serves only the schemas `config.toml` names, and `private` is deliberately not one of
-them — so a function there is unreachable from a client *whatever* its grants, which is exactly
-why the tables live there and exactly why this one cannot. It is `security definer` with
-`set search_path = ''`, with `execute` **revoked from `public`** and granted to `authenticated`
-alone, the shape `redeem_invite` has and the answer to the second hazard below. It takes an
-exact key, returns no rating, no count, no item and no rank beyond list order, and answers a
-caller with no entitlement with an empty result rather than an error, because an error separates
-"nothing to say" from "not allowed to ask". It decides whom it will answer for with
-`has_incoming_request_from` and `is_suggested_to_me`, which itself requires `is_discoverable`.
+whether or not the token matches, then writes both friendship rows — `security definer`,
+because it writes the owner's half of the edge, which the owner authorized by handing the link
+over, and the caller by saying yes), `record_debug_event(text, text)`, which is the only write
+verb on a table in `private` and supplies none of the three columns it stamps, and
+`account_locked()` (§3.6; whether the caller has no connection).
 
 Two triggers complete the schema and neither is callable: `handle_new_user()` on `auth.users`
-creates the profile and prefs rows in the same transaction as the account, so "the profile is
-missing" cannot happen for a signed-in user; and `assert_symmetric()`, deferred to commit, is
-what makes a one-sided friendship impossible. The five policy helpers are the rest of schema
-`private`, alongside `neighbourhood` and `load_nodes`.
+creates the profile row in the same transaction as the account, so "the profile is missing"
+cannot happen for a signed-in user; and `assert_symmetric()`, deferred to commit, is what makes
+a one-sided friendship impossible. The policy helper is the rest of schema `private`, alongside
+`neighbourhood` and `load_nodes`.
 
 **Two hazards are permanent.**
 
@@ -1554,12 +1499,11 @@ what makes a one-sided friendship impossible. The five policy helpers are the re
 row it matches, so any clause on `profiles` that does not name a live relationship — a public
 flag, a "has a link" — would authorize `select * from profiles` for everybody it matches, a
 global aggregate this app does not otherwise have and which §4 says it will not have. So no such
-clause is in the policy. The two reads of somebody with no edge to the caller live inside
-`security definer` functions in `public` that take an exact key and return at most one answer:
-`invite_owner(text)`, keyed on a 244-bit token and answering with a name and a photo only, and `shared_attributes(uuid)`, which
-answers only for a relationship the other person made. A pattern, a prefix or an unbounded
-limit in either body is the enumeration they exist to prevent, and the same care is owed
-anywhere a policy clause looks tempting.
+clause is in the policy. The one read of somebody with no edge to the caller lives inside a
+`security definer` function in `public` that takes an exact key and returns at most one answer:
+`invite_owner(text)`, keyed on a 244-bit token and answering with a name and a photo only. A
+pattern, a prefix or an unbounded limit in its body is the enumeration it exists to prevent, and
+the same care is owed anywhere a policy clause looks tempting.
 
 *Postgres grants `EXECUTE` on a new function to `PUBLIC` by default.* `private.neighbourhood`
 returns the raw ratings of up to `N_max` people, so a `grant execute` on it, or moving it to a
@@ -1749,17 +1693,15 @@ per-viewer cost.
   nothing to look up and no cache in front of it.
 - Ratings are written directly by the client into its own rows: an upsert for a thumb, a delete
   for clearing one. The feed updates on the next call.
-- **Two Realtime channels over three published tables**: one channel for the viewer's own feed
-  row, and one for the people screen, which carries `connect_requests` inserts in both directions
-  *and* the insert of the viewer's own half of a new `friendships` pair. That third table is in
-  the publication because "you are now friends" is the one event that matters to somebody who is
-  not the actor. The publication is `insert, update` only, because a policy can bound a row but
-  cannot bound a delete of anything (`0006_realtime.sql` gives the reason at length). No table is
-  in the publication without a subscriber. The request half is also what puts the badge on the
-  avatar's upper-right vertex, which is the only notification in the product. Profiles, prefs and
-  suggestions change by the viewer's own action, which the client already knows about, or — for
-  suggestions — when the viewer's own call recomputes them (§5.1); they are fetched on mount and
-  on focus. RLS applies to Realtime, so nobody receives another viewer's row.
+- **Two Realtime channels over two published tables**: one for the viewer's own feed row, and
+  one for the insert of the viewer's own half of a new `friendships` pair — "you are now
+  friends" is the one event that matters to somebody who is not the actor, which is what a
+  link's owner is when somebody opens it. The publication is `insert, update` only, because a
+  policy can bound a row but cannot bound a delete of anything (`0006_realtime.sql` gives the
+  reason at length). No table is in the publication without a subscriber. There is no
+  notification anywhere in the product. Profiles and the viewer's link change by the viewer's
+  own action, which the client already knows about; they are fetched on mount and on focus. RLS
+  applies to Realtime, so nobody receives another viewer's row.
 
 ### 3.6 Auth: one door
 
@@ -1770,8 +1712,8 @@ and in the diff, rather than on a console page someone has to remember to visit.
 
 Three things follow:
 
-- **A profile arrives named.** A trigger on the auth user creates the profile row and the prefs
-  row in the same transaction, taking `display_name` and `photo_url` from Google's identity
+- **A profile arrives named.** A trigger on the auth user creates the profile row in the same
+  transaction, taking `display_name` and `photo_url` from Google's identity
   metadata. So "the profile is missing" cannot happen for a signed-in user, and a Google account
   that carries no name at all is called *unknown* until its owner renames it.
 - **The OAuth flow must not eat the fragment.** Every screen has its URL in the fragment, and
@@ -1832,7 +1774,7 @@ looks. So every Google sign-in creates an account, and the gate is on what the a
 - **Locked means no connection.** Nothing stores the lock: `private.is_unlocked()` reads
   `friendships`, so an account that never joined and one that removed its last connection
   are locked by one rule. `private.count_write`,
-  the trigger every counted write already goes through — a rating, an item, a request, a link, a
+  the trigger every counted write already goes through — a rating, an item, a link, a
   diagnostic — refuses a locked caller before it spends anything, and a second trigger
   refuses the two client writes it does not see, a name update and clearing a thumb, with the
   same error rather than by matching no row.
@@ -1873,24 +1815,10 @@ There is no scheduler outside the database. A scheduled GitHub Actions workflow 
 automatically after sixty days of repository inactivity, and nothing goes red when it is; a job
 run that way would also need a long-lived credential that bypasses RLS in a repository secret.
 
-**Taste search runs on demand** instead, as a second Edge Function beside `refresh-recs`:
-`supabase/functions/refresh-suggestions/` takes the caller's bearer token and answers 401 the
-same way, loads the caller's neighbourhood, runs §5.1's search for that one caller and writes
-that one caller's five `suggestions` rows as the service role. The people screen calls it on
-open behind the same ten-minute staleness rule the feed uses (§5.1), which is what stops it
-being a button that costs a deep walk. One viewer's whole search measured at most 15 ms, plus
-about 6 ms reading the rows into the core (`docs/algorithm-notes.md` §9), against an invocation
-metered on the order of two seconds; searching for everybody on a schedule would pay for people
-who never open the app.
-
-**This makes two servers, and the exception is stated.** The rule is that every user-facing
-action is a direct PostgREST write under row-level security, because nothing about another user
-may be computed on a client (§4). Suggestions are the second thing that cannot be: ranking
-strangers by alignment needs strangers' ratings. **It is not folded into `refresh-recs`**
-because the search is a second walk at the deep budget that almost nobody needs on any given
-feed refresh; folding it in would make every refresh pay for it. Two functions, each with one
-job, is cheaper than one function with a mode flag — and the mode flag would be a second entry
-point in all but name.
+**One server, and the exception is stated.** The rule is that every user-facing action is a
+direct PostgREST write under row-level security, because nothing about another user may be
+computed on a client (§4). The feed is the one thing that cannot be, so `refresh-recs` is the one
+Edge Function.
 
 ### 3.8 Cost, and where the free tier breaks
 
@@ -1938,11 +1866,9 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
 - No screen ever shows counts, raters, averages, "N friends liked this", or who created an
   item. Scores are shown as a personal meter — four segments, a fill quantized to the error
   the walk can carry (§1 "The bar") — never as a number and never with a word beside it.
-- Ratings are readable only by their owner; by the two Edge Functions, which read the
-  neighbourhood of whoever is calling and write back only that caller's own scores and
-  suggestions; and by `shared_attributes`, which reads one other person's rows against the
-  caller's own and returns at most three words (§3.3). No process reads everybody's ratings at
-  once.
+- Ratings are readable only by their owner, and by the Edge Function, which reads the
+  neighbourhood of whoever is calling and writes back only that caller's own scores. No process
+  reads everybody's ratings at once.
 - Minimum support `W_min` means an item does not surface from a lone second-hop source. A
   single direct friend's thumb clears that floor whenever the population's own agreement
   prior puts it there (§2.10 estimates that prior from the population as it accumulates, so
@@ -1960,16 +1886,11 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   locked (§3.6). Nothing is public to signed-out
   visitors except the app shell and, to whoever holds your link, your name and photo.
 - Nobody can be found by typing anything: there are no handles and no search for people. A
-  stranger reaches you in exactly two ways, both of them your own act. **Your link**, which
-  anyone holding it can use to see your name and photo and to become your friend, until you
-  make a new one or turn it off; either stops new friends and keeps the ones it made (§1 item
-  6). A link that leaks costs you the friends it makes before you replace it, and each of them
-  can be unfriended. And **suggestions**, which
-  are off until you switch them on. Suggestions off means every existing
-  suggestion row naming you stops being readable, and with it your profile and your chips
-  through that row (§3.3's `is_discoverable`); it does not wait for each other viewer's next
-  search. A pending ask you sent cannot be withdrawn (§1 item 6), and one sent to you stays
-  readable to you until you answer it.
+  stranger reaches you in exactly one way, and it is your own act: **your link**, which anyone
+  holding it can use to see your name and photo and to become your friend, until you make a new
+  one or turn it off; either stops new friends and keeps the ones it made (§1 item 6). A link
+  that leaks costs you the friends it makes before you replace it, and each of them can be
+  unfriended.
 - Item names and tags are the one channel of user-written text that everyone in reach can
   see, and a name can never change — it *is* the id (§3.2), so there is no verb that could
   change it and nothing that could be changed under it. A name like "blue bottle (rated by 9
@@ -1982,8 +1903,7 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   name, which §3.2 says is bounded rather than prevented.
 - Alignments are never shown, so there is no way to learn "the app thinks you and X
   disagree". There is no per-friend trust map (§2.5), and `user_model` is readable by nobody,
-  not even its owner (§3.3). The one thing about alignment that ever leaves the server is
-  §5.1's chips, which name attributes and never a person's standing.
+  not even its owner (§3.3). Nothing about alignment leaves the server.
 - The operator of the project (whoever holds the Supabase project) can read the database to
   keep it working or when the law requires it; the privacy page says so. "Only you and the
   recompute" is a statement about grapevine's users and the app, not about the operator.
@@ -2007,187 +1927,16 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   is a scheduled statement in a migration, in the repo and applied by the deploy, rather
   than a console setting somebody has to remember to make and whose absence is silent.
 
-## 5. Taste search
+## 5. Taste search (removed)
 
-The on-demand walk stops where mass stops mattering. Someone with your taste who is far
-away, or behind crowded intermediaries, gets a sliver of mass and no influence. Taste
-search runs the *same* walk with the **deep** budget (`N_max = 50 000`, `ε_total = 0.001`) so
-that trust is followed much further, and turns what it finds into friend suggestions. It runs
-for one viewer at a time, when that viewer asks (§3.7). Accepting one creates an edge, after
-which they count like any direct friend. It is a suggestion channel, not a trust channel:
-nothing about a suggestion changes any score until the viewer accepts.
+Taste search — the deep walk turned into friend suggestions, a discoverability switch, connect
+requests to the people it named, and the attributes two people agreed on against the grain shown
+under each — was built and then **removed** (migration `0011`), and connect requests with it,
+since a request could only go to somebody the search had named. A friend is made by a link and by
+nothing else.
 
-### 5.1 Mechanism
-
-- Users opt in to being discoverable by taste (`user_prefs.discoverable_by_taste`; default
-  **off**, one swipe on — the full-width line under the link line on the people screen, which
-  is the whole of the settings (§1). Discoverability is reciprocal: off means you are named to
-  nobody and your own list is empty. It is also the whole of being askable: a connect request
-  may be sent only to somebody suggested to the sender and still discoverable
-  (`is_suggested_to_me` in the insert policy), so every suggestion's yes side can succeed and
-  nobody else can be asked at all. **Named to nobody holds from the moment it goes off**: other
-  viewers' rows naming you are not rewritten until their own next search, but
-  `private.is_discoverable` is in the read
-  policy on those rows and in every read that goes through them, so they stop being readable at
-  once (§3.3). Non-discoverable users still carry mass through the walk; they are just never
-  suggested.
-- **One viewer's search, run for that viewer, on request.** `refresh-suggestions` (§3.7) runs
-  the deep walk and full alignment from `u` and nothing wider. Candidates are discoverable `v`
-  with `A_{uv} + D_{uv} ≥ 20` (twenty units of informative overlap), `ℓ_{uv} ≥ 1`, not already a
-  friend, not dismissed, and whose current influence is negligible (`π̃_u(v)·ℓ_{uv} < 0.1` under
-  the on-demand budget — people who already reach you are not suggestions). Rank by
-
-      π̃_u(v) · ℓ_{uv}
-
-  from the deep walk, and write the top 5 to `u`'s `suggestions` rows. **Who writes them**:
-  the server, as `service_role`, on the caller's own behalf and for the caller's own rows only
-  — there is no client write verb on that table, because a planted row would be a stranger
-  presented as vouched for by the algorithm. It is called by the people screen on open, behind
-  the same ten-minute staleness rule the feed uses, so an idle viewer pays for one deep search
-  per window and a viewer who never opens the screen pays for none at all.
-- **A row carries the attributes the two of you agree on, not a level of alignment.** A coarse
-  level — "some in common", "lots in common" — is a number with a word painted over it and
-  answers nothing a person is actually deciding: *lots in common* is not a reason to accept a
-  stranger, and *coffee, cycling, sci-fi* is. The chips are the same ones the rest of the
-  interface is made of, and the same ones a pending connect request carries.
-- **Which attributes: the ones you agree on against the grain.** Not the rarest word, not the
-  most-used one. A shared attribute is worth showing exactly when the two of you answered it the
-  same way *and* that answer departs from what the rest of `u`'s reachable network says about
-  that same item-and-attribute. Both of you liking the coffee at a place everybody around you
-  also likes for coffee says nothing about the two of you; both of you liking the coffee at a
-  place your network pans says a great deal. So, over every pair `(i, t)` that `u` and `v` both
-  rated, and with the same shared answer `r ∈ {+1, −1}`:
-
-      dev(i,t)  =  1 − r · s_u(i,t)        ∈ [0, 2]        (`r² = 1`, so this is `r·(r − s_u)`)
-      D(t)      =  Σ_i dev(i,t)            over those pairs
-      the chips =  the top 3 tags by D(t)
-
-  `s_u(i,t)` is §2.6's ordinary tag score — the grain — read out of the viewer's own
-  `user_recs.entries`, the on-demand feed; a tag missing from `entries` already means
-  `W_u(i,t) < W_min`, which is exactly the pair this rule skips. It is **`u`'s own
-  reach-weighted** one, never a global average, so §5.2's "no global aggregate" holds here as it
-  does everywhere else. Nothing needs subtracting from it: §2.6 sums over `v ≠ u`, so `u`'s own
-  thumb is never part of the grain it is measured against, and a *candidate* is by the rule above
-  someone whose `π̃·ℓ` is already below `0.1`, so `v`'s own contribution is negligible by
-  construction. On a **pending ask**, where no such rule applies and the asker may be close,
-  `v`'s thumb does partly set the grain — which can only pull `s_u` toward `r` and shrink `dev`,
-  so it understates the deviation and never overstates it. **Three chips** is the whole of the
-  per-row cap; ties break alphabetically, so the list is a function of the data and not of
-  iteration order.
-
-  Two consequences, both wanted. An attribute on items nobody else in reach has an opinion
-  about contributes nothing — there is no grain to go against, `W_u(i,t) < W_min` means
-  `s_u(i,t)` does not exist, and the pair is skipped. And a person with a great deal in common
-  with you in the ordinary way may show **no chips at all**, because agreeing with everyone is
-  not what this measures. A row with no chips is a row with no chips; there is no filler.
-- **What it reveals, in one sentence**: a chip says that, on at least one thing carrying that
-  attribute, this person answered it the way you did and the two of you went against what your
-  network thinks. It names no thing, no rating and no number — but that sentence is the
-  disclosure, it is accepted, and §5.2 bounds it.
-- The people screen shows them under *similar taste*. Sending a request is the ordinary
-  connect request, and sending one **hides that person from the list until they accept**, so
-  nobody is asked twice; the cost is that the asker cannot see their own pending ask (§1).
-  Dismissed suggestions are not re-shown.
-- **The chips are computed on request, by one query, and stored nowhere.** §1 puts the same
-  chips under a pending connect request and under a suggestion, and **both use the same call**:
-  there is no column and no second path. The attributes two people rated the same way is a join
-  of `ratings` against `ratings`, and the deviation weighting needs only the viewer's own
-  `user_recs`, which the viewer may already read. A *client* cannot run it, because it touches
-  the other person's rows — so it is `public.shared_attributes(other uuid) returns text[]`,
-  `security definer` with `set search_path = ''`, taking one exact user id and returning at most
-  three tag ids and nothing else. It is in `public` with `execute` granted to `authenticated`
-  alone, for the reasons and under the hazards §3.3 gives: it answers only for the two
-  relationships named below, it returns no rating, no count and no item, and it takes an exact
-  key so it is not an enumeration surface. Nothing is written, so nothing goes stale.
-- **And it cannot be aimed, which is what makes probing a non-issue.** An instant answer looks
-  probeable — rate something, ask again, watch whether a chip moves, and you have learned one of
-  their ratings. It is not, because **you do not choose whose chips you see.** They are shown for
-  exactly two kinds of person: one who **sent you a request**, and one who **is suggested to
-  you**, which requires them to have `discoverable_by_taste` on, now and not
-  merely when the suggestion was made. Both are explicit acts by the other person. Your own
-  outgoing requests are shown to nobody and produce no chips for you (§1), so sending a request
-  at a chosen target reveals nothing about them at all. An attacker can therefore only probe
-  people who have already volunteered into their view, and cannot pick who those are — the same
-  `profiles` read clauses already decide it. The residual: an account that turns its own
-  discoverability on raises its chances of being suggested to *somebody*, and whoever that turns
-  out to be is then probeable. It cannot choose who.
-- **The function answers for those two relationships and refuses everything else.** It is the
-  authorization rule, not a policy on a table, because it is a function: a caller with no pending
-  request from the target and no suggestion row naming a still-discoverable target gets an empty
-  list, not an error — an error distinguishes "no overlap" from "not allowed to ask", which is
-  itself a disclosure.
-
-### 5.2 Why this is acceptable under §2's threats
-
-- **Sybils, of any shape**: ranking by mass × alignment means every candidate is scored by
-  the trust path that reaches them. A sybil region behind one edge shares that branch's
-  bounded mass, so each of its members ranks below any honest person reached by an equally
-  strong path, and no region can fill the list unless it holds several distinct edges into
-  the viewer's network — the same currency as everywhere else. No "one per cluster" rule
-  is needed and none would help against sybils that are not friends with each other.
-- **No global aggregate**: consensus `ω` is the viewer's own reach-weighted one from the
-  deep walk, so edgeless sybils cannot blind or manufacture contestedness.
-- **The decision is the viewer's**: a suggestion is vetted the way any friend request is.
-  A bad accept costs one direct friend's worth — and that is the *whole* of what it costs,
-  because nothing reacts to what crosses the edge afterwards (§2.5). What limits it is the
-  ceiling and the viewer's own ability to unfriend, not a correction.
-- **Leaks**: a suggestion says that `v` agrees with `u` on a lot of contested items, and up to
-  three chips say *which attributes* the two agreed on against the network's own opinion
-  (§5.1). That is a wider channel than a coarse level of alignment would be, and it is accepted
-  rather than bounded away. What bounds it:
-
-  - **A chip is a word, not a rating.** It names the attribute and never the thing, so it
-    cannot be read as "`v` rated `café bleu`". The pair it came from is one of however many
-    items in `u`'s reach carry that attribute, and `u` is not told which — or how many.
-  - **The grain is `u`'s own.** `s_u(i,t)` is the viewer's reach-weighted score, so the
-    selection is a fact about `u`'s network agreeing or not, and an outsider cannot compute
-    the same list for somebody else's view of the same pair.
-  - **It cannot be aimed, and that is what bounds probing.** The chips answer at once, so no
-    delay protects them; §5.1 states the real bound: you do not choose whose chips you see, both
-    of the relationships that produce them are the other person's explicit act, and your own
-    outgoing requests produce nothing. What a probe would still cost somebody who has been
-    volunteered into an attacker's view: `u`'s own thumbs are not in `s_u`, so flipping one of
-    them does not move the grain — it can only add or remove an `(i,t)` pair from the both-rated
-    set, and only a reorder of the top three shows. Getting a specific rating out of `v` that way
-    means guessing the item *and* the attribute first, since neither is displayed.
-  - **The floors, and the one place they do not hold.** For a **suggestion**: twenty units of
-    informative overlap and `ℓ ≥ 1` before `v` is a candidate at all. For a **pending ask**
-    neither applies — anyone you were suggested to may send you a request — so the chips under a request rest
-    on the pair floor alone. That floor does hold on both paths: `W_u(i,t) ≥ W_min` before a
-    pair has a grain to depart from, so a pair nobody else in reach has an opinion about is
-    silently skipped and a chip never rests on a single other person's thumb. What a pending ask
-    buys an attacker over a suggestion is therefore chips from somebody with *less* in common
-    with the viewer, from a relationship the viewer did not ask for — bounded by the fact that
-    the request is visible, refusable, and sendable only by somebody you were suggested to,
-    which takes your discoverability switch being on.
-
-  What is *not* claimed: that `v`'s ratings are unrecoverable. They are recoverable the way
-  everything here is — deliberately, with a guess about which item is involved, by somebody who
-  cannot choose whom to try it on. §4's stance is friction, not secrecy, and this is inside it.
-
-### 5.3 Cost
-
-**It is priced per viewer who asks, not per account.** One search is one neighbourhood read at
-the same `N_max = 2 000` the feed uses, one crossing into the core, two walks over what was read —
-the deep one to rank, the on-demand one to drop anyone the live feed already carries — and at
-most five rows written: at most 15 ms of walking plus about 6 ms of crossing, measured over the
-world the taste-search checks seed (`docs/algorithm-notes.md` §9). Behind the ten-minute
-staleness rule, a viewer who opens the people screen repeatedly pays once a window and a viewer
-who never opens it pays nothing.
-
-**The constraint is egress, not CPU, and it is linear in nodes loaded.** The deep budget's
-`N_max = 50 000` bounds the walk, not the read: the search reads the same neighbourhood a feed
-refresh reads, so one opened after a refresh adds no egress of its own. At 50 000 nodes the read
-would be on the order of a hundred megabytes, which fits nothing; if the search ever needs to
-load more than the feed does, how far is a decision with an egress measurement behind it rather
-than a constant to raise.
-
-§5.1's chips add no walk: `s_u(i,t)` is already in the viewer's `user_recs.entries`, and the
-chips are one pass over the pairs the viewer and one other person both rated — at most five
-candidates a viewer after the candidate rule, plus whoever has an open request in.
-
-A scheduled search for everybody would read the whole graph and every rating — about
-`N × (0.4 + 0.028·R)` KB compressed, a few hundred megabytes a month at 10k users — spent on
-everybody whether or not they ever looked. Paying per active viewer beats that whenever not
-everyone is active, which is always; what it costs instead is that each payment has to fit
-inside one invocation, and it does with two orders of magnitude to spare.
+It is out for now, not rejected. The mechanism, its privacy argument and its measurements are in
+version control (this section, `rust/src/suggest.rs`, `supabase/functions/refresh-suggestions/`
+and `docs/algorithm-notes.md` §9). Bringing it back is new tables in a new migration and starts
+from that history: what it would reopen is a stranger's name and chips on screen, a second Edge
+Function reading other people's ratings, and §4's "a stranger reaches you in exactly one way".

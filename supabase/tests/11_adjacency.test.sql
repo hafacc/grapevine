@@ -14,11 +14,10 @@ insert into auth.users (id, email, email_confirmed_at) values
 create or replace function private.is_unlocked(p_user uuid) returns boolean
   language sql as $$ select true $$;  -- the lock (0010) is 23's to test
 
--- So that 1 may ask 3 below: a request travels only along a suggestion.
-update public.user_prefs set discoverable_by_taste = true
-  where user_id = '33333333-3333-3333-3333-333333333333';
-insert into public.suggestions (user_id, rank, suggested_id) values
-  ('11111111-1111-1111-1111-111111111111', 1, '33333333-3333-3333-3333-333333333333');
+-- So that 1 may befriend 3 below: a friendship is made by a link and nothing
+-- else.
+insert into public.invite_links (owner_id, token) values
+  ('33333333-3333-3333-3333-333333333333', 'ThreesTokenThreesTokenThreesTokenThreesToke');
 
 insert into public.friendships (user_id, friend_id) values
   ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'),
@@ -45,17 +44,16 @@ select throws_ok(
     values ('33333333-3333-3333-3333-333333333333', '44444444-4444-4444-4444-444444444444')$$,
   '42501', null, 'an edge between two other people cannot be asserted');
 
-select lives_ok(
-  $$insert into public.connect_requests (from_id, to_id)
+select throws_ok(
+  $$insert into public.friendships (user_id, friend_id)
     values ((select auth.uid()), '33333333-3333-3333-3333-333333333333')$$,
-  'asking is one statement');
-set local request.jwt.claims = '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
+  '42501', null, 'nor even one''s own half: no client inserts a friendship');
 select lives_ok(
-  $$select public.accept_connect_request('11111111-1111-1111-1111-111111111111')$$,
-  'and accepting is one more — no second write to keep in step');
+  $$select public.redeem_invite('ThreesTokenThreesTokenThreesTokenThreesToke')$$,
+  'a link is one statement that writes both halves — no second write to keep in step');
 
--- Dropping an edge is a delete of two rows and adding one needs an accept, so
--- no single write can swap one friend for another.
+-- Dropping an edge is a delete of two rows and adding one needs a link, so no
+-- single write can swap one friend for another.
 set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 set constraints all immediate;
 select lives_ok(

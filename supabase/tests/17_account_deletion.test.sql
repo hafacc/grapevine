@@ -7,7 +7,7 @@
 -- points at its id.
 
 begin;
-select plan(10);
+select plan(9);
 
 insert into auth.users (id, email, email_confirmed_at) values
   ('11111111-1111-1111-1111-111111111111', 'leaver@example.com', now()),
@@ -37,9 +37,6 @@ select lives_ok(
 select is((select count(*)::int from public.profiles
            where id = '11111111-1111-1111-1111-111111111111'), 0,
   'the profile goes with it');
-select is((select count(*)::int from public.user_prefs
-           where user_id = '11111111-1111-1111-1111-111111111111'), 0,
-  'and the prefs row the signup trigger created');
 select is((select count(*)::int from public.ratings
            where user_id = '11111111-1111-1111-1111-111111111111'), 0,
   'and their ratings');

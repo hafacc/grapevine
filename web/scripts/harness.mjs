@@ -77,17 +77,6 @@ export async function refreshAs(uid, email, body = {}) {
   return callFunction("refresh-recs", uid, email, body);
 }
 
-/**
- * Taste search for one person, the same call the people screen makes.
- *
- * It is a second function rather than a database one because the deep walk is
- * the wasm core; everything else about the call — the minted token, no uid
- * parameter — is `refreshAs` above.
- */
-export async function suggestAs(uid, email, body = {}) {
-  return callFunction("refresh-suggestions", uid, email, body);
-}
-
 async function callFunction(name, uid, email, body) {
   const { accessToken } = mintSession(uid, email);
   const answer = await fetch(`${LOCAL_SUPABASE_URL}/functions/v1/${name}`, {

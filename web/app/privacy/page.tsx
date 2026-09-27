@@ -72,8 +72,7 @@ export default function PrivacyPage(): ReactElement {
           anything.
         </li>
         <li>
-          <strong>Your friendships and pending requests</strong> — who you are
-          connected to, and who has asked whom.
+          <strong>Your friendships</strong> — who you are connected to.
         </li>
         <li>
           <strong>Your friend link</strong> — if you have made one, the link and
@@ -86,10 +85,6 @@ export default function PrivacyPage(): ReactElement {
         <li>
           <strong>Your feed</strong> — the recommendations built for you and the
           working numbers behind them, rebuilt in place rather than piled up.
-        </li>
-        <li>
-          <strong>Your settings</strong> — whether you take part in friend
-          suggestions, and the suggestions you have waved away.
         </li>
         <li>
           <strong>The catalog of things</strong> — a name and when it was added.
@@ -106,12 +101,11 @@ export default function PrivacyPage(): ReactElement {
         <li>
           <strong>Your ratings are yours.</strong> No friend, and no one whose
           feed your thumbs help shape, can read them. What does read them is the
-          recompute — the server job that builds one person's recommendations,
-          and the one behind friend suggestions: both read the ratings of the
-          people within a viewer's reach inside the database, for the length of
-          one call, and what they write back is for that one viewer and says
-          nothing about who rated what. No browser ever receives another
-          person's ratings, in any form.
+          recompute — the server job that builds one person's recommendations.
+          It reads the ratings of the people within a viewer's reach inside the
+          database, for the length of one call, and what it writes back is for
+          that one viewer and says nothing about who rated what. No browser ever
+          receives another person's ratings, in any form.
         </li>
         <li>
           <strong>Your friend list is visible to you</strong> and, one
@@ -120,13 +114,11 @@ export default function PrivacyPage(): ReactElement {
           other, and it ends for both at once.
         </li>
         <li>
-          <strong>Your profile</strong> is readable by you, your friends, anyone
-          you have a pending request with, and anyone you are currently
-          suggested to, while you stay in suggestions. Whoever holds your link
-          also sees your name and photo, even before signing in, and is asked
-          whether to be your friend. There is no way to list or search for
-          accounts. Unfriending someone takes away the access being friends gave
-          them.
+          <strong>Your profile</strong> is readable by you and your friends.
+          Whoever holds your link also sees your name and photo, even before
+          signing in, and is asked whether to be your friend. There is no way to
+          list or search for accounts. Unfriending someone takes away the access
+          being friends gave them.
         </li>
         <li>
           <strong>A friend link works for whoever has it.</strong> Anyone who
@@ -137,11 +129,9 @@ export default function PrivacyPage(): ReactElement {
           brought in.
         </li>
         <li>
-          <strong>
-            Your feed, your suggestions and the numbers behind them
-          </strong>{" "}
-          are readable by you and by nobody else, and no browser can write them
-          at all — not even yours.
+          <strong>Your feed and the numbers behind it</strong> are readable by
+          you and by nobody else, and no browser can write them at all — not
+          even yours.
         </li>
         <li>
           <strong>Nothing is public to a signed-out visitor</strong> except the
@@ -209,37 +199,6 @@ export default function PrivacyPage(): ReactElement {
         stranger can ever be.
       </P>
 
-      <H2>friend suggestions by taste</H2>
-      <P>
-        grapevine can suggest people whose taste matches yours but who you are
-        not connected to. It is the one thing here that names you to someone you
-        have no connection with, so it starts off and is a line you swipe on,
-        under your own row on the people screen — and it is reciprocal: on, you
-        are offered to others and they to you; off, neither happens and your own
-        list is emptied too.
-      </P>
-      <List>
-        <li>
-          A suggestion carries a name and at most three attributes the two of
-          you agree about where the rest of your network doesn't —{" "}
-          <code>coffee</code>, <code>cycling</code>. Never a number, never how
-          much you have in common, and never which things those ratings were on.
-          Having nothing to show there is ordinary, and the person is offered
-          without it.
-        </li>
-        <li>
-          It takes at least twenty things' worth of informative overlap, the
-          list holds at most five people. Switching suggestions off takes you
-          out of everyone's suggestions at once, and a friend request can only
-          come from someone you were suggested to.
-        </li>
-        <li>
-          Waving one away is permanent. Accepting one is an ordinary friend
-          request, and nothing about a suggestion changes any of your scores
-          until you do.
-        </li>
-      </List>
-
       <H2>the names of things are public, and permanent</H2>
       <P>
         A thing's name is the one piece of user-written text that anyone signed
@@ -266,8 +225,8 @@ export default function PrivacyPage(): ReactElement {
         deleted row is gone, so there is nothing left for the database to check
         who is allowed to see it, and sending one out would tell every listening
         browser which two accounts had just stopped being connected. What it
-        costs is that a declined or withdrawn request reaches the other person
-        on their next load rather than at once.
+        costs is that an unfriending reaches the other person on their next load
+        rather than at once.
       </P>
 
       <H2>trackers, and what is in your browser</H2>

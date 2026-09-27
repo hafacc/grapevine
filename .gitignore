@@ -6,7 +6,6 @@
 # local script, never committed.
 rust/core-wasm/
 supabase/functions/refresh-recs/core-wasm/
-supabase/functions/refresh-suggestions/core-wasm/
 
 # Rust build output
 rust/target/

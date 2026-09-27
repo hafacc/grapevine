@@ -145,13 +145,6 @@ expect(
   /your link is off/i.test(people),
   people.slice(0, 200),
 );
-expect(
-  "and the discoverability line as one sentence",
-  /swipe to show up in friend suggestions|suggested to people with similar taste/i.test(
-    people,
-  ),
-  people.slice(0, 200),
-);
 
 console.log("\nrenaming");
 await page.evaluate(tap('button[aria-label^="change your name"]'));
