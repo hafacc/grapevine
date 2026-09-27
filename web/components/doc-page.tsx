@@ -4,7 +4,7 @@ import SiteFooter, { type DocRoute } from "./site-footer";
 import ThemeButton from "./theme-button";
 import Wordmark from "./wordmark";
 
-// The four written pages — how it works, about, privacy, help — share one
+// The three written pages — about, privacy, help — share one
 // chrome and a dozen element classes. They are the only long-text surfaces in
 // grapevine, and deliberately the only ones that set prose on the bare canvas:
 // a card here means controls and lists everywhere else, so a wall of one behind
@@ -33,78 +33,6 @@ export function List({ children }: { children: ReactNode }): ReactElement {
     <ul className="mt-4 list-disc space-y-2 pl-5 marker:text-faint">
       {children}
     </ul>
-  );
-}
-
-// For a block whose whole point is being lifted off the canvas, such as
-// Privacy's promises. Kept scarce deliberately.
-export function Card({ children }: { children: ReactNode }): ReactElement {
-  return (
-    // The first child's own top margin would sit inside the card as an empty
-    // band above it.
-    <div className="mt-6 rounded-sm bg-surface p-5 shadow-card [&>:first-child]:mt-0">
-      {children}
-    </div>
-  );
-}
-
-// A diagram and the sentence under it. The explainer's diagrams are inline SVG
-// drawn from the palette tokens, so they follow the theme and need no image
-// request — and the caption is what a reader with images off, or a screen
-// reader past the figure's label, still gets.
-export function Figure({
-  caption,
-  children,
-}: {
-  caption: string;
-  children: ReactNode;
-}): ReactElement {
-  return (
-    // Edge to edge on a phone: a diagram is drawn at a fixed width, and every
-    // pixel of gutter around it is a pixel off the size of its labels.
-    <figure className="-mx-4 mt-6 sm:mx-0">
-      <div className="border-y border-border bg-surface px-2 py-5 sm:rounded-sm sm:border-x sm:px-4">
-        {children}
-      </div>
-      <figcaption className="mt-2 px-4 text-[14px] leading-5 text-muted sm:px-0">
-        {caption}
-      </figcaption>
-    </figure>
-  );
-}
-
-/**
- * The formulas behind a section of the explainer, folded away.
- *
- * Shut by default and never the only place a claim is made: the prose above one
- * of these has to stand on its own, because most readers will not open it. What
- * is inside is quoted from DESIGN.md §2 unchanged, so the two cannot drift into
- * saying different things.
- */
-// `of` names the part, because a page with seven of these otherwise reads out
-// as seven disclosures called "the math" with nothing to tell them apart.
-export function TheMath({
-  of,
-  children,
-}: {
-  of: string;
-  children: ReactNode;
-}): ReactElement {
-  return (
-    <details className="mt-5 rounded-sm border border-border bg-surface px-4 py-3">
-      <summary className="label cursor-pointer text-[15px] text-accent-ink">
-        the math: {of}
-      </summary>
-      <div className="mt-3 space-y-3 text-[16px] text-muted">{children}</div>
-    </details>
-  );
-}
-
-export function Formula({ children }: { children: ReactNode }): ReactElement {
-  return (
-    <pre className="overflow-x-auto font-mono text-[14px] leading-6 text-text">
-      {children}
-    </pre>
   );
 }
 

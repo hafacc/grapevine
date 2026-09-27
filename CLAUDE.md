@@ -402,7 +402,7 @@ two people and two keyboards and does not pretend to stop a determined one.
 - kebab-case filenames; `utils/` for logic and database access, `components/` for UI,
   `components/ui/` for primitives; `"use client"` on anything touching the store, Supabase or a
   browser API.
-- **Three routes and no more**: `#/` (the list), `#/item/<id>` and `#/people`; the four written
+- **Three routes and no more**: `#/` (the list), `#/item/<id>` and `#/people`; the three written
   pages are static routes the router stays off. A pasted link to a thing gets the list seeded under
   it so Back goes somewhere. `web/tests/router.test.ts` asserts
   that any other fragment names no screen. `#/invite/<token>` is not a route: the store takes the
@@ -542,24 +542,24 @@ repository inactivity and nothing goes red.
 
 ## The written pages
 
-Four statically exported routes — `/how/`, `/about/`, `/privacy/`, `/help/` — each a plain server
+Three statically exported routes — `/about/`, `/privacy/`, `/help/` — each a plain server
 component importing no store and needing no session, so the full text sits in the exported HTML.
 `components/doc-page.tsx` is the shell. `check:pwa` greps one sentence out of each exported page,
-and its list is four on purpose: a page list that shrinks silently is how a page goes missing.
+and its list is three on purpose: a page list that shrinks silently is how a page goes missing.
+The pages have no diagrams and no formulas, and say each thing once, in as few words as they can.
 
-`/how/` is the explainer, and **nothing on it may claim more than DESIGN §2 does**. Each section
-has an inline SVG diagram (`components/how-diagrams.tsx`, palette tokens only) and a `<details>`
-quoting DESIGN's formulas unchanged; the prose above stands on its own. It explains the swipe
-directions, and so does the list's one-time hint (DESIGN §1 item 7), which waits for a list with
-rows in it. The priors are population estimates, so numbers on it are stated against the chosen
-`W_min`, `L` and `α`, never as ratios of prior-dependent ones.
+`/about/` is also the explainer, and **nothing on it may claim more than DESIGN §2 does**.
+It explains the swipe directions, and so does the list's one-time hint (DESIGN §1 item 7), which
+waits for a list with rows in it; that sentence is also the `check:pwa` needle, so it stays on
+`/about/`.
 
-`/privacy/` says the uncomfortable parts out loud because DESIGN §4 does: **with exactly one friend
-your feed is that friend's ratings** (word for word — it is the `check:pwa` needle); that friction,
-not secrecy, stands between a feed and knowing who; that a thing's name is public text that can
-never change; that Google is the only way in and the site loads no trackers. It carries the promise
-of **no counts and no attribution**. It must **not** say a thumb is stored without a clock or that
-rating order cannot be reconstructed: `ratings.rated_at` exists.
+`/privacy/` says the uncomfortable parts out loud because DESIGN §4 does: **with exactly one
+person in your vine, your list is their ratings** (word for word — it is the `check:pwa` needle);
+that friction, not secrecy, stands between a list and knowing who; that a thing's name is public
+text that can never change; that Google is the sign-in provider (so no password is stored, but the email address
+Google sends is, in `auth.users`) and the site loads no trackers. It states what is done rather
+than promising it: no counts and no attribution on any screen. It must **not** say a thumb is
+stored without a clock or that rating order cannot be reconstructed: `ratings.rated_at` exists.
 
 ## Icons
 

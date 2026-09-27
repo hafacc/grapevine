@@ -41,18 +41,20 @@ runExport();
 // would serve the app shell and pass any check that only asked for a 200, so
 // each one is asserted by a sentence that is actually on it.
 console.log("\nthe written pages are in the exported HTML");
-// FOUR pages. A page list that shrinks silently is how a page goes missing with
+// THREE pages. A page list that shrinks silently is how a page goes missing with
 // nothing going red, so the number is stated rather than left to be noticed.
 //
 // The `privacy` needle is load-bearing beyond "this page still has its text":
 // that sentence is the one place grapevine admits in plain words what a feed
-// gives away when you have a single friend, and a rewrite that drops it fails
+// gives away when your vine is one person, and a rewrite that drops it fails
 // here rather than shipping a softer page.
 for (const [route, sentence] of [
-  ["how", "everything that lies beyond any one friend weighs"],
-  ["privacy", "your feed is that friend's ratings"],
+  [
+    "privacy",
+    "with exactly one person in your vine, your list is their ratings",
+  ],
   ["help", "Thumb it down"],
-  ["about", "Nothing ever shows who rated what"],
+  ["about", "Swipe a row right for yes, left for no."],
 ]) {
   const html = await readFile(resolve("out", route, "index.html"), "utf8");
   // Next escapes an apostrophe in text as `&#x27;`, so the needle is compared
@@ -205,7 +207,7 @@ console.log("\nand it writes no query or fragment into the cache");
 // link happened to carry somewhere with no expiry that any same-origin script
 // can read. Nothing sensitive rides a grapevine URL today; what keeps that true
 // is the worker never writing one down.
-await page.go(`${APP}/how/?token=QUERYSECRET456#FRAGMENTSECRET789`);
+await page.go(`${APP}/about/?token=QUERYSECRET456#FRAGMENTSECRET789`);
 const cached = `(async () => {
   const out = [];
   for (const name of await caches.keys()) {
@@ -220,7 +222,7 @@ const cached = `(async () => {
 const keys = JSON.parse(
   (await until(
     () => page.evaluate(cached),
-    (seen) => String(seen).includes("/how/"),
+    (seen) => String(seen).includes("/about/"),
   )) ?? "[]",
 );
 for (const [what, secret] of [
@@ -237,7 +239,7 @@ for (const [what, secret] of [
 // the assertions above would pass by caching nothing at all.
 expect(
   "the pages are cached, keyed on the path alone",
-  keys.some((key) => key.endsWith("/how/")),
+  keys.some((key) => key.endsWith("/about/")),
   keys.filter((key) => !key.includes("/_next/")).join(" "),
 );
 
@@ -248,8 +250,8 @@ console.log(
 
 console.log("\nand it opens with the network pulled");
 // Back to the entry point, and note it is a NAVIGATION rather than a reload:
-// the assertions above left the page on /how/, and reloading there proved only
-// that /how/ was cached while the thing about to be opened offline was the
+// the assertions above left the page on /about/, and reloading there proved only
+// that /about/ was cached while the thing about to be opened offline was the
 // root.
 await page.go(APP);
 const held = await until(
