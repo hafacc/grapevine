@@ -41,7 +41,9 @@ not as a lit berry. If a retrace produces three visible rim sides, the inner hex
   theme, on no background — a disc that fits in 16 px leaves each berry a blot. Each berry is
   4 px across its flats with 1 px between, so the upright sides land on pixel edges.
 - Centre the bunch by its weight, not its box: a 3–2–1 triangle centred by its box hangs high.
-  In a disc or a maskable icon's safe circle, centre the smallest circle around it.
+  In a maskable icon's safe circle, centre the smallest circle around it.
+- The install icon is just the grapes in `accent`, on no background. Only the maskable and
+  Apple icons, which the platform crops or composites on black, sit on an `accent` square.
 
 ## Shape
 
