@@ -59,7 +59,7 @@ describe("readInviteArrival", () => {
     }
   });
 
-  // It is not one of the three screens: the router never sees it, and a
+  // It is not one of the four screens: the router never sees it, and a
   // fragment it is somehow handed names no screen.
   it("is not a screen", () => {
     expect(screenForHash(`#/invite/${TOKEN}`)).toBeNull();

@@ -172,7 +172,8 @@ the avatar in the corner. Everything user-facing is lower case.
 
    Then the two lookup settings (item 2), for an admin *names people reported* (§4), and the
    install row where the browser offers one — each of those two a whole row that is its
-   action, tapped or swiped right, with no button on it — then friends under *your vine*: a photo and a name, no
+   action, tapped or swiped right, with no button on it; the first opens a screen of its own,
+   `#/reports` (§4) — then friends under *your vine*: a photo and a name, no
    level of agreement, and no person page.
    **A friend's row swipes one way only**: left, revealing the word *remove* rather than a
    thumb, because no is the only answer a friendship takes here. It asks first — *remove
@@ -2274,8 +2275,11 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   quiet *report this name* line at the end of the thing's screen (§1 item 4): a `reports` row the
   client may insert and nobody may read through the API, one per person per name, no reason
   asked, one write spent. An **admin** — a row in `private.admins`, written by hand, which no
-  client reads — reviews them in a queue on the people screen: every reported name with how many
-  reported it, never who. `reported_names()`, `remove_reported_name(text)` and
+  client reads — reviews them on a screen of their own, `#/reports`, opened from the people
+  screen, under a title bar reading *names people reported*: every reported name with how many
+  reported it, never who, each row swiping left to *remove* (asking first) and right to
+  *dismiss*, with a side button for each on desktop, and *nothing is reported.* in its middle
+  when there is none. Anybody else who opens `#/reports` is put on the list. `reported_names()`, `remove_reported_name(text)` and
   `dismiss_reports(text)` check `private.is_admin()` before anything else and answer anybody
   else nothing or a refusal. Dismissing deletes a name's reports and keeps the name. Removing
   calls `private.remove_name(text)`, which no client can call directly: it adds the name to
