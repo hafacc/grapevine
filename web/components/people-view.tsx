@@ -11,6 +11,7 @@ import {
   LuCheck,
   LuChevronLeft,
   LuCopy,
+  LuDownload,
   LuLink,
   LuLoaderCircle,
   LuPencil,
@@ -31,7 +32,7 @@ import LookupSettingsLines from "./lookup-settings";
 import RenameSheet from "./rename-sheet";
 import ReportsLine from "./reports-sheet";
 import ThemeButton from "./theme-button";
-import Button from "./ui/button";
+import ActionRow from "./ui/action-row";
 import IconButton from "./ui/icon-button";
 import RateRow from "./ui/rate-row";
 import SearchField from "./ui/search-field";
@@ -214,14 +215,12 @@ function LinkRow(): ReactElement {
 
   if (myLink === undefined) {
     return (
-      <p className="border-y border-border bg-surface px-4 py-3 text-[16px] text-muted">
-        loading…
-      </p>
+      <p className="bg-surface px-4 py-3 text-[16px] text-muted">loading…</p>
     );
   } else {
     const on = myLink !== null;
     return (
-      <div className="border-y border-border">
+      <div>
         <RateRow
           subject="your link"
           value={null}
@@ -240,7 +239,7 @@ function LinkRow(): ReactElement {
             else if (next === 1) void replace();
             else void turnOff();
           }}
-          contentClassName="bg-surface"
+          frameClassName="bg-surface"
         >
           <div
             data-link={on ? "on" : "off"}
@@ -300,24 +299,23 @@ function InstallLine(): ReactElement | null {
 
   if (!ready && !byHand) return null;
 
-  return (
-    <div className="flex items-center gap-3 border-b border-border bg-surface px-4 py-3">
-      <p className="min-w-0 flex-grow text-[16px] text-muted">
-        {ready
-          ? "keep grapevine on your home screen"
-          : "to keep grapevine on your home screen: share, then add to home screen"}
+  if (ready) {
+    return (
+      <ActionRow
+        label="keep grapevine on your home screen"
+        word="install"
+        icon={LuDownload}
+        onAct={() => void install()}
+        dataRow="install"
+      />
+    );
+  } else {
+    return (
+      <p className="bg-surface px-4 py-3 text-[16px] text-muted">
+        to keep grapevine on your home screen: share, then add to home screen
       </p>
-      {ready ? (
-        <Button
-          variant="secondary"
-          className="shrink-0"
-          onClick={() => void install()}
-        >
-          install
-        </Button>
-      ) : null}
-    </div>
-  );
+    );
+  }
 }
 
 export default function PeopleView(): ReactElement {
@@ -374,15 +372,15 @@ export default function PeopleView(): ReactElement {
         <div>
           <MeLine />
           <LinkRow />
-          <InstallLine />
           <LookupSettingsLines />
           <ReportsLine />
+          <InstallLine />
 
           {matching.length > 0 ? (
             <>
               <Heading>your vine</Heading>
               {matching.map((person) => (
-                <div key={person.uid} className="border-b border-border">
+                <div key={person.uid}>
                   {/* No is the only answer a friend row takes: there is nothing
                     to say yes to, and the word says what no does here. */}
                   <RateRow
@@ -391,7 +389,7 @@ export default function PeopleView(): ReactElement {
                     sides="no"
                     labels={{ no: { word: "remove", icon: LuUserMinus } }}
                     onRate={() => void dropFriend(person)}
-                    contentClassName="bg-surface"
+                    frameClassName="bg-surface"
                   >
                     <PersonLine person={person} />
                   </RateRow>

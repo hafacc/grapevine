@@ -1,7 +1,7 @@
 import type { RatingValue } from "./types";
 
 // Right is yes and left is no, everywhere and on both sides of the screen: the
-// same two sides carry the desktop buttons welded to each end of a row.
+// same two sides carry the desktop side buttons at each end of a row.
 export type SwipeDirection = "left" | "right";
 
 // What shows behind the moving row. `clear` is neither answer — swiping the way

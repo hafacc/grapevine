@@ -31,7 +31,7 @@ function SettingRow({
   onChange: (on: boolean) => void;
 }): ReactElement {
   return (
-    <div className="border-b border-border">
+    <div>
       <RateRow
         subject={subject}
         value={null}
@@ -42,7 +42,7 @@ function SettingRow({
             : { yes: { word: "turn on", icon: iconOn } }
         }
         onRate={() => onChange(!on)}
-        contentClassName="bg-surface"
+        frameClassName="bg-surface"
       >
         <p
           data-setting={subject}

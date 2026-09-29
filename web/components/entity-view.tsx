@@ -325,7 +325,7 @@ export default function EntityView({
                 value={attribute.own}
                 onRate={(next) => rate(attribute.tag, next)}
                 travel={TRAVEL}
-                frameClassName={`border-b ${rowFill(attribute.own)}`}
+                frameClassName={rowFill(attribute.own)}
                 contentClassName="flex min-w-0 items-center gap-3 px-4 py-3.5"
               >
                 <span className="min-w-0 flex-grow text-[17px] font-medium [overflow-wrap:anywhere]">

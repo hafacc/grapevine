@@ -547,8 +547,8 @@ tests check a patched neighbourhood equals a fresh load over generated event seq
 
 ## Reports
 
-No client reads `reports` except through the admins' review queue (0014): the *reports* line on
-the people screen, shown only to an admin, lists every reported name with its count, and removes
+No client reads `reports` except through the admins' review queue (0014): the *names people
+reported* row on the people screen, shown only to an admin and opened by a tap or a swipe, lists every reported name with its count, and removes
 or dismisses one. Three `security definer` functions in `public` are the whole of it, each
 checking `private.is_admin()` first: `reported_names()` answers anybody else nothing, and
 `remove_reported_name(text)` and `dismiss_reports(text)` refuse with `42501`.

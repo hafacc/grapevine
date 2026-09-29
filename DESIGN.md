@@ -170,7 +170,9 @@ the avatar in the corner. Everything user-facing is lower case.
      is *new link*. On, it carries *copy* and, where the device has a share sheet, *share*
      (item 6).
 
-   Then the install line where the browser offers one, then friends under *your vine*: a photo and a name, no
+   Then the two lookup settings (item 2), for an admin *names people reported* (§4), and the
+   install row where the browser offers one — each of those two a whole row that is its
+   action, tapped or swiped right, with no button on it — then friends under *your vine*: a photo and a name, no
    level of agreement, and no person page.
    **A friend's row swipes one way only**: left, revealing the word *remove* rather than a
    thumb, because no is the only answer a friendship takes here. It asks first — *remove
@@ -238,7 +240,7 @@ the avatar in the corner. Everything user-facing is lower case.
    reads *nothing here yet. search to add something, or add people to your vine.* with an
    *add to your vine* button. When the eye has hidden every row there is, the list says
    *you've rated everything here. the eye shows it again.* instead.
-8. **Desktop keeps the mobile layout** and replaces the swipe with a button welded to each
+8. **Desktop keeps the mobile layout** and replaces the swipe with a button set into each
    side of a row — no on the left, yes on the right — tinted the same soft green and red that
    a rated row gets, with the coloured glyph on top. The side matching the viewer's current
    rating goes grey with a minus, because pressing it clears. Thumbs are for rating only: on

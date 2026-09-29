@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactElement, useCallback, useEffect, useState } from "react";
-import { LuLoaderCircle } from "react-icons/lu";
+import { LuFlag, LuLoaderCircle } from "react-icons/lu";
 import {
   dismissReports,
   fetchReportedNames,
@@ -10,6 +10,7 @@ import {
 } from "../utils/reports";
 import { useGrapevine } from "../utils/store";
 import { useDialog } from "./dialog";
+import ActionRow from "./ui/action-row";
 import Button from "./ui/button";
 import Sheet from "./ui/sheet";
 
@@ -78,11 +79,11 @@ function ReportsSheet({ onClose }: { onClose: () => void }): ReactElement {
           <p className="text-[15px] text-muted">nothing is reported.</p>
         ) : null}
         {names && names.length > 0 ? (
-          <ul className="-mx-5 border-y border-border">
+          <ul className="-mx-5">
             {names.map((entry) => (
               <li
                 key={entry.itemId}
-                className="flex items-center gap-2 border-b border-border px-5 py-2.5 last:border-b-0"
+                className="flex items-center gap-2 px-5 py-2.5"
               >
                 <div className="min-w-0 flex-grow">
                   <p className="text-[16px] font-medium [overflow-wrap:anywhere]">
@@ -141,18 +142,15 @@ export default function ReportsLine(): ReactElement | null {
   if (!profile?.admin) return null;
 
   return (
-    <div className="flex items-center gap-3 border-b border-border bg-surface px-4 py-3">
-      <p className="min-w-0 flex-grow text-[16px] text-muted">
-        names people reported
-      </p>
-      <Button
-        variant="secondary"
-        className="shrink-0"
-        onClick={() => setOpen(true)}
-      >
-        reports
-      </Button>
+    <>
+      <ActionRow
+        label="names people reported"
+        word="reports"
+        icon={LuFlag}
+        onAct={() => setOpen(true)}
+        dataRow="reports"
+      />
       {open ? <ReportsSheet onClose={() => setOpen(false)} /> : null}
-    </div>
+    </>
   );
 }
