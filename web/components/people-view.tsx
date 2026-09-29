@@ -27,6 +27,7 @@ import { useGrapevine } from "../utils/store";
 import Avatar from "./avatar";
 import DeleteAccountLine from "./delete-account";
 import { useAction, useDialog } from "./dialog";
+import LookupSettingsLines from "./lookup-settings";
 import RenameSheet from "./rename-sheet";
 import ReportsLine from "./reports-sheet";
 import ThemeButton from "./theme-button";
@@ -374,6 +375,7 @@ export default function PeopleView(): ReactElement {
           <MeLine />
           <LinkRow />
           <InstallLine />
+          <LookupSettingsLines />
           <ReportsLine />
 
           {matching.length > 0 ? (

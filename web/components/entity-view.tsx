@@ -1,12 +1,13 @@
 "use client";
 
 import { normalizeId } from "grapevine-shared";
+import { referenceUrl, sourceOf } from "grapevine-shared/references";
 import {
   ownAttributes,
   suggestAttributes,
 } from "grapevine-shared/suggest-attributes";
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
-import { LuChevronLeft } from "react-icons/lu";
+import { LuChevronLeft, LuExternalLink } from "react-icons/lu";
 import { cautiousScore } from "../utils/bar";
 import {
   type Attribute,
@@ -22,6 +23,7 @@ import {
   useMyRatings,
 } from "../utils/ratings";
 import { useMyRecs } from "../utils/recs";
+import { attachHeldReference, useItemReference } from "../utils/references";
 import { reportName } from "../utils/reports";
 import { useGrapevine } from "../utils/store";
 import type { RatingValue } from "../utils/types";
@@ -138,10 +140,14 @@ export default function EntityView({
     };
   }, [itemId]);
 
+  // A link chosen when the thing was added goes with its first write, after
+  // the catalog row it points at.
   async function ensureCatalogued(): Promise<void> {
-    if (await (catalogued.current ?? Promise.resolve(false))) return;
-    await createItem(itemId);
-    catalogued.current = Promise.resolve(true);
+    if (!(await (catalogued.current ?? Promise.resolve(false)))) {
+      await createItem(itemId);
+      catalogued.current = Promise.resolve(true);
+    }
+    await attachHeldReference(itemId);
   }
 
   // No write is held pending: `setRating` and `clearRating` apply the thumb to
@@ -243,6 +249,10 @@ export default function EntityView({
   }
   const reportable = entry !== undefined || inCatalog === itemId;
 
+  const reference = useItemReference(itemId);
+  const source = reference ? sourceOf(reference.source) : null;
+  const link = reference ? referenceUrl(reference) : null;
+
   const ownSaid = answered(own);
   return (
     <div className="flex h-full min-h-0 flex-col bg-bg">
@@ -271,6 +281,18 @@ export default function EntityView({
             {itemId}
           </h1>
           {ownSaid ? <span className="sr-only">{ownSaid}</span> : null}
+          {source && link ? (
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`open on ${source.label.toLowerCase()}`}
+              title={`open on ${source.label.toLowerCase()}`}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-muted transition hover:bg-surface-hover hover:text-text focus-visible:outline-offset-[-2px]"
+            >
+              <LuExternalLink size={20} aria-hidden="true" />
+            </a>
+          ) : null}
           <Bar
             subject={itemId}
             score={cautiousScore(entry?.score ?? null, entry?.conf ?? null)}
@@ -334,17 +356,19 @@ export default function EntityView({
             ))}
           </div>
 
-          {/* Last, and quiet: it is about the name, not the thing's rating. */}
-          {reportable ? (
-            <button
-              type="button"
-              disabled={reported === itemId}
-              onClick={() => void report()}
-              className="mt-auto block w-full border-t border-border bg-surface px-4 py-3 text-left text-[15px] text-muted focus-visible:outline-offset-[-2px] disabled:cursor-default"
-            >
-              {reported === itemId ? "reported" : "report this name"}
-            </button>
-          ) : null}
+          {/* Last, and quiet: about the name, not the thing's rating. */}
+          <div className="mt-auto">
+            {reportable ? (
+              <button
+                type="button"
+                disabled={reported === itemId}
+                onClick={() => void report()}
+                className="block w-full border-t border-border bg-surface px-4 py-3 text-left text-[15px] text-muted focus-visible:outline-offset-[-2px] disabled:cursor-default"
+              >
+                {reported === itemId ? "reported" : "report this name"}
+              </button>
+            ) : null}
+          </div>
         </div>
       </main>
 

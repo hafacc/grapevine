@@ -41,6 +41,21 @@ const SERVICES = [
     url: "https://www.cloudflare.com/privacypolicy/",
     use: "the domain name, and forwarding mail sent to support",
   },
+  {
+    name: "Wikipedia (Wikimedia Foundation)",
+    url: "https://foundation.wikimedia.org/wiki/Policy:Privacy_policy",
+    use: "matches when you add a thing",
+  },
+  {
+    name: "Photon (komoot)",
+    url: "https://www.komoot.com/privacy",
+    use: "matches for places when you add a thing",
+  },
+  {
+    name: "OpenStreetMap",
+    url: "https://www.openstreetmap.org/copyright",
+    use: "the names of places Photon finds, © OpenStreetMap contributors",
+  },
 ] as const;
 
 export default function PrivacyPage(): ReactElement {
@@ -87,6 +102,10 @@ export default function PrivacyPage(): ReactElement {
         <li>
           The names of things, and who added each. No user can see who added
           one.
+        </li>
+        <li>
+          A thing's Wikipedia or OpenStreetMap id, when it has one, and who
+          added it. No user can see who.
         </li>
         <li>
           Names you reported. Admins see how many reports a name has, never who
@@ -159,13 +178,23 @@ export default function PrivacyPage(): ReactElement {
         bottom of its screen; a name that is removed is removed for everyone.
       </P>
 
+      <H2>adding a thing</H2>
+      <P>
+        When you add a thing, your browser asks Wikipedia, Wikidata and Photon
+        (komoot's search of OpenStreetMap) for matches, directly. They see what
+        you typed and your IP address, not your account. Photon also gets your
+        approximate location, to about a kilometre, only when you add something.
+        Both can be turned off on the people screen. A thing you match keeps
+        that site's id, so anyone can follow its link.
+      </P>
+
       <H2>your browser</H2>
       <P>
         No analytics, ads or trackers. Your browser keeps your session, your
-        theme, whether you closed the list's hint, a copy of your last list, and
-        the app itself so it opens offline. The tab keeps a link you opened
-        until you answer it, and the screen you were on while you sign in. Your
-        photo loads from Google.
+        theme, whether you closed the list's hint, whether lookups and location
+        are on, a copy of your last list, and the app itself so it opens
+        offline. The tab keeps a link you opened until you answer it, and the
+        screen you were on while you sign in. Your photo loads from Google.
       </P>
 
       <H2>leaving</H2>

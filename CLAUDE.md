@@ -292,7 +292,10 @@ The rules below are the ones that are easy to break:
 - **`items`**: the id is what somebody typed, normalized. The CLIENT writes `search_id` from
   `searchFold`, deliberately: a trigger would be a second implementation of the stripping, and a
   disagreement is a row nobody can find by its own name; `check:search-id` is what checks it. No
-  UPDATE or DELETE for anyone. No url (a phishing surface) and no tag list. Both
+  UPDATE or DELETE for anyone. No URL is stored (a phishing surface) and no tag list: a thing's
+  link is `item_refs (source, ref)`, the id checked against `private.ref_sources`' pattern, and
+  the URL built from it by `shared/src/references.ts`. Never store coordinates there: that is
+  what keeps OpenStreetMap's share-alike out of reach. Both
   `text_pattern_ops` indexes are needed: the collation is not `C`. `created_by` is readable by
   nobody and is the ONE person reference that does not cascade (`on delete set null`), or deleting
   an account would be impossible; its partial index (0017) keeps that set-null off a catalog scan.
@@ -585,6 +588,13 @@ private.removed_names where id = '…'`, which brings nothing back; do it only o
 set, or thumbs the purge has not reached reappear to every reader while the caches that dropped
 them never learn it (then also `delete from private.snapshot_cache`).
 
+A wrong link on a name worth keeping is taken off without touching the name or its thumbs, and
+can never be added again (`private.removed_refs`); nothing in the app does it:
+
+```sh
+supabase db query --linked "select private.remove_reference('the exact id')"
+```
+
 ## Admins
 
 Supabase has no application-level admin role for end users, so an admin is a row in
@@ -777,8 +787,8 @@ one that drops or rewrites a column is reviewed as the irreversible thing it is,
 reset` belongs nowhere near the project.
 
 `ci.yml`'s `database` job fails a push or pull request that modifies, deletes or renames an
-existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0017` are not, and
-the next deploy applies all ten. Three of them destroy data on the project, irreversibly:
+existing file under `supabase/migrations/`. `0001`–`0007` are recorded; `0008`–`0018` are not, and
+the next deploy applies all eleven. Three of them destroy data on the project, irreversibly:
 `0009_invite_links.sql` drops `username` and `searchable` (every claimed handle; none had been
 claimed when it was written), `0011_remove_taste_search.sql` drops taste search's tables, and
 `0015_witness.sql` drops `user_recs.error` and `user_model`'s `settle_movement`, `passes`,
