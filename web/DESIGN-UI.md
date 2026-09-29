@@ -96,9 +96,9 @@ Fallback stack: `"Barlow", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sa
 |---|---|---|
 | 22 | display 600 | wordmark, screen title, a thing's name in its title bar |
 | 19 | text 500 | the viewer's own name |
-| 17 | text 500 | a row's name; body copy; display 600 for a button label |
-| 16 | text 400 | the search field, the link line, the install line, the "nobody here by that name" note; text 500 for a name in a people row |
-| 15 | display 500 | chips, section headings (600, `.06em` tracking, muted); text 400 for the sheets' notes |
+| 17 | text 500 | a row's name, a match's name in *is it one of these?*; body copy; display 600 for a button label |
+| 16 | text 400 | the search field, the link line, the install line, the lookup settings, the "nobody here by that name" note; text 500 for a name in a people row |
+| 15 | display 500 | chips, section headings (600, `.06em` tracking, muted); text 400 for the sheets' notes, a match's description and, in `faint`, the OpenStreetMap credit under the matches |
 
 Body line-height 1.5; the empty state 1.55. Nothing is smaller than 14, and nothing between
 these sizes is a new step — pick one.
@@ -229,12 +229,13 @@ language, `0 0 20px rgba(14, 20, 23, 0.16)`. **Thumbs are for rating only.** A r
 are not a rating shows a white **word** in place of the glyph, display 600 at 17, saying what
 letting go does, with a 20 px icon stacked over it and 16 px from the edge (side by side, the
 pair is wider than the travel reveals): *remove* `LuUserMinus`, *turn on* `LuLink`, *turn
-off* `LuUnlink`, *new link* `LuRefreshCw`. A friend's row swipes left only, to *remove*, and
+off* `LuUnlink`, *new link* `LuRefreshCw`; on the two lookup settings, *turn on* / *turn off*
+take `LuSearch` / `LuSearchX` and `LuMapPin` / `LuMapPinOff`. A friend's row swipes left only, to *remove*, and
 asks before anything is written. The link row swipes right to *turn on* while off; while on,
 left to *turn off* and right to *new link*, each asking first. It is the one swipe on a phone
 that nothing else explains, so at phone width only it carries a second line, text 400 at 15 in
 `muted`: *swipe to turn on*, or *swipe to turn off or make a new one*. No other row carries a
-swipe affordance.
+swipe affordance: the settings rows below it learn the gesture from it.
 
 **Side buttons (desktop only)** — 56 px wide, full row height, welded to each end with no
 gap and no radius: no on the left, yes on the right. Unpressed they carry `accent-soft` /
@@ -242,7 +243,7 @@ gap and no radius: no on the left, yes on the right. Unpressed they carry `accen
 `surface-muted` with a `muted` **minus**, because pressing it clears. On a row whose sides are
 not a rating, each button carries its word and the same icon at 16 px instead (display 600 at
 15, at least 56 px wide and as wide as the word needs): a friend's row has the left button alone, *remove*; the link row has
-*turn on* alone, or *turn off* and *new link*. They replace the swipe and nothing else: the rest
+*turn on* alone, or *turn off* and *new link*; a lookup setting has *turn on* or *turn off* alone. They replace the swipe and nothing else: the rest
 of the desktop is the phone layout in a 720 px column.
 
 **Section heading** — display 600 at 15, `.06em` tracking, `muted`, on the canvas rather than
@@ -277,14 +278,21 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
   bottom bar, pinned: the add button if there is a query, then the field and the eye. The other
   two screens swap the top bar for a **title bar**, 56 px, and keep the bottom bar with a
   different field:
-  - **A thing**: back arrow, the thing's name, its bar, and the avatar
+  - **A thing**: back arrow, the thing's name, for a thing with a link a 44 px
+    `LuExternalLink` icon button at 20 px in `muted` (`aria-label` *open on wikipedia* /
+    *open on openstreetmap*, opening a new tab), its bar, and the avatar
     (`components/avatar-button.tsx`, the same button the top bar uses). The whole bar is the
     thing's rating row. The page ends in a quiet *report this name* line — `surface`, a top
     rule, text 400 at 15 in `muted`, pushed to the bottom of the page — which reads *reported*,
-    disabled, once sent.
+    disabled, once sent. Nothing else sits there: the link is the title bar's icon, with no
+    row, no credit and no admin control of its own.
   - **People**: back arrow and *you and your vine*, and **no avatar** — this is where the
     avatar leads. Under it, in order: the viewer's own row, the link row, the install line,
-    then *your vine*, then the delete line.
+    the two lookup settings, then *your vine*, then the delete line. A setting is a one-line
+    row, 56 px, text 400 at 16, that says what is so — *lookups are on*, *lookups use your
+    location*, in `muted` when off — and swipes like the link row: left to *turn off*, right
+    to *turn on*, a worded side button on desktop. No toggle is drawn: the sentence is the
+    state. The location row is gone while lookups are off.
 - **Desktop (deferred).** The whole phone in a 720 px column centred on `bg`, with a rule down
   each side from the top of the screen to the bottom: top or title bar, list, bottom bar, and
   every screen alike — the list, a thing and people share the one column, set once around

@@ -76,6 +76,56 @@ the avatar in the corner. Everything user-facing is lower case.
    because identity is by folded name and an add that collides is a find. Tapping it opens the
    thing **provisionally**; nothing is written until the viewer rates it or gives it an
    attribute, so a name typed and abandoned never enters the shared catalog.
+
+   **The tap looks the name up first.** The browser asks English Wikipedia and Photon,
+   komoot's search of OpenStreetMap, directly, never while typing, with 1.5 s to answer.
+   Wikipedia is asked twice at once, and the answers interleaved without repeats: its
+   full-text search finds the typed words anywhere in a title, and its search box's completion
+   forgives a typo and a half-typed last word and reports the redirect a page was reached by;
+   either alone misses what the other finds. A match is kept only when every typed word is
+   found in its name, its one-line description or, for Wikipedia, a redirect to it —
+   forgiving a typo for Wikipedia, whole words only for places, whose search returns far-off
+   look-alikes — with punctuation read both as a break and as nothing, so `moby dick` finds
+   *moby-dick* and `joes` finds *joe's*.
+
+   **Only a kind of thing somebody would say yes or no to is offered.** Wikipedia's search
+   returns landforms, people, lists, events and ideas as readily as a film, and a pick is a
+   link that outlives the tap. So, inside the same 1.5 s, Wikidata is asked what the (at most
+   ten) kept Wikipedia matches are, and a match is offered only when its "instance of" is on
+   an allow-list (`RATEABLE_INSTANCE` in `shared/src/references.ts`): a book, film, series,
+   album, song, play, game, app, website or painting; a brand, company or chain; a restaurant,
+   café, bar, shop, museum, park, hotel, venue or landmark; a band. A food, a drink or a
+   product model is usually a class of its own on Wikidata — pizza is a subclass of food, not an
+   instance of it — so for those "subclass of" counts too (`RATEABLE_CLASS`); not for a kind of
+   place, whose subclasses are kinds and not places. A person is offered only as a performer
+   (a singer, a musician, a comedian), whose own performing is what is rated; an author, a
+   director or an actor is rated through their work. A match whose kind could not be read is
+   not offered. Places get the same treatment from OpenStreetMap's own tags, with no second
+   request: somewhere to eat, drink, shop, stay, see or play (`RATEABLE_PLACE`); a village, a
+   street, a peak or a building with no use named is not. Adding the name as typed still
+   works for everything the lists leave out.
+
+   At most five, as one list under *is it one of these?* — up to three kept for Wikipedia and
+   two for places before either fills the rest — then *none of these — add "…"*. While a place is among them, *© OpenStreetMap
+   contributors*, linked to its copyright page, sits once under the rows: OSMF's [geocoding
+   guideline](https://osmfoundation.org/wiki/Licence/Community_Guidelines/Geocoding_-_Guideline)
+   asks for attribution where the geocoder is used, and a result stored and shown later is an
+   insubstantial extract that owes none, so nothing else carries it. Wikipedia's rows carry
+   no credit line.
+   Nothing good, lookups off, offline or too slow, and add works as above. A match's name is
+   the index's title folded by the name rules (`™ ® ©` and a `#` at a word's start dropped; a
+   title the rules refuse is not offered), and a place's carries where it is: *joe's pizza
+   (university village, new york)*, then the street if another link holds that. Picking one
+   whose link a thing already holds opens that thing; a free name opens provisionally and
+   writes its link after the thing, on the first thumb; a name that is here without a link
+   asks *is "…" this?* first, and a yes writes the link at once, since the thing exists and
+   may already be rated; that is the only way a plain name gains a link. The link's id
+   is stored, never its description or position (§3.2 `item_refs`). Two settings on the
+   people screen, both on and remembered per device, each a one-line row that says what is so
+   and swipes to change it: *lookups are on*, and *lookups use your location*, which sends
+   Photon a position rounded to about a kilometre so the nearest branch comes first, the
+   browser asking the first time. The second is gone while lookups are off, since it would
+   change nothing.
 3. **Rating is a swipe, and on mobile it is the only way to rate.** Right is yes, left is no.
    Swiping the way you already voted **clears** that rating, and the reveal behind the row says
    so — it turns grey with a minus rather than green or red. Swiping the other way flips
@@ -100,7 +150,10 @@ the avatar in the corner. Everything user-facing is lower case.
    proposes attributes to apply (§2.11) under the heading *suggested*, which claims nothing
    about who: "people like you use this" is an attribution and §4 forbids it. Last, for a
    name the catalog or the feed holds, a quiet *report this name* line (§4 "Item names"),
-   which asks first and then says *reported*.
+   which asks first and then says *reported*. A thing with a link carries it in its title
+   bar, an outward-arrow icon before the bar named *open on wikipedia* or *open on
+   openstreetmap*, built from the id; no credit goes with it (item 2 says why). A wrong link
+   is taken off by the owner, by hand (§4); nothing on the screen does it.
 
    The attribute list on a thing contains only attributes somebody has **rated**. A chip the
    viewer taps but never thumbs creates nothing — it is provisional on the client and never
@@ -1254,6 +1307,10 @@ ratings           (user_id, item_id, tag) pk, value smallint, rated_at timestamp
                   -- rated_at leaves the database only as one bit per shared rating:
                   -- given after the reader's own thumb on it or not (§2.3, §3.4)
 reports           (user_id, item_id) pk, created_at      -- insert only; nobody reads one
+item_refs         (item_id pk -> items on delete cascade, source, ref, created_at,
+                   created_by uuid), unique (source, ref)
+                  -- insert only; a thing's link to Wikipedia (Wikidata's Q-id) or
+                  -- OpenStreetMap (n/w/r and the id); no URL, description or position
 user_recs         (user_id pk, computed_at, entries jsonb, feed_hash text)
 user_model        (user_id pk, computed_at, checked_at, nodes_touched,
                    rating_count, recomputed, priors_at,
@@ -1271,6 +1328,8 @@ private.snapshot_epoch  (one row: epoch)                              -- bumped 
 private.write_budget  (user_id, day) pk, writes                       -- trigger-written
 private.deleted_identities (fingerprint pk, day, writes)             -- §4, swept daily
 private.removed_names (id pk, removed_at, purged_at)                  -- the owner's, §4
+private.ref_sources   (source pk, pattern)                            -- one row per index
+private.removed_refs  (source, ref) pk, removed_at                    -- links taken off, §4
 private.admins        (user_id pk, added_at)                          -- written by hand, §4
 ```
 
@@ -1306,6 +1365,16 @@ private.admins        (user_id pk, added_at)                          -- written
   and the same `CHECK`s the catalog holds and renders as the same plain text. `items` is the
   catalog: what creation spends a write budget unit on, and what the prefix search over things
   nobody in reach has rated reads.
+- **A link is `(source, ref)`, never a URL.** `private.ref_sources` holds each index's id
+  pattern — the same text `SOURCES` in `shared/src/references.ts` compiles, which its tests
+  check — and a trigger refuses an id that does not match it, so no stored id can hold `/`,
+  `?`, `#` or `:` and the client builds the link by putting the id into a fixed address. A new
+  index is a row there and an adapter, not a schema change. One link per thing, one thing per
+  link; insert only, one write spent, `created_by` unreadable as on `items`, and gone with the
+  name through the cascade. **No coordinates are ever stored**: OSMF's Geocoding Guideline
+  counts names and ids without them as no substantial extract, so no share-alike offer is
+  owed, and a result shown later owes no attribution either (§1 item 2). A stored position
+  would change that.
 - **Who created an item is never readable**: `created_by` has no `SELECT` privilege. It is also
   the one reference to a person that does **not** cascade from `auth.users`: `on delete set
   null`, because a thing's name is shared, permanent and pointed at by everyone's ratings, so the
@@ -2224,6 +2293,17 @@ that would cost recommendation quality for a guarantee nobody expects from a fri
   it, readable to anyone with DevTools, and leave thumbs pointing at it; a report is about text
   that should not be served at all. The same path is the remedy for a homograph of an existing name, which §3.2
   says is bounded rather than prevented.
+- **Adding a thing is the one time the browser sends typed text to someone else**: the name
+  about to be added, to Wikipedia and to Photon, straight from the browser with no cookie, so
+  each sees that text and the IP address and never the account; Photon also gets a position
+  rounded to about a kilometre while that setting is on, and Wikidata, from the same browser,
+  the ids of Wikipedia's matches (§1 item 2). Only on a tap of add, never while
+  typing, and the first setting turns it off. A link is chosen by a client, so it is as
+  trustworthy as a name: the remedy for a wrong one is the report line and the owner's
+  `private.remove_reference(text)`, run by hand, which deletes only the link and adds it to
+  `private.removed_refs`, which a restrictive insert policy checks, so a wrong link on a
+  well-rated name is fixed without removing the name. `public.remove_reference(text)` is the
+  same for an admin's client, and nothing in the app calls it yet.
 - Agreements are never shown, so there is no way to learn "the app thinks you and X
   disagree". The recompute keeps no per-friend trust map between calls — no reliability, agreement
   or tally about anybody — and `user_model` is readable by nobody, not even its owner (§3.3).

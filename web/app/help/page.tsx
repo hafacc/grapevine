@@ -18,6 +18,10 @@ export default function HelpPage(): ReactElement {
         <li>
           Type in the field at the bottom to search, or to add a new thing.
         </li>
+        <li>
+          Adding a thing offers matches from Wikipedia and OpenStreetMap. Turn
+          it off on the people screen.
+        </li>
         <li>Open a thing to rate its attributes the same way.</li>
         <li>The eye hides what you've already rated.</li>
         <li>Report a bad name at the bottom of its screen.</li>
