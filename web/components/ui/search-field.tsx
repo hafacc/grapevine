@@ -39,15 +39,25 @@ export default function SearchField({
         <LuSearch size={18} />
       </span>
       <span className="sr-only">{placeholder}</span>
+      {/* Marked as a search box every way the browsers and the password
+          managers read one: a plain text field with no name is what they
+          guess is a login, and offer passwords for. */}
       <input
-        type="text"
+        type="search"
+        name="search"
+        enterKeyHint="search"
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         autoComplete="off"
         autoCorrect="off"
+        autoCapitalize="off"
         spellCheck={false}
-        className="min-w-0 flex-grow border-0 bg-transparent text-[16px] text-text outline-none placeholder:text-muted"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
+        data-form-type="other"
+        className="min-w-0 flex-grow appearance-none border-0 bg-transparent text-[16px] text-text outline-none placeholder:text-muted [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
       />
     </label>
   );

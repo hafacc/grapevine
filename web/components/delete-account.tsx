@@ -75,6 +75,11 @@ export default function DeleteAccountLine(): ReactElement {
             autoCapitalize="none"
             autoComplete="off"
             spellCheck={false}
+            name="confirm-delete"
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
+            data-form-type="other"
             value={typed}
             onChange={(event) => setTyped(event.target.value)}
             placeholder={`type ${DELETE_WORD} to confirm`}
