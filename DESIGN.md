@@ -383,9 +383,11 @@ replaces `relationFrom` without search changing. What it cannot escape is §2.11
 in reach co-rating two attributes move `ρ` — bounded by `κ_s` and by the fact that the same
 ratings already move the feed.
 
-**When a word matches nothing** on the whole list, a note above the field says *nothing matches
-"xyzzy"*, quoting the word as typed (*"!#hipp"*). It changes no row's order — every row carries its 0.5 — but
-would otherwise look ignored.
+**When the query leaves the list empty**, the list says *nothing matches "xyzzy"* in its middle,
+under the mark, the way an empty feed says it has nothing yet (§1 item 7), quoting each word
+nothing matched as typed (*"!#hipp"*); the add button stays where it is. A word that matches
+nothing while the others find rows is not called out: it changes no row's order — every row
+carries its 0.5 — and the rows are the answer.
 
 **On screen.** No new component. Every attribute a query read gets the *match* chip tone and goes
 first, which is how a viewer sees `late night` was read as one attribute. The bar belongs to the

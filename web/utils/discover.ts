@@ -145,7 +145,8 @@ export type FeedFilter = {
 export type FeedSearch = {
   readonly rows: FeedRow[];
   // What was typed that nothing on the list matched, as typed, operators and
-  // all: left out rather than emptying the list, and said so.
+  // all: left out rather than emptying the list, and named when the list is
+  // empty anyway.
   readonly unmatched: readonly string[];
 };
 

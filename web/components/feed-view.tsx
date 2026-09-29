@@ -39,13 +39,14 @@ import MatchSheet from "./match-sheet";
 import AddButton from "./ui/add-button";
 import Bar from "./ui/bar";
 import Button from "./ui/button";
+import CenteredNote from "./ui/centered-note";
 import Chip, { type ChipTone } from "./ui/chip";
 import EyeToggle from "./ui/eye-toggle";
 import FieldNote from "./ui/field-note";
 import IconButton from "./ui/icon-button";
 import RateRow from "./ui/rate-row";
 import SearchField from "./ui/search-field";
-import Wordmark, { Mark } from "./wordmark";
+import Wordmark from "./wordmark";
 
 // Long enough that a typed word is one query rather than six, short enough that
 // the catalog has usually landed by the time the fingers stop.
@@ -170,18 +171,18 @@ function ItemRow({
 function NothingYet(): ReactElement {
   const { navigate } = useGrapevine();
   return (
-    <div className="flex flex-grow flex-col items-center justify-center gap-5 px-8 text-center">
-      <Mark />
-      <p className="text-[17px] leading-[1.55]">
-        nothing here yet. search to add something, or add people to your vine.
-      </p>
-      <Button
-        onClick={() => navigate({ kind: "people" })}
-        className="h-[44px] w-full text-[17px]"
-      >
-        add to your vine
-      </Button>
-    </div>
+    <CenteredNote
+      action={
+        <Button
+          onClick={() => navigate({ kind: "people" })}
+          className="h-[44px] w-full text-[17px]"
+        >
+          add to your vine
+        </Button>
+      }
+    >
+      nothing here yet. search to add something, or add people to your vine.
+    </CenteredNote>
   );
 }
 
@@ -491,20 +492,29 @@ export default function FeedView(): ReactElement {
               onRate={(next) => void rate(row.itemId, next)}
             />
           ))}
-          {/* Only about a feed that was READ, and only with nothing typed: an
-            empty list under a query is what the add button is for, and an empty
-            list under a failed read is not a fact about the viewer. */}
+          {/* Only about a feed that was READ: an empty list under a failed read
+            is not a fact about the viewer. Under a query, only once the catalog
+            has answered and the list has caught up with the field, or it would
+            flash on every keystroke. */}
           {rows.length === 0 &&
-          query.length === 0 &&
           ready &&
           !feedFailed &&
-          !neverComputed ? (
+          !neverComputed &&
+          listQuery === query &&
+          (query.length === 0 || !searching) ? (
             allHidden ? (
               <p className="px-4 py-4 text-[16px] text-muted">
                 you've rated everything here. the eye shows it again.
               </p>
-            ) : (
+            ) : query.length === 0 ? (
               <NothingYet />
+            ) : (
+              <CenteredNote>
+                nothing matches{" "}
+                {(unmatched.length > 0 ? unmatched : [query.trim()])
+                  .map((word) => `“${word}”`)
+                  .join(", ")}
+              </CenteredNote>
             )
           ) : null}
         </div>
@@ -525,13 +535,6 @@ export default function FeedView(): ReactElement {
               already here:{" "}
               <span className="text-accent-ink">{sameLooking}</span>
             </button>
-          ) : null}
-          {/* Said, because a word nothing here matches changes no row and
-            would otherwise look ignored. */}
-          {unmatched.length > 0 ? (
-            <FieldNote>
-              nothing matches {unmatched.map((word) => `“${word}”`).join(", ")}
-            </FieldNote>
           ) : null}
           {idProblem ? <FieldNote>{idProblem}</FieldNote> : null}
           {typedId ? (
