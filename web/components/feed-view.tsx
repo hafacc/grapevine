@@ -21,14 +21,21 @@ import {
 } from "../utils/discover";
 import { hintSeen, markHintSeen } from "../utils/first-run";
 import { searchItems, validateItemId } from "../utils/items";
+import { lookUp } from "../utils/lookup";
 import { useIsDesktop } from "../utils/media";
 import { clearRating, setRating, useMyRatings } from "../utils/ratings";
 import { refreshMyRecs, useMyRecs } from "../utils/recs";
+import {
+  type MatchRow,
+  chooseMatch as pickMatch,
+  resolveMatches,
+} from "../utils/references";
 import { isForbiddenCall } from "../utils/refusal";
 import { historyScroll, rememberScroll, useGrapevine } from "../utils/store";
 import type { Item, RatingValue } from "../utils/types";
 import AvatarButton from "./avatar-button";
 import LoadFailure from "./load-failure";
+import MatchSheet from "./match-sheet";
 import AddButton from "./ui/add-button";
 import Bar from "./ui/bar";
 import Button from "./ui/button";
@@ -230,6 +237,11 @@ export default function FeedView(): ReactElement {
   const [catalog, setCatalog] = useState<readonly Item[]>(NO_ITEMS);
   const [searching, setSearching] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [looking, setLooking] = useState(false);
+  const [matches, setMatches] = useState<{
+    typed: string;
+    rows: readonly MatchRow[];
+  } | null>(null);
   const scroller = useRef<HTMLElement>(null);
   // Read after mount: storage is not there during the static export.
   const [hintShown, setHintShown] = useState(false);
@@ -412,9 +424,30 @@ export default function FeedView(): ReactElement {
   // Provisionally: nothing is written until the thing is rated or given an
   // attribute, so a name typed and abandoned never enters the catalog
   // (DESIGN §1.2).
-  function addTyped(): void {
+  //
+  // Looked up first, on the tap and never while typing: a match found in
+  // Wikipedia or OpenStreetMap is offered, and nothing found, switched off or
+  // too slow adds the name as typed.
+  async function addTyped(): Promise<void> {
     const id = normalizeId(query);
-    if (id !== null) navigate({ kind: "item", id });
+    if (id === null || looking) return;
+    setLooking(true);
+    let rows: readonly MatchRow[] = [];
+    try {
+      rows = await resolveMatches(await lookUp(id));
+    } catch (failure) {
+      console.error("look up", failure);
+    }
+    setLooking(false);
+    if (rows.length > 0) setMatches({ typed: id, rows });
+    else navigate({ kind: "item", id });
+  }
+
+  function chooseMatch(row: MatchRow): void {
+    setMatches(null);
+    void pickMatch(row)
+      .catch((failure) => console.error("link", failure))
+      .finally(() => navigate({ kind: "item", id: row.itemId }));
   }
 
   // Announced, never counted: a reader who cannot see the list change is told
@@ -510,11 +543,27 @@ export default function FeedView(): ReactElement {
           ) : null}
           {idProblem ? <FieldNote>{idProblem}</FieldNote> : null}
           {typedId ? (
-            <AddButton label={`add “${typedId}”`} onTap={addTyped} />
+            <AddButton
+              label={`add “${typedId}”`}
+              onTap={() => void addTyped()}
+              busy={looking}
+            />
           ) : !plain && query.trim().length > 0 ? (
             // Disabled rather than gone: the add is always where it was, and
             // an operator is not part of a name (DESIGN §1 "Search").
             <AddButton label={`add “${shownQuery}”`} disabled />
+          ) : null}
+          {matches ? (
+            <MatchSheet
+              typed={matches.typed}
+              rows={matches.rows}
+              onChoose={chooseMatch}
+              onTyped={() => {
+                setMatches(null);
+                navigate({ kind: "item", id: matches.typed });
+              }}
+              onClose={() => setMatches(null)}
+            />
           ) : null}
           <div className="flex items-center gap-2.5">
             <SearchField

@@ -33,7 +33,10 @@
       ],
       // The list's query language, for the same reason: only the client reads
       // it.
-      "grapevine-shared/search": ["../shared/src/search.ts"]
+      "grapevine-shared/search": ["../shared/src/search.ts"],
+      // The indices a thing links to, and how add looks a name up in them:
+      // only the browser asks them.
+      "grapevine-shared/references": ["../shared/src/references.ts"]
     },
     "allowImportingTsExtensions": true,
     "isolatedModules": true,

@@ -173,8 +173,9 @@ select is(
   (select count(*)::int from pg_tables
    where schemaname = 'public' and not rowsecurity
      and tablename in ('profiles', 'friendships', 'items', 'ratings',
-                       'user_recs', 'user_model', 'invite_links', 'reports')),
-  0, 'row-level security is on for all eight tables in public');
+                       'user_recs', 'user_model', 'invite_links', 'reports',
+                       'item_refs')),
+  0, 'row-level security is on for all nine tables in public');
 
 -- Postgres grants EXECUTE on a new function to PUBLIC by default, which is the
 -- hazard DESIGN §3.3 names: "no client verb" is not the default here, and has
@@ -255,7 +256,8 @@ select ok(
 select is(
   (select count(*)::int from pg_proc
    where pronamespace = 'public'::regnamespace
-     and proname in ('invite_owner', 'redeem_invite', 'remove_reported_name', 'dismiss_reports')
+     and proname in ('invite_owner', 'redeem_invite', 'remove_reported_name', 'dismiss_reports',
+                     'remove_reference')
      and prosrc ~* '(like|ilike|similar to)'),
   0, 'the token and name lookups carry no pattern operator');
 

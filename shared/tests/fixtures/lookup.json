@@ -1,0 +1,5341 @@
+{
+ "dune": {
+  "search": {
+   "query": {
+    "pages": [
+     {
+      "title": "Dune",
+      "index": 1,
+      "description": "Hill of loose sand built by aeolian processes or the flow of water",
+      "pageprops": {
+       "wikibase_item": "Q25391"
+      }
+     },
+     {
+      "title": "List of Dune characters",
+      "index": 8,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q1412151"
+      }
+     },
+     {
+      "title": "Dune (novel)",
+      "index": 2,
+      "description": "1965 science fiction novel by Frank Herbert",
+      "pageprops": {
+       "wikibase_item": "Q190192"
+      }
+     },
+     {
+      "title": "Dune (franchise)",
+      "index": 3,
+      "description": "American science fiction media franchise",
+      "pageprops": {
+       "wikibase_item": "Q18011049"
+      }
+     },
+     {
+      "title": "Dune (disambiguation)",
+      "index": 4,
+      "description": "Topics referred to by the same term",
+      "pageprops": {
+       "disambiguation": "",
+       "wikibase_item": "Q114103"
+      }
+     },
+     {
+      "title": "Dune (2021 film)",
+      "index": 6,
+      "description": "Film by Denis Villeneuve",
+      "pageprops": {
+       "wikibase_item": "Q60834962"
+      }
+     },
+     {
+      "title": "Dune: Part Two",
+      "index": 7,
+      "description": "2024 film by Denis Villeneuve",
+      "pageprops": {
+       "wikibase_item": "Q109228991"
+      }
+     },
+     {
+      "title": "Dune: Part Three",
+      "index": 5,
+      "description": "Upcoming film by Denis Villeneuve",
+      "pageprops": {
+       "wikibase_item": "Q124714245"
+      }
+     }
+    ]
+   }
+  },
+  "prefix": {
+   "query": {
+    "pages": [
+     {
+      "title": "Dune",
+      "index": 1,
+      "description": "Hill of loose sand built by aeolian processes or the flow of water",
+      "pageprops": {
+       "wikibase_item": "Q25391"
+      }
+     },
+     {
+      "title": "List of Dune characters",
+      "index": 3,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q1412151"
+      }
+     },
+     {
+      "title": "Dune (1984 film)",
+      "index": 7,
+      "description": "American space opera by David Lynch",
+      "pageprops": {
+       "wikibase_item": "Q114819"
+      }
+     },
+     {
+      "title": "Dune (novel)",
+      "index": 5,
+      "description": "1965 science fiction novel by Frank Herbert",
+      "pageprops": {
+       "wikibase_item": "Q190192"
+      }
+     },
+     {
+      "title": "Dune (franchise)",
+      "index": 2,
+      "description": "American science fiction media franchise",
+      "pageprops": {
+       "wikibase_item": "Q18011049"
+      }
+     },
+     {
+      "title": "Dune (2021 film)",
+      "index": 4,
+      "description": "Film by Denis Villeneuve",
+      "pageprops": {
+       "wikibase_item": "Q60834962"
+      }
+     },
+     {
+      "title": "Dune: Part Two",
+      "index": 6,
+      "description": "2024 film by Denis Villeneuve",
+      "pageprops": {
+       "wikibase_item": "Q109228991"
+      }
+     },
+     {
+      "title": "Dune: Part Three",
+      "index": 8,
+      "description": "Upcoming film by Denis Villeneuve",
+      "pageprops": {
+       "wikibase_item": "Q124714245"
+      }
+     }
+    ]
+   }
+  },
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 1028321,
+      "osm_key": "place",
+      "osm_value": "village",
+      "name": "Dunet",
+      "state": "Centre-Val de Loire",
+      "country": "France"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 134326,
+      "osm_key": "place",
+      "osm_value": "village",
+      "name": "Dunes",
+      "state": "Occitanie",
+      "country": "France"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 1037917163,
+      "osm_key": "place",
+      "osm_value": "city",
+      "name": "Dunedin",
+      "state": "Otago",
+      "country": "New Zealand / Aotearoa"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 107655,
+      "osm_key": "place",
+      "osm_value": "village",
+      "name": "Duneau",
+      "state": "Pays de la Loire",
+      "country": "France"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 118906,
+      "osm_key": "place",
+      "osm_value": "suburb",
+      "name": "Dunedin",
+      "state": "Florida",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 273992076,
+      "osm_key": "place",
+      "osm_value": "island",
+      "name": "Düne",
+      "district": "Unterland",
+      "city": "Helgoland",
+      "state": "Schleswig-Holstein",
+      "country": "Deutschland"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 851474508,
+      "osm_key": "waterway",
+      "osm_value": "river",
+      "name": "Duna",
+      "district": "V. kerület",
+      "city": "Budapest",
+      "state": "Közép-Magyarország",
+      "country": "Magyarország"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 356420273,
+      "osm_key": "place",
+      "osm_value": "town",
+      "name": "Duns",
+      "state": "Alba / Scotland",
+      "country": "United Kingdom"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q25391": {
+     "id": "Q25391",
+     "claims": {
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q4687862"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q54050"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q16963184"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q1412151": {
+     "id": "Q1412151",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q63032896"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q190192": {
+     "id": "Q190192",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q7725634"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q18011049": {
+     "id": "Q18011049",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q196600"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q114103": {
+     "id": "Q114103",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q4167410"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q60834962": {
+     "id": "Q60834962",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q11424"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q109228991": {
+     "id": "Q109228991",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q11424"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q124714245": {
+     "id": "Q124714245",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q18011172"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q114819": {
+     "id": "Q114819",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q11424"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "star wars a new hope": {
+  "search": {
+   "query": {
+    "pages": [
+     {
+      "title": "Star Wars (film)",
+      "index": 1,
+      "description": "1977 film by George Lucas",
+      "pageprops": {
+       "wikibase_item": "Q17738"
+      }
+     },
+     {
+      "title": "Changes in Star Wars re-releases",
+      "index": 5,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q6609330"
+      }
+     },
+     {
+      "title": "Star Wars (1991 video game)",
+      "index": 6,
+      "description": "1991 video game",
+      "pageprops": {
+       "wikibase_item": "Q54320"
+      }
+     },
+     {
+      "title": "Star Wars: From the Adventures of Luke Skywalker",
+      "index": 3,
+      "description": "1976 novel by Alan Dean Foster",
+      "pageprops": {
+       "wikibase_item": "Q6272668"
+      }
+     },
+     {
+      "title": "Star Wars (soundtrack)",
+      "index": 4,
+      "description": "1977 soundtrack album by John Williams",
+      "pageprops": {
+       "wikibase_item": "Q2715371"
+      }
+     },
+     {
+      "title": "Star Wars (manga)",
+      "index": 7,
+      "description": "Manga adaptation of Star Wars films",
+      "pageprops": {
+       "wikibase_item": "Q3180475"
+      }
+     },
+     {
+      "title": "Star Wars comics",
+      "index": 2,
+      "description": "Various comic books based on the Star Wars franchise",
+      "pageprops": {
+       "wikibase_item": "Q857836"
+      }
+     },
+     {
+      "title": "List of Star Wars films",
+      "index": 8,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q21527419"
+      }
+     }
+    ]
+   }
+  },
+  "prefix": {
+   "query": {
+    "pages": [
+     {
+      "title": "Star Wars (film)",
+      "index": 1,
+      "description": "1977 film by George Lucas",
+      "pageprops": {
+       "wikibase_item": "Q17738"
+      }
+     },
+     {
+      "title": "Star Wars (1991 video game)",
+      "index": 4,
+      "description": "1991 video game",
+      "pageprops": {
+       "wikibase_item": "Q54320"
+      }
+     },
+     {
+      "title": "Star Wars (soundtrack)",
+      "index": 3,
+      "description": "1977 soundtrack album by John Williams",
+      "pageprops": {
+       "wikibase_item": "Q2715371"
+      }
+     },
+     {
+      "title": "Star Wars comics",
+      "index": 2,
+      "description": "Various comic books based on the Star Wars franchise",
+      "pageprops": {
+       "wikibase_item": "Q857836"
+      }
+     }
+    ],
+    "redirects": [
+     {
+      "from": "Star wars a new hope",
+      "to": "Star Wars (film)"
+     },
+     {
+      "from": "Star Wars: A New Hope soundtrack",
+      "to": "Star Wars (soundtrack)"
+     },
+     {
+      "from": "Star Wars: A New Hope (video game)",
+      "to": "Star Wars (1991 video game)"
+     },
+     {
+      "from": "Star Wars: A New Hope - The Special Edition",
+      "to": "Star Wars comics"
+     }
+    ]
+   }
+  },
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 612051953,
+      "osm_key": "highway",
+      "osm_value": "path",
+      "name": "Star Wars",
+      "city": "Nederland",
+      "state": "Colorado",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 357971800,
+      "osm_key": "amenity",
+      "osm_value": "place_of_worship",
+      "name": "New Morning Star Church",
+      "street": "Veterans of Foreign Wars Road",
+      "district": "Aldridge",
+      "state": "Mississippi",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 848553175,
+      "osm_key": "landuse",
+      "osm_value": "residential",
+      "name": "Star Wars Neighborhood",
+      "city": "Whitney",
+      "state": "Nevada",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 16447398,
+      "osm_key": "place",
+      "osm_value": "village",
+      "name": "New Hope",
+      "state": "Alabama",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 188514,
+      "osm_key": "place",
+      "osm_value": "town",
+      "name": "New Hope",
+      "state": "Pennsylvania",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 137439,
+      "osm_key": "place",
+      "osm_value": "town",
+      "name": "New Hope",
+      "state": "Minnesota",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 441084564,
+      "osm_key": "highway",
+      "osm_value": "path",
+      "name": "Scary Star Wars",
+      "city": "Area C (Stuart Lake/Omineca Valley)",
+      "state": "British Columbia",
+      "country": "Canada"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 151796471,
+      "osm_key": "place",
+      "osm_value": "village",
+      "name": "New Hope",
+      "state": "Texas",
+      "country": "United States"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q17738": {
+     "id": "Q17738",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q11424"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q6609330": {
+     "id": "Q6609330",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q13406463"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q54320": {
+     "id": "Q54320",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q7889"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q54300"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q6272668": {
+     "id": "Q6272668",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q7725634"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q2715371": {
+     "id": "Q2715371",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q482994"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q3180475": {
+     "id": "Q3180475",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q21198342"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q857836": {
+     "id": "Q857836",
+     "claims": {
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q14406742"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q21527419": {
+     "id": "Q21527419",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q13406463"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "radiohed": {
+  "search": {},
+  "prefix": {
+   "query": {
+    "pages": [
+     {
+      "title": "Radiometric dating",
+      "index": 4,
+      "description": "Technique used to date materials such as rocks or carbon",
+      "pageprops": {
+       "wikibase_item": "Q214753"
+      }
+     },
+     {
+      "title": "Radiohead",
+      "index": 1,
+      "description": "English rock band",
+      "pageprops": {
+       "wikibase_item": "Q44190"
+      }
+     },
+     {
+      "title": "Radio drama",
+      "index": 3,
+      "description": "Purely acoustic dramatized performance",
+      "pageprops": {
+       "wikibase_item": "Q2635894"
+      }
+     },
+     {
+      "title": "Radio Data System",
+      "index": 5,
+      "description": "Communications protocol standard in FM radio broadcasts",
+      "pageprops": {
+       "wikibase_item": "Q263015"
+      }
+     },
+     {
+      "title": "Radio Disney",
+      "index": 7,
+      "description": "American youth-focused radio network (1996–2021)",
+      "pageprops": {
+       "wikibase_item": "Q54857"
+      }
+     },
+     {
+      "title": "Radiohead discography",
+      "index": 2,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q911373"
+      }
+     },
+     {
+      "title": "Radio Disney Jams series",
+      "index": 6,
+      "description": "Compilation album series",
+      "pageprops": {
+       "wikibase_item": "Q1408540"
+      }
+     },
+     {
+      "title": "Radiodonta",
+      "index": 8,
+      "description": "Extinct order of basal arthropods",
+      "pageprops": {
+       "wikibase_item": "Q3291852"
+      }
+     }
+    ]
+   }
+  },
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 9260392783,
+      "osm_key": "amenity",
+      "osm_value": "studio",
+      "name": "Radio Dei",
+      "housenumber": "105",
+      "street": "Mannerheimintie",
+      "locality": "Huopalahdenportti",
+      "district": "Ruskeasuo",
+      "city": "Helsinki",
+      "state": "Uusimaa",
+      "country": "Suomi"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 692623215,
+      "osm_key": "place",
+      "osm_value": "village",
+      "name": "Radiówek",
+      "city": "Emów",
+      "state": "województwo mazowieckie",
+      "country": "Polska"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 1080012518,
+      "osm_key": "highway",
+      "osm_value": "cycleway",
+      "name": "Radioweg",
+      "district": "Oost",
+      "city": "Amsterdam",
+      "state": "Noord-Holland",
+      "country": "Nederland"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 1388207657,
+      "osm_key": "club",
+      "osm_value": "yes",
+      "name": "radio hsf",
+      "housenumber": "8b",
+      "street": "Max-Planck-Ring",
+      "locality": "Campus",
+      "district": "Ilmenau",
+      "city": "Ilmenau",
+      "state": "Thüringen",
+      "country": "Deutschland"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 1388207657,
+      "osm_key": "club",
+      "osm_value": "radio_station",
+      "name": "radio hsf",
+      "housenumber": "8b",
+      "street": "Max-Planck-Ring",
+      "locality": "Campus",
+      "district": "Ilmenau",
+      "city": "Ilmenau",
+      "state": "Thüringen",
+      "country": "Deutschland"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 1388207657,
+      "osm_key": "club",
+      "osm_value": "culture",
+      "name": "radio hsf",
+      "housenumber": "8b",
+      "street": "Max-Planck-Ring",
+      "locality": "Campus",
+      "district": "Ilmenau",
+      "city": "Ilmenau",
+      "state": "Thüringen",
+      "country": "Deutschland"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 14234456,
+      "osm_key": "boundary",
+      "osm_value": "administrative",
+      "name": "Raikhed",
+      "state": "Maharashtra",
+      "country": "India"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 9876386939,
+      "osm_key": "place",
+      "osm_value": "village",
+      "name": "Raikhed",
+      "state": "Maharashtra",
+      "country": "India"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q214753": {
+     "id": "Q214753",
+     "claims": {
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q46857"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q780909"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q44190": {
+     "id": "Q44190",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q215380"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q2635894": {
+     "id": "Q2635894",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q15961983"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q108676140"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q589183"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1555508"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q109349450"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q25372"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q263015": {
+     "id": "Q263015",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q132364"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q54857": {
+     "id": "Q54857",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1061197"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q911373": {
+     "id": "Q911373",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q104635718"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q1408540": {
+     "id": "Q1408540",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q67911299"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q3291852": {
+     "id": "Q3291852",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q23038290"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "tirmisu": {
+  "search": {},
+  "prefix": {
+   "query": {
+    "pages": [
+     {
+      "title": "Tiramisu",
+      "index": 2,
+      "description": "Italian dessert",
+      "pageprops": {
+       "wikibase_item": "Q131582"
+      }
+     },
+     {
+      "title": "Timișoara",
+      "index": 3,
+      "description": "City and county seat in Timiș County, Romania",
+      "pageprops": {
+       "wikibase_item": "Q83404"
+      }
+     },
+     {
+      "title": "Tiresias",
+      "index": 1,
+      "description": "Blind prophet of Apollo",
+      "pageprops": {
+       "wikibase_item": "Q656881"
+      }
+     },
+     {
+      "title": "Timiș County",
+      "index": 5,
+      "description": "County of Romania",
+      "pageprops": {
+       "wikibase_item": "Q185586"
+      }
+     },
+     {
+      "title": "Timiș",
+      "index": 8,
+      "description": "River in Romania and Serbia",
+      "pageprops": {
+       "wikibase_item": "Q214894"
+      }
+     },
+     {
+      "title": "Timișoara Traian Vuia International Airport",
+      "index": 4,
+      "description": "Airport in Ghiroda, Timiș County",
+      "pageprops": {
+       "wikibase_item": "Q1417736"
+      }
+     },
+     {
+      "title": "Tirusulam",
+      "index": 6,
+      "description": "Southern suburb and census town in Chennai, Tamil Nadu, India",
+      "pageprops": {
+       "wikibase_item": "Q2229582"
+      }
+     },
+     {
+      "title": "Salahuddin Tirmizi",
+      "index": 7,
+      "description": "Pakistani politician",
+      "pageprops": {
+       "wikibase_item": "Q26703113"
+      }
+     }
+    ]
+   }
+  },
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 2366863,
+      "osm_key": "place",
+      "osm_value": "county",
+      "name": "Timiș",
+      "country": "România"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 473431121,
+      "osm_key": "place",
+      "osm_value": "town",
+      "name": "Tirmini",
+      "state": "Zinder",
+      "country": "Niger"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 1567519,
+      "osm_key": "waterway",
+      "osm_value": "river",
+      "name": "Timiș",
+      "country": "România"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 2639608173,
+      "osm_key": "railway",
+      "osm_value": "station",
+      "name": "Tırmıl",
+      "street": "6493. Sokak",
+      "locality": "Karacailyas",
+      "district": "Karacailyas Emek",
+      "city": "Akdeniz",
+      "state": "Mersin",
+      "country": "Türkiye"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 353215,
+      "osm_key": "boundary",
+      "osm_value": "administrative",
+      "name": "Tirbiku küla",
+      "city": "Kadrina vald",
+      "country": "Eesti"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 1211964266,
+      "osm_key": "place",
+      "osm_value": "village",
+      "name": "Bayırüstü",
+      "city": "Divriği",
+      "state": "Sivas",
+      "country": "Türkiye"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 6256186,
+      "osm_key": "waterway",
+      "osm_value": "river",
+      "name": "Timiș",
+      "country": "România"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 1498487532,
+      "osm_key": "place",
+      "osm_value": "village",
+      "name": "Çevreli",
+      "city": "Demre",
+      "state": "Antalya",
+      "country": "Türkiye"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q131582": {
+     "id": "Q131582",
+     "claims": {
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q3712597"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q83404": {
+     "id": "Q83404",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q640364"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q34843301"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1549591"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1187811"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q2264924"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q902814"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1306755"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1973901"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1200957"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1907114"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q245260"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q656881": {
+     "id": "Q656881",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q22988604"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q2191756"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q185586": {
+     "id": "Q185586",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1776764"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1200957"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q3455524"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1973901"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q214894": {
+     "id": "Q214894",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q4022"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q1417736": {
+     "id": "Q1417736",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q644371"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q94993988"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q270791"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q2229582": {
+     "id": "Q2229582",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q486972"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q26703113": {
+     "id": "Q26703113",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q82955"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "everything everywher": {
+  "search": {},
+  "prefix": {
+   "query": {
+    "pages": [
+     {
+      "title": "EE (telecommunications)",
+      "index": 3,
+      "description": "British telecommunications company",
+      "pageprops": {
+       "wikibase_item": "Q5322942"
+      }
+     },
+     {
+      "title": "Everything Everywhere All at Once",
+      "index": 1,
+      "description": "2022 film by Daniel Kwan and Daniel Scheinert",
+      "pageprops": {
+       "wikibase_item": "Q83808444"
+      }
+     },
+     {
+      "title": "Everything Everywhere All at Once (soundtrack)",
+      "index": 2,
+      "description": "2022 soundtrack album by Son Lux",
+      "pageprops": {
+       "wikibase_item": "Q111942240"
+      }
+     },
+     {
+      "title": "RuPaul's Drag Race season 16",
+      "index": 4,
+      "description": "2024 season of RuPaul's Drag Race",
+      "pageprops": {
+       "wikibase_item": "Q123688389"
+      }
+     }
+    ],
+    "redirects": [
+     {
+      "from": "Everything Everywhere",
+      "to": "EE (telecommunications)"
+     },
+     {
+      "from": "Everything Every-Cher All at Once",
+      "to": "RuPaul's Drag Race season 16"
+     }
+    ]
+   }
+  },
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 308318832,
+      "osm_key": "shop",
+      "osm_value": "mobile_phone",
+      "name": "EE",
+      "street": "Balmoral Centre",
+      "locality": "St Nicholas Cliff",
+      "district": "The Old Town",
+      "city": "Scarborough",
+      "state": "England",
+      "country": "United Kingdom"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 1206387452,
+      "osm_key": "shop",
+      "osm_value": "mobile_phone",
+      "name": "EE",
+      "street": "Midland Road",
+      "district": "Cauldwell",
+      "city": "Bedford",
+      "state": "England",
+      "country": "United Kingdom"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 62213527,
+      "osm_key": "office",
+      "osm_value": "yes",
+      "name": "E.E. (Everything Everywhere)",
+      "street": "Camberwell Way",
+      "locality": "Doxford International Business Park",
+      "district": "Moorside",
+      "city": "Sunderland",
+      "state": "England",
+      "country": "United Kingdom"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q5322942": {
+     "id": "Q5322942",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q4830453"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q6881511"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q2401749"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q83808444": {
+     "id": "Q83808444",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q11424"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q111942240": {
+     "id": "Q111942240",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q482994"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q123688389": {
+     "id": "Q123688389",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q3464665"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "joe's pizza": {
+  "search": {
+   "query": {
+    "pages": [
+     {
+      "title": "Happy Joe's",
+      "index": 2,
+      "description": "Pizza chain in the United States",
+      "pageprops": {
+       "wikibase_item": "Q5652885"
+      }
+     },
+     {
+      "title": "New York–style pizza",
+      "index": 6,
+      "description": "Large hand-tossed thin crust pizza",
+      "pageprops": {
+       "wikibase_item": "Q3844992"
+      }
+     },
+     {
+      "title": "Smokin' Joe's",
+      "index": 3,
+      "description": "Indian pizzeria chain",
+      "pageprops": {
+       "wikibase_item": "Q7546011"
+      }
+     },
+     {
+      "title": "Grotto Pizza",
+      "index": 7,
+      "description": "American pizza restaurant chain",
+      "pageprops": {
+       "wikibase_item": "Q20709024"
+      }
+     },
+     {
+      "title": "Joe's Pizza",
+      "index": 1,
+      "description": "Pizzeria in Manhattan, New York",
+      "pageprops": {
+       "wikibase_item": "Q20979290"
+      }
+     },
+     {
+      "title": "Sir Pizza",
+      "index": 8,
+      "description": "American pizza restaurant chain",
+      "pageprops": {
+       "wikibase_item": "Q28403528"
+      }
+     },
+     {
+      "title": "Taco pizza",
+      "index": 4,
+      "description": "Pizza with taco ingredients",
+      "pageprops": {
+       "wikibase_item": "Q111705550"
+      }
+     },
+     {
+      "title": "JonasCon",
+      "index": 5,
+      "description": "2025 fan convention hosted by the Jonas Brothers",
+      "pageprops": {
+       "wikibase_item": "Q132861323"
+      }
+     }
+    ]
+   }
+  },
+  "prefix": {
+   "query": {
+    "pages": [
+     {
+      "title": "Jet's Pizza",
+      "index": 2,
+      "description": "American pizza franchise restaurant",
+      "pageprops": {
+       "wikibase_item": "Q16997713"
+      }
+     },
+     {
+      "title": "Joe's Pizza",
+      "index": 1,
+      "description": "Pizzeria in Manhattan, New York",
+      "pageprops": {
+       "wikibase_item": "Q20979290"
+      }
+     }
+    ]
+   }
+  },
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 931799207,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Joe's Pizza",
+      "housenumber": "7",
+      "street": "Carmine Street",
+      "locality": "University Village",
+      "district": "Manhattan",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 247862508,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Joe's Pizza",
+      "housenumber": "150",
+      "street": "East 14th Street",
+      "locality": "East Village",
+      "district": "Manhattan",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 2377128167,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Joe's Pizza",
+      "housenumber": "211",
+      "street": "8th Avenue",
+      "locality": "Chelsea District",
+      "district": "Manhattan",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 2839699877,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Joe's Pizza",
+      "housenumber": "216",
+      "street": "Bedford Avenue",
+      "locality": "Williamsburg",
+      "district": "Brooklyn",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 6421845186,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Joe's Pizza",
+      "housenumber": "1435",
+      "street": "Broadway",
+      "locality": "Times Square",
+      "district": "Manhattan",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 8534476567,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Joe's Pizza",
+      "housenumber": "124",
+      "street": "Fulton Street",
+      "locality": "Financial District",
+      "district": "Manhattan",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 3674126477,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Joe's Pizza",
+      "housenumber": "349",
+      "street": "5th Avenue",
+      "locality": "Park Slope",
+      "district": "Brooklyn",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 5497878061,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Joe's Pizza",
+      "housenumber": "61-16",
+      "street": "Flushing Avenue",
+      "district": "Queens",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q5652885": {
+     "id": "Q5652885",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q18654742"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q3844992": {
+     "id": "Q3844992",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q116392487"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q177"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q7546011": {
+     "id": "Q7546011",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q18654742"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q20709024": {
+     "id": "Q20709024",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q783794"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q20979290": {
+     "id": "Q20979290",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1501212"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q28403528": {
+     "id": "Q28403528",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q18654742"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q111705550": {
+     "id": "Q111705550",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q746549"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q177"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q132861323": {
+     "id": "Q132861323",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q15275719"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q16997713": {
+     "id": "Q16997713",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q18654742"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q18534542"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "joes pizza new york": {
+  "search": {
+   "query": {
+    "pages": [
+     {
+      "title": "New York City",
+      "index": 5,
+      "description": "Most populous city in the United States",
+      "pageprops": {
+       "wikibase_item": "Q60"
+      }
+     },
+     {
+      "title": "Pizza bomber",
+      "index": 8,
+      "description": "2003 American death by explosive collar",
+      "pageprops": {
+       "wikibase_item": "Q523883"
+      }
+     },
+     {
+      "title": "New York–style pizza",
+      "index": 1,
+      "description": "Large hand-tossed thin crust pizza",
+      "pageprops": {
+       "wikibase_item": "Q3844992"
+      }
+     },
+     {
+      "title": "History of pizza",
+      "index": 4,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q2359423"
+      }
+     },
+     {
+      "title": "List of pizza chains",
+      "index": 7,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q6633464"
+      }
+     },
+     {
+      "title": "List of pizza varieties by country",
+      "index": 6,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q3686403"
+      }
+     },
+     {
+      "title": "Joe's Pizza",
+      "index": 2,
+      "description": "Pizzeria in Manhattan, New York",
+      "pageprops": {
+       "wikibase_item": "Q20979290"
+      }
+     },
+     {
+      "title": "New York Pizza",
+      "index": 3,
+      "description": "Dutch fast-food chain",
+      "pageprops": {
+       "wikibase_item": "Q2639128"
+      }
+     }
+    ]
+   }
+  },
+  "prefix": {},
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 931799207,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Joe's Pizza",
+      "housenumber": "7",
+      "street": "Carmine Street",
+      "locality": "University Village",
+      "district": "Manhattan",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 455226678,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Joe's New York Pizza By The Slice",
+      "street": "South Las Vegas Boulevard",
+      "city": "Las Vegas",
+      "state": "Nevada",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 5775515971,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Joe's New York Pizza",
+      "street": "Congress Street",
+      "locality": "Downtown",
+      "city": "Portsmouth",
+      "state": "New Hampshire",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 10646978425,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Joe's New York Pizza",
+      "street": "Gosling Road",
+      "district": "Pease International Tradeport",
+      "city": "Portsmouth",
+      "state": "New Hampshire",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 4950077427,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Joe's New York Pizza",
+      "housenumber": "4480",
+      "street": "Paradise Road",
+      "district": "Midtown UNLV",
+      "city": "Paradise",
+      "state": "Nevada",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 61408923,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Joe's New York Style Pizza",
+      "street": "South Old Dixie Highway",
+      "district": "Korona",
+      "state": "Florida",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 8534476567,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Joe's Pizza",
+      "housenumber": "124",
+      "street": "Fulton Street",
+      "locality": "Financial District",
+      "district": "Manhattan",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 5397497261,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Joe's Pizza and Pasta",
+      "housenumber": "95-08",
+      "street": "Jamaica Avenue",
+      "locality": "Brooklyn Manor",
+      "district": "Queens",
+      "city": "New York",
+      "state": "New York",
+      "country": "United States"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q60": {
+     "id": "Q60",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q208511"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q2264924"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1093829"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q515"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1549591"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q51929311"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q15063611"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q200250"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q174844"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q523883": {
+     "id": "Q523883",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q4"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q806824"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q3844992": {
+     "id": "Q3844992",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q116392487"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q177"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q2359423": {
+     "id": "Q2359423",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q17524420"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q3136960"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q6633464": {
+     "id": "Q6633464",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q13406463"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q3686403": {
+     "id": "Q3686403",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q13406463"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q20979290": {
+     "id": "Q20979290",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1501212"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q2639128": {
+     "id": "Q2639128",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q4830453"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q18509232"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "ichiran shibuya": {
+  "search": {
+   "query": {
+    "pages": [
+     {
+      "title": "Hōgen rebellion",
+      "index": 4,
+      "description": "Brief Japanese clan conflict in 1156",
+      "pageprops": {
+       "wikibase_item": "Q842357"
+      }
+     },
+     {
+      "title": "Heiji rebellion",
+      "index": 3,
+      "description": "Brief Japanese clan conflict in 1160",
+      "pageprops": {
+       "wikibase_item": "Q944859"
+      }
+     },
+     {
+      "title": "History of Tokyo",
+      "index": 1,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q2510783"
+      }
+     },
+     {
+      "title": "Type-Moon",
+      "index": 2,
+      "description": "Japanese company",
+      "pageprops": {
+       "wikibase_item": "Q1054754"
+      }
+     },
+     {
+      "title": "Joji Matsuoka",
+      "index": 8,
+      "description": "Japanese film director (born 1961)",
+      "pageprops": {
+       "wikibase_item": "Q871515"
+      }
+     },
+     {
+      "title": "Graduate School of Management, Globis University",
+      "index": 7,
+      "description": "Private university in Tokyo, Japan",
+      "pageprops": {
+       "wikibase_item": "Q11300904"
+      }
+     },
+     {
+      "title": "Yoshito Hori",
+      "index": 6,
+      "description": "Japanese venture capitalist and educator (born 1962)",
+      "pageprops": {
+       "wikibase_item": "Q8056305"
+      }
+     },
+     {
+      "title": "Ryusuke Hamaguchi",
+      "index": 5,
+      "description": "Japanese filmmaker (born 1978)",
+      "pageprops": {
+       "wikibase_item": "Q17220313"
+      }
+     }
+    ]
+   }
+  },
+  "prefix": {},
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 3047251663,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Ichiran",
+      "housenumber": "7",
+      "street": "22",
+      "locality": "Jinnan 1",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "state": "東京都",
+      "country": "Japan"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 4536691593,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Ichiran",
+      "street": "Spainzaka Street",
+      "locality": "Udagawachō",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "country": "Japan"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 4706410299,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Ichiran ramen",
+      "street": "Meiji Street",
+      "locality": "Jingumae 6",
+      "district": "Shibuya",
+      "city": "Tokyo",
+      "country": "Japan"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q842357": {
+     "id": "Q842357",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q8465"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1348385"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q944859": {
+     "id": "Q944859",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q124734"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q8465"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q2510783": {
+     "id": "Q2510783",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q28747937"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q1054754": {
+     "id": "Q1054754",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q210167"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q871515": {
+     "id": "Q871515",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q2526255"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q28389"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q11300904": {
+     "id": "Q11300904",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1143635"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q902104"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q20820271"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q8056305": {
+     "id": "Q8056305",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q43845"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q17220313": {
+     "id": "Q17220313",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q2526255"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q28389"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "mom's lasagna": {
+  "search": {
+   "query": {
+    "pages": [
+     {
+      "title": "Doris Roberts",
+      "index": 4,
+      "description": "American actress (1925–2016)",
+      "pageprops": {
+       "wikibase_item": "Q232959"
+      }
+     },
+     {
+      "title": "Giada De Laurentiis",
+      "index": 1,
+      "description": "Italian-American chef and television personality",
+      "pageprops": {
+       "wikibase_item": "Q166216"
+      }
+     },
+     {
+      "title": "List of Garfield characters",
+      "index": 2,
+      "description": "List of characters in the Garfield strip",
+      "pageprops": {
+       "wikibase_item": "Q139865"
+      }
+     },
+     {
+      "title": "Desi Lydic",
+      "index": 5,
+      "description": "American comedic actress (born 1981)",
+      "pageprops": {
+       "wikibase_item": "Q3024406"
+      }
+     },
+     {
+      "title": "Mike & Molly season 2",
+      "index": 8,
+      "description": "Season of television series",
+      "pageprops": {
+       "wikibase_item": "Q3729243"
+      }
+     },
+     {
+      "title": "List of The Danny Thomas Show episodes",
+      "index": 3,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q17100338"
+      }
+     },
+     {
+      "title": "Fourth Down and Love",
+      "index": 6,
+      "description": "2023 American TV series or program",
+      "pageprops": {
+       "wikibase_item": "Q125207811"
+      }
+     },
+     {
+      "title": "Leanne (TV series)",
+      "index": 7,
+      "description": "American sitcom",
+      "pageprops": {
+       "wikibase_item": "Q134726269"
+      }
+     }
+    ]
+   }
+  },
+  "prefix": {},
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 3203009498,
+      "osm_key": "natural",
+      "osm_value": "peak",
+      "name": "Monte Lasagna",
+      "city": "Pallare",
+      "state": "Liguria",
+      "country": "Italia"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 12926241901,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Ciro's Lasagna House",
+      "housenumber": "774",
+      "street": "East Market Street",
+      "city": "Harrisonburg",
+      "state": "Virginia",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 6345363975,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Piopa Lasagna-Caffé",
+      "street": "Parvis des Droits de l'Homme",
+      "locality": "Quartier de l'Amphithéâtre",
+      "district": "Sablon",
+      "city": "Metz",
+      "state": "Grand Est",
+      "country": "France"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 4831179163,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Paul's Homemade Pasta & Lasagna",
+      "housenumber": "53",
+      "street": "Dr. Esat Işık Caddesi",
+      "locality": "Caferağa Mahallesi",
+      "district": "Caferağa",
+      "city": "İstanbul",
+      "state": "İstanbul",
+      "country": "Türkiye"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 4612096055,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Nano's Lasagna",
+      "street": "Taboan",
+      "locality": "Banezville Subdivision",
+      "district": "Fatima Village",
+      "city": "Tacloban City",
+      "state": "Eastern Visayas",
+      "country": "Philippines"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 482476158,
+      "osm_key": "waterway",
+      "osm_value": "stream",
+      "name": "Torrente Passo Lasagna",
+      "city": "Mazzarino",
+      "state": "Sicilia",
+      "country": "Italia"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 9492474102,
+      "osm_key": "place",
+      "osm_value": "isolated_dwelling",
+      "name": "Casa Lasagna",
+      "district": "Rondanaia",
+      "city": "Santo Stefano d'Aveto",
+      "state": "Liguria",
+      "country": "Italia"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 707115111,
+      "osm_key": "highway",
+      "osm_value": "residential",
+      "name": "Contrada Colombaio Lasagna",
+      "city": "Marsala",
+      "state": "Sicilia",
+      "country": "Italia"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q232959": {
+     "id": "Q232959",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q2259451"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q10800557"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q10798782"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q166216": {
+     "id": "Q166216",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q156839"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q36180"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1930187"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q33999"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q139865": {
+     "id": "Q139865",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q63032896"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q3024406": {
+     "id": "Q3024406",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q33999"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q10800557"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q10798782"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q3729243": {
+     "id": "Q3729243",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q3464665"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q17100338": {
+     "id": "Q17100338",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q13406463"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q125207811": {
+     "id": "Q125207811",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q11424"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q134726269": {
+     "id": "Q134726269",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5398426"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "grandma's apple pie": {
+  "search": {
+   "query": {
+    "pages": [
+     {
+      "title": "Shepherd's pie",
+      "index": 2,
+      "description": "Pie of minced meat topped with mashed potato",
+      "pageprops": {
+       "wikibase_item": "Q2303056"
+      }
+     },
+     {
+      "title": "Bill Withers",
+      "index": 4,
+      "description": "American musician (1938–2020)",
+      "pageprops": {
+       "wikibase_item": "Q346565"
+      }
+     },
+     {
+      "title": "Kuchen",
+      "index": 3,
+      "description": "Several different types of desserts",
+      "pageprops": {
+       "wikibase_item": "Q10754476"
+      }
+     },
+     {
+      "title": "List of VeggieTales videos",
+      "index": 5,
+      "description": "Episode List for an American Christian animated series",
+      "pageprops": {
+       "wikibase_item": "Q6603450"
+      }
+     },
+     {
+      "title": "List of American Pie characters",
+      "index": 1,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q51845417"
+      }
+     },
+     {
+      "title": "Sandwich cookie",
+      "index": 6,
+      "description": "Cookies kept by two thin cookies or biscuits with filling in between",
+      "pageprops": {
+       "wikibase_item": "Q1243043"
+      }
+     },
+     {
+      "title": "Kids Baking Championship",
+      "index": 7,
+      "description": "American food reality television series",
+      "pageprops": {
+       "wikibase_item": "Q19798723"
+      }
+     },
+     {
+      "title": "Bill Withers discography",
+      "index": 8,
+      "description": "Cataloging of published recordings by Bill Withers",
+      "pageprops": {
+       "wikibase_item": "Q25384019"
+      }
+     }
+    ]
+   }
+  },
+  "prefix": {},
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 8308480099,
+      "osm_key": "amenity",
+      "osm_value": "cafe",
+      "name": "Grandma's Pie",
+      "street": "Van Breestraat",
+      "locality": "Klein-Antwerpen",
+      "district": "Antwerpen",
+      "city": "Antwerpen",
+      "state": "Antwerpen",
+      "country": "België / Belgique / Belgien"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 13338553095,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Grandma's Pie",
+      "housenumber": "2",
+      "street": "Lange Leemstraat",
+      "locality": "Klein-Antwerpen",
+      "district": "Antwerpen",
+      "city": "Antwerpen",
+      "state": "Antwerpen",
+      "country": "België / Belgique / Belgien"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 357718029,
+      "osm_key": "natural",
+      "osm_value": "peak",
+      "name": "Apple Pie Hill",
+      "city": "Tabernacle Township",
+      "state": "New Jersey",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 20389829,
+      "osm_key": "highway",
+      "osm_value": "residential",
+      "name": "Grandma's Hill Road",
+      "district": "Piedmont",
+      "state": "Virginia",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 358716365,
+      "osm_key": "natural",
+      "osm_value": "peak",
+      "name": "Apple Pie Mountain",
+      "state": "Georgia",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 6193464215,
+      "osm_key": "natural",
+      "osm_value": "peak",
+      "name": "Apple Pie Ridge",
+      "state": "Virginia",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 9044053698,
+      "osm_key": "shop",
+      "osm_value": "yes",
+      "name": "Mom's Apple Pie",
+      "housenumber": "35246",
+      "street": "Leesburg Pike",
+      "city": "Round Hill",
+      "state": "Virginia",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 102234135,
+      "osm_key": "shop",
+      "osm_value": "bakery",
+      "name": "Mom's Apple Pie",
+      "housenumber": "220",
+      "street": "Loudoun Street Southeast",
+      "city": "Leesburg",
+      "state": "VA",
+      "country": "United States"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q2303056": {
+     "id": "Q2303056",
+     "claims": {
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5367573"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q10514020"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q346565": {
+     "id": "Q346565",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q177220"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q488205"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q36834"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q855091"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q10754476": {
+     "id": "Q10754476",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q210588"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5159627"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q477248"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q6603450": {
+     "id": "Q6603450",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q13406463"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q51845417": {
+     "id": "Q51845417",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q63032896"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q1243043": {
+     "id": "Q1243043",
+     "claims": {
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q13266"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q19798723": {
+     "id": "Q19798723",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q15416"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q25384019": {
+     "id": "Q25384019",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q104635718"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "friday trivia night": {
+  "search": {
+   "query": {
+    "pages": [
+     {
+      "title": "Jason Voorhees",
+      "index": 8,
+      "description": "Main character of the Friday the 13th series",
+      "pageprops": {
+       "wikibase_item": "Q366957"
+      }
+     },
+     {
+      "title": "The NBC Mystery Movie",
+      "index": 5,
+      "description": "American television anthology series",
+      "pageprops": {
+       "wikibase_item": "Q1145054"
+      }
+     },
+     {
+      "title": "Night Call (The Twilight Zone)",
+      "index": 6,
+      "description": "19th episode of the 5th season of The Twilight Zone",
+      "pageprops": {
+       "wikibase_item": "Q4026902"
+      }
+     },
+     {
+      "title": "TGIF (TV programming block)",
+      "index": 3,
+      "description": "American television programming block",
+      "pageprops": {
+       "wikibase_item": "Q2819011"
+      }
+     },
+     {
+      "title": "T-Room",
+      "index": 1,
+      "description": "Restaurant in Nova Scotia, Canada",
+      "pageprops": {
+       "wikibase_item": "Q7667849"
+      }
+     },
+     {
+      "title": "List of Friday the 13th: The Series episodes",
+      "index": 2,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q6571455"
+      }
+     },
+     {
+      "title": "HQ (video game)",
+      "index": 4,
+      "description": "Live mobile trivia game",
+      "pageprops": {
+       "wikibase_item": "Q45319467"
+      }
+     },
+     {
+      "title": "Scott Rogowsky",
+      "index": 7,
+      "description": "American television host (born 1984)",
+      "pageprops": {
+       "wikibase_item": "Q43549429"
+      }
+     }
+    ]
+   }
+  },
+  "prefix": {},
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 11633178985,
+      "osm_key": "leisure",
+      "osm_value": "fitness_centre",
+      "name": "Friday Night Fights Gym/HQ",
+      "street": "Euterpe Street",
+      "locality": "Central City Historic District",
+      "district": "Garden District",
+      "city": "New Orleans",
+      "state": "Louisiana",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 13790149677,
+      "osm_key": "shop",
+      "osm_value": "alcohol",
+      "name": "Friday night bocas",
+      "street": "Avenida E",
+      "district": "Bocas del Toro",
+      "city": "Bocas del Toro",
+      "state": "Bocas del Toro",
+      "country": "Panamá"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 4143868538,
+      "osm_key": "amenity",
+      "osm_value": "marketplace",
+      "name": "Friday Night Market",
+      "street": "ถนนโบ๊ทอเวนิว 1",
+      "district": "เชิงทะเล",
+      "city": "ตำบลเชิงทะเล",
+      "state": "จังหวัดภูเก็ต",
+      "country": "ประเทศไทย"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 6646121208,
+      "osm_key": "shop",
+      "osm_value": "variety_store",
+      "name": "Friday Night Market - Food & Clothes",
+      "street": "Jalan Barry",
+      "city": "Kuala Lipis",
+      "state": "Pahang",
+      "country": "Malaysia"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 13586620703,
+      "osm_key": "tourism",
+      "osm_value": "attraction",
+      "name": "Friday Night Market",
+      "street": "ถนนราชวิถี ซอย 2",
+      "district": "ตำบลศรีภูมิ",
+      "city": "เชียงใหม่",
+      "state": "จังหวัดเชียงใหม่",
+      "country": "ประเทศไทย"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 1266262807,
+      "osm_key": "building",
+      "osm_value": "yes",
+      "name": "VFW Friday Night Bingo 7 PM",
+      "street": "Jacobs Well Road",
+      "city": "Woodcreek",
+      "state": "TX",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 6561608285,
+      "osm_key": "amenity",
+      "osm_value": "fast_food",
+      "name": "Night Market (Every Friday)",
+      "street": "Jalan Teluk Yu",
+      "state": "Kedah",
+      "country": "Malaysia"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 628947961,
+      "osm_key": "amenity",
+      "osm_value": "marketplace",
+      "name": "美濃夜市",
+      "street": "自強街一段",
+      "locality": "瀰濃里",
+      "district": "美濃區",
+      "city": "高雄市",
+      "country": "臺灣"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q366957": {
+     "id": "Q366957",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q15773347"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q15632617"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q30061600"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q7317885"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q22074477"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q34315358"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q15883433"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q189829"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q1145054": {
+     "id": "Q1145054",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5398426"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q4026902": {
+     "id": "Q4026902",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q21191270"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q2819011": {
+     "id": "Q2819011",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5398426"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q7667849": {
+     "id": "Q7667849",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q811430"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q6571455": {
+     "id": "Q6571455",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q13406463"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q45319467": {
+     "id": "Q45319467",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q620615"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q846662"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q43549429": {
+     "id": "Q43549429",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q22662561"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "cafe de flore": {
+  "search": {
+   "query": {
+    "pages": [
+     {
+      "title": "Vanessa Paradis",
+      "index": 5,
+      "description": "French singer, model and actress (born 1972)",
+      "pageprops": {
+       "wikibase_item": "Q51023"
+      }
+     },
+     {
+      "title": "Boulevard Saint-Germain",
+      "index": 7,
+      "description": "Boulevard in Paris, France",
+      "pageprops": {
+       "wikibase_item": "Q533037"
+      }
+     },
+     {
+      "title": "Café de Flore",
+      "index": 1,
+      "description": "One of the oldest coffeehouses in Paris",
+      "pageprops": {
+       "wikibase_item": "Q1025686"
+      }
+     },
+     {
+      "title": "Jean-Marc Vallée",
+      "index": 4,
+      "description": "Canadian filmmaker (1963–2021)",
+      "pageprops": {
+       "wikibase_item": "Q500611"
+      }
+     },
+     {
+      "title": "Parisian café",
+      "index": 8,
+      "description": "Type of café found mainly in Paris",
+      "pageprops": {
+       "wikibase_item": "Q7137468"
+      }
+     },
+     {
+      "title": "Prix de Flore",
+      "index": 3,
+      "pageprops": {
+       "wikibase_item": "Q918719"
+      }
+     },
+     {
+      "title": "Café de Flore (film)",
+      "index": 2,
+      "description": "2011 Canadian film",
+      "pageprops": {
+       "wikibase_item": "Q1058682"
+      }
+     },
+     {
+      "title": "Jérôme Kircher",
+      "index": 6,
+      "description": "French actor (born 1964)",
+      "pageprops": {
+       "wikibase_item": "Q3190953"
+      }
+     }
+    ]
+   }
+  },
+  "prefix": {
+   "query": {
+    "pages": [
+     {
+      "title": "Café de Flore",
+      "index": 1,
+      "description": "One of the oldest coffeehouses in Paris",
+      "pageprops": {
+       "wikibase_item": "Q1025686"
+      }
+     },
+     {
+      "title": "Café de la Régence",
+      "index": 3,
+      "description": "Paris centre of chess, 18th century–1916",
+      "pageprops": {
+       "wikibase_item": "Q1025693"
+      }
+     },
+     {
+      "title": "Café de Flore (film)",
+      "index": 2,
+      "description": "2011 Canadian film",
+      "pageprops": {
+       "wikibase_item": "Q1058682"
+      }
+     },
+     {
+      "title": "Carl Chassot de Florencourt",
+      "index": 5,
+      "pageprops": {
+       "wikibase_item": "Q55217235"
+      }
+     },
+     {
+      "title": "Cade Flores",
+      "index": 4,
+      "description": "Filipino basketball player (born 1998)",
+      "pageprops": {
+       "wikibase_item": "Q140996311"
+      }
+     }
+    ],
+    "redirects": [
+     {
+      "from": "Carl de Florencourt Chassot",
+      "to": "Carl Chassot de Florencourt"
+     }
+    ]
+   }
+  },
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 251699776,
+      "osm_key": "amenity",
+      "osm_value": "cafe",
+      "name": "Café de Flore",
+      "street": "Rue Saint-Benoît",
+      "locality": "Saint-Germain-des-Prés",
+      "district": "Paris",
+      "city": "Paris",
+      "state": "Île-de-France",
+      "country": "France"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 4935230423,
+      "osm_key": "amenity",
+      "osm_value": "restaurant",
+      "name": "Cafe de flore",
+      "street": "Jingshan East Street",
+      "locality": "景山东街社区",
+      "district": "Dongcheng",
+      "city": "Beijing",
+      "country": "China"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 11003341617,
+      "osm_key": "amenity",
+      "osm_value": "cafe",
+      "name": "Cafe de Flore",
+      "street": "Jalan Jaya Putra 1/1",
+      "locality": "Little Paris",
+      "city": "Tebrau",
+      "state": "Johor",
+      "country": "Malaysia"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 5864950886,
+      "osm_key": "amenity",
+      "osm_value": "cafe",
+      "name": "Cafe de Flore",
+      "street": "Yongducheon-ro 3-gil",
+      "locality": "Myeong-dong",
+      "city": "Jecheon",
+      "state": "North Chungcheong",
+      "country": "South Korea"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 587209082,
+      "osm_key": "amenity",
+      "osm_value": "cafe",
+      "name": "Café de Flore",
+      "housenumber": "7",
+      "street": "Rue de Marchovelette",
+      "district": "Namur",
+      "city": "Namur",
+      "state": "Namur",
+      "country": "Belgium"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 1735145995,
+      "osm_key": "amenity",
+      "osm_value": "bar",
+      "name": "Cafè de Flore",
+      "street": "Via Gaetano Strambio",
+      "locality": "Città Studi",
+      "district": "Municipio 3",
+      "city": "Milan",
+      "state": "Lombardy",
+      "country": "Italy"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 13510900059,
+      "osm_key": "amenity",
+      "osm_value": "cafe",
+      "name": "Café de Flore Kolding",
+      "street": "Ringgaden",
+      "district": "Damhuse",
+      "city": "Kolding",
+      "state": "Region of Southern Denmark",
+      "country": "Denmark"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 7954286844,
+      "osm_key": "amenity",
+      "osm_value": "cafe",
+      "name": "Café de Flore",
+      "housenumber": "36",
+      "street": "Șoseaua Balcani",
+      "city": "Gratiesti",
+      "country": "Moldova"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q51023": {
+     "id": "Q51023",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q177220"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q33999"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q4610556"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q3357567"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q639669"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q533037": {
+     "id": "Q533037",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q54114"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q1025686": {
+     "id": "Q1025686",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q30022"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q11707"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q500611": {
+     "id": "Q500611",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q33999"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q2526255"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q28389"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q3282637"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q7042855"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q10800557"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q69423232"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q7137468": {
+     "id": "Q7137468",
+     "claims": {
+      "P279": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q30022"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q918719": {
+     "id": "Q918719",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q378427"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q1058682": {
+     "id": "Q1058682",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q11424"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q3190953": {
+     "id": "Q3190953",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q33999"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q1025693": {
+     "id": "Q1025693",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q30022"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q55217235": {
+     "id": "Q55217235",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ],
+      "P106": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q3055126"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q170790"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q21244999"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q4964182"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q520549"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q140996311": {
+     "id": "Q140996311",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q5"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "zelda breath of the wild": {
+  "search": {
+   "query": {
+    "pages": [
+     {
+      "title": "The Legend of Zelda",
+      "index": 5,
+      "description": "Video game series",
+      "pageprops": {
+       "wikibase_item": "Q12393"
+      }
+     },
+     {
+      "title": "Universe of The Legend of Zelda",
+      "index": 8,
+      "description": "Fictional universe",
+      "pageprops": {
+       "wikibase_item": "Q1399781"
+      }
+     },
+     {
+      "title": "The Legend of Zelda: Breath of the Wild",
+      "index": 1,
+      "description": "2017 video game",
+      "pageprops": {
+       "wikibase_item": "Q17185964"
+      }
+     },
+     {
+      "title": "The Legend of Zelda: Tears of the Kingdom",
+      "index": 2,
+      "description": "2023 video game",
+      "pageprops": {
+       "wikibase_item": "Q64577191"
+      }
+     },
+     {
+      "title": "Sidon (The Legend of Zelda)",
+      "index": 6,
+      "description": "Character in The Legend of Zelda game series",
+      "pageprops": {
+       "wikibase_item": "Q73152840"
+      }
+     },
+     {
+      "title": "The Legend of Zelda: Breath of the Wild – Creating a Champion",
+      "index": 4,
+      "description": "Book by Nintendo",
+      "pageprops": {
+       "wikibase_item": "Q103821157"
+      }
+     },
+     {
+      "title": "List of The Legend of Zelda: Breath of the Wild and Tears of the Kingdom characters",
+      "index": 3,
+      "description": "",
+      "pageprops": {
+       "wikibase_item": "Q135927461"
+      }
+     },
+     {
+      "title": "The Legend of Zelda: Ocarina of Time (2026 video game)",
+      "index": 7,
+      "description": "Upcoming video game",
+      "pageprops": {
+       "wikibase_item": "Q140140365"
+      }
+     }
+    ]
+   }
+  },
+  "prefix": {
+   "query": {
+    "pages": [
+     {
+      "title": "The Legend of Zelda: Breath of the Wild",
+      "index": 1,
+      "description": "2017 video game",
+      "pageprops": {
+       "wikibase_item": "Q17185964"
+      }
+     }
+    ],
+    "redirects": [
+     {
+      "from": "Zelda breath of the wild",
+      "to": "The Legend of Zelda: Breath of the Wild"
+     }
+    ]
+   }
+  },
+  "photon": {
+   "features": [
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 1224939765,
+      "osm_key": "highway",
+      "osm_value": "path",
+      "name": "Breath of the Wild",
+      "district": "Parkhurst",
+      "city": "Whistler",
+      "state": "British Columbia",
+      "country": "Canada"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 9882605789,
+      "osm_key": "tourism",
+      "osm_value": "artwork",
+      "name": "Te Haa o Te Ao (The Breath of the World)",
+      "street": "State Highway 10",
+      "district": "Kerikeri",
+      "city": "Bay of Islands",
+      "state": "Northland",
+      "country": "New Zealand / Aotearoa"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 9893463717,
+      "osm_key": "tourism",
+      "osm_value": "attraction",
+      "street": "ზუგდიდი — ჯვარი — მესტია — ლასდილი",
+      "city": "ზედა ეწერი",
+      "state": "სამეგრელო-ზემო სვანეთი",
+      "country": "საქართველო"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "R",
+      "osm_id": 18194470,
+      "osm_key": "boundary",
+      "osm_value": "protected_area",
+      "name": "Old Kaituna Riverbed Wildlife Management Reserve",
+      "district": "Wairākei / The Sands",
+      "city": "The Sands / Te Tumu",
+      "state": "Bay of Plenty",
+      "country": "New Zealand / Aotearoa"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "W",
+      "osm_id": 1368909900,
+      "osm_key": "amenity",
+      "osm_value": "place_of_worship",
+      "name": "Morgantown Church of the Brethren",
+      "street": "Virginia Avenue",
+      "locality": "Wiles Hill",
+      "district": "Evansdale",
+      "city": "Morgantown",
+      "state": "West Virginia",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 356534424,
+      "osm_key": "amenity",
+      "osm_value": "place_of_worship",
+      "name": "Wiley Ford Church of the Brethren",
+      "street": "Ford Street",
+      "city": "Wiley Ford",
+      "state": "West Virginia",
+      "country": "United States"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 4561395913,
+      "osm_key": "information",
+      "osm_value": "board",
+      "name": "On the Edge of Wilderness / Southern Settlers",
+      "street": "Marks Road",
+      "city": "Haast",
+      "state": "West Coast",
+      "country": "New Zealand / Aotearoa"
+     }
+    },
+    {
+     "properties": {
+      "osm_type": "N",
+      "osm_id": 14107096401,
+      "osm_key": "shop",
+      "osm_value": "bakery",
+      "name": "Breadhead",
+      "housenumber": "2A",
+      "street": "St John Street",
+      "locality": "The Avenues",
+      "district": "Tauranga South",
+      "city": "Tauranga",
+      "state": "Bay of Plenty",
+      "country": "New Zealand / Aotearoa"
+     }
+    }
+   ]
+  },
+  "kinds": {
+   "entities": {
+    "Q12393": {
+     "id": "Q12393",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q7058673"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q1399781": {
+     "id": "Q1399781",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q559618"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q17185964": {
+     "id": "Q17185964",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q7889"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q64577191": {
+     "id": "Q64577191",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q7889"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q73152840": {
+     "id": "Q73152840",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q1569167"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q11315628"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q28468092"
+          }
+         }
+        },
+        "rank": "normal"
+       },
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q16658189"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q103821157": {
+     "id": "Q103821157",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q47461344"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q135927461": {
+     "id": "Q135927461",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q13406463"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    },
+    "Q140140365": {
+     "id": "Q140140365",
+     "claims": {
+      "P31": [
+       {
+        "mainsnak": {
+         "datavalue": {
+          "value": {
+           "id": "Q7889"
+          }
+         }
+        },
+        "rank": "normal"
+       }
+      ]
+     }
+    }
+   }
+  }
+ }
+}
