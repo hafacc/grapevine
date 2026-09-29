@@ -144,6 +144,7 @@ const EMPTY_FRIENDS: Friend[] = [];
 
 const LIST_SCREEN: Screen = { kind: "list" };
 const PEOPLE_SCREEN: Screen = { kind: "people" };
+const REPORTS_SCREEN: Screen = { kind: "reports" };
 
 // The fragment rather than a path, because the site is a static export with no
 // server to route with. The ids are not secrets — every read they name is gated
@@ -154,6 +155,8 @@ export function screenHash(screen: Screen): string {
       return "#/";
     case "people":
       return "#/people";
+    case "reports":
+      return "#/reports";
     case "item":
       return `#/item/${encodeURIComponent(screen.id)}`;
   }
@@ -177,7 +180,9 @@ export function screenForHash(hash: string): Screen | null {
     case 0:
       return LIST_SCREEN;
     case 1:
-      return first === "people" ? PEOPLE_SCREEN : null;
+      if (first === "people") return PEOPLE_SCREEN;
+      else if (first === "reports") return REPORTS_SCREEN;
+      else return null;
     case 2:
       if (first === "item") {
         // A pasted or hand-typed link carries whatever spelling it was written
@@ -194,9 +199,13 @@ export function screenForHash(hash: string): Screen | null {
 
 // A fragment names only the top screen, so a pasted link gets the list seeded
 // beneath it — otherwise arriving on a thing means arriving with no way back.
+// The reports screen gets the people screen too, which is where it is opened
+// from and so where its Back goes.
 export function stackForHash(hash: string): Screen[] {
   const screen = screenForHash(hash) ?? LIST_SCREEN;
   if (screen.kind === "list") return [screen];
+  else if (screen.kind === "reports")
+    return [LIST_SCREEN, PEOPLE_SCREEN, screen];
   else return [LIST_SCREEN, screen];
 }
 
@@ -405,6 +414,19 @@ export function GrapevineProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("hashchange", onHashChange);
     };
   }, []);
+
+  // The reports screen is an admin's; for anybody else `#/reports` goes where a
+  // fragment naming no screen goes. Only once the profile has answered, since
+  // until then nobody is known not to be an admin. The server answers a
+  // non-admin nothing either way.
+  const admin = Boolean(profile?.admin);
+  useEffect(() => {
+    if (!profileReady || admin) return;
+    if (!stack.some((entry) => entry.kind === "reports")) return;
+    const next: Screen[] = [LIST_SCREEN];
+    replaceEntry(next);
+    setStack(next);
+  }, [profileReady, admin, stack]);
 
   // Read through a ref, not a closure. An action can be HELD — captured at the
   // tap, run after the identity sheet writes a profile — and a callback that

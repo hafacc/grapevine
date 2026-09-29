@@ -2,12 +2,13 @@ import { describe, expect, it } from "bun:test";
 import { screenForHash, screenHash, stackForHash } from "../utils/store";
 import type { Screen } from "../utils/types";
 
-// Three screens, each with a URL, and a pasted one has to name the same screen
+// Four screens, each with a URL, and a pasted one has to name the same screen
 // it was copied from — the fragment is the only routing this static export has.
 describe("screenHash / screenForHash", () => {
   const screens: readonly Screen[] = [
     { kind: "list" },
     { kind: "people" },
+    { kind: "reports" },
     { kind: "item", id: "café bleu" },
   ];
 
@@ -45,6 +46,7 @@ describe("screenHash / screenForHash", () => {
   it.each([
     "#/nowhere",
     "#/people/abc123",
+    "#/reports/abc123",
     "#/item/one/two",
     "#/%zz",
   ])("names no screen for %p", (hash) => {
@@ -66,6 +68,15 @@ describe("stackForHash", () => {
     expect(stackForHash("#/people")).toEqual([
       { kind: "list" },
       { kind: "people" },
+    ]);
+  });
+
+  // Opened from the people screen, so Back goes there.
+  it("seeds the list and the people screen under the reports screen", () => {
+    expect(stackForHash("#/reports")).toEqual([
+      { kind: "list" },
+      { kind: "people" },
+      { kind: "reports" },
     ]);
   });
 
