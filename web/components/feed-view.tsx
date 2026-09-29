@@ -112,20 +112,12 @@ function ItemRow({
     onOpen();
   }
 
-  // The rule goes on the frame, so at desktop width it runs under the side
-  // buttons too rather than stopping short of them.
   const tint =
     row.own === 1
       ? "bg-accent-tint"
       : row.own === -1
         ? "bg-danger-tint"
         : "bg-surface";
-  const rule =
-    row.own === 1
-      ? "border-accent"
-      : row.own === -1
-        ? "border-danger"
-        : "border-border";
 
   const content = (
     <button
@@ -166,7 +158,7 @@ function ItemRow({
       subject={row.itemId}
       value={row.own}
       onRate={onRate}
-      frameClassName={`border-b ${rule}`}
+      frameClassName={tint}
     >
       {content}
     </RateRow>

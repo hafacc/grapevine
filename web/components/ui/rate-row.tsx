@@ -8,7 +8,7 @@ import SwipeRow, { type SwipeLabels } from "./swipe-row";
 
 /**
  * Anything that can be rated in place: swiped at phone width, and at desktop
- * width the same row between the two buttons welded to its ends (DESIGN §1.8).
+ * width the same row between its two side buttons (DESIGN §1.8).
  *
  * The list and a thing's own screen both draw rows this way, and the rule for
  * which of the two a viewer gets lives here alone — in two copies it is the

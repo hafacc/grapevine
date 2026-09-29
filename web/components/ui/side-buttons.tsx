@@ -7,8 +7,9 @@ import type { RatingValue } from "../../utils/types";
 import type { SwipeLabel } from "./swipe-row";
 
 /**
- * One end of a row at desktop width, welded to it with no gap and no radius: no
- * on the left, yes on the right.
+ * One end of a row at desktop width: no on the left, yes on the right. Inset
+ * 4 px with the one radius, because rows carry no rule between them and
+ * flush buttons would run down the list as one coloured column.
  *
  * It replaces the swipe and nothing else — the rest of the desktop is the phone
  * layout in a column. The side matching the viewer's current rating goes muted
@@ -43,7 +44,7 @@ export default function SideButton({
         type="button"
         aria-label={`${label.word}, ${subject}`}
         onClick={() => onRate(outcome.next)}
-        className={`font-display flex min-w-[56px] shrink-0 items-center justify-center gap-1.5 px-3 text-[15px] font-semibold focus-visible:outline-offset-[-2px] ${tone}`}
+        className={`font-display m-1 flex min-w-[56px] shrink-0 items-center rounded-sm justify-center gap-1.5 px-3 text-[15px] font-semibold focus-visible:outline-offset-[-2px] ${tone}`}
       >
         <label.icon size={16} aria-hidden="true" />
         {label.word}
@@ -56,7 +57,7 @@ export default function SideButton({
         aria-label={`${yes ? "yes" : "no"} to ${subject}`}
         aria-pressed={clears}
         onClick={() => onRate(outcome.next)}
-        className={`flex w-[56px] shrink-0 items-center justify-center focus-visible:outline-offset-[-2px] ${tone}`}
+        className={`m-1 flex w-[56px] shrink-0 items-center rounded-sm justify-center focus-visible:outline-offset-[-2px] ${tone}`}
       >
         {clears ? (
           <LuMinus size={20} />

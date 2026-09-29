@@ -11,7 +11,7 @@
 // behind them. The way in is a minted session (`scripts/local-session.mjs`), not
 // the door — `signin-check.mjs`'s header is where that is written down.
 //
-// Desktop width on purpose: the swipe and the two welded buttons are the same
+// Desktop width on purpose: the swipe and the two side buttons are the same
 // two sides (DESIGN §1.8), and a button is what a browser can be told to press.
 // The gesture itself is covered by `tests/swipe.test.ts`, which is pure.
 //

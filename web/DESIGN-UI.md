@@ -9,13 +9,13 @@ hex-grapes mark and the swipe.
 
 ## Voice
 
-Compact rows on a plain surface, separated by rules. One accent and one danger colour, no
-third. Nothing counts anything and nothing is a number (DESIGN §4). **Everything user-facing
-is lower case** — labels, buttons, headings, the wordmark, the empty state, and the things and
-attributes people type, which are stored lower case (DESIGN §3.2) and so need no CSS to arrive
-that way. A capital letter in the interface is a person's own display name from Google, or a
-bug. Do not add `text-transform` anywhere to enforce this: a transform would hide the one case
-that matters, an id that reached the screen without being normalized.
+Compact rows on a plain surface, with no rule between one row and the next. One accent and one
+danger colour, no third. Nothing counts anything and nothing is a number (DESIGN §4).
+**Everything user-facing is lower case** — labels, buttons, headings, the wordmark, the empty
+state, and the things and attributes people type, which are stored lower case (DESIGN §3.2) and
+so need no CSS to arrive that way. A capital letter in the interface is a person's own display
+name from Google, or a bug. Do not add `text-transform` anywhere to enforce this: a transform
+would hide the one case that matters, an id that reached the screen without being normalized.
 
 Dark first in intent; the light palette is the same instrument under a lamp. **The light palette
 was designed; the dark one is derived** from it, and "How far the dark column has been checked"
@@ -78,7 +78,11 @@ There is no notification badge: nothing in the product waits for the viewer.
 - Section heading: 16 px top, 8 px bottom, same gutter.
 - The bottom bar: 10 px above, 20 px below (the home indicator), 10 px between the add button
   and the field.
-- Surfaces are separated by 1 px rules, never by shadow. The one shadow in the language is on
+- Surfaces are separated by 1 px rules, never by shadow. **Rows are not**: inside a scrolling
+  list nothing draws a line between one row and the next — the list, a thing's attributes,
+  the people screen's rows, a sheet's rows. What keeps its rule is structure: the top or title
+  bar's bottom, the bottom bar's top, the first-run hint, the *report this name* footer and the
+  delete band. A section heading separates by sitting on the canvas. The one shadow in the language is on
   a card **being swiped**, so that it reads as lifted off the reveal behind it.
 
 ## Type
@@ -97,7 +101,7 @@ Fallback stack: `"Barlow", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sa
 | 22 | display 600 | wordmark, screen title, a thing's name in its title bar |
 | 19 | text 500 | the viewer's own name |
 | 17 | text 500 | a row's name, a match's name in *is it one of these?*; body copy; display 600 for a button label |
-| 16 | text 400 | the search field, the link line, the install line, the lookup settings, the "nobody here by that name" note; text 500 for a name in a people row |
+| 16 | text 400 | the search field, the link line, the lookup settings, the reports and install rows, the "nobody here by that name" note; text 500 for a name in a people row |
 | 15 | display 500 | chips, section headings (600, `.06em` tracking, muted); text 400 for the sheets' notes, a match's description and, in `faint`, the OpenStreetMap credit under the matches |
 
 Body line-height 1.5; the empty state 1.55. Nothing is smaller than 14, and nothing between
@@ -181,9 +185,9 @@ lot stands behind it; little behind a thing leaves it near the middle on either 
 component takes that one value as `score`; nothing else about the bar varies. The list ranks by
 the same `c` the bar draws, so the order never disagrees with the bars.
 
-**Row** (the list) — `surface`, 1 px `border` bottom, 12 × 16. Name at 17, attribute chips
-under it, the bar at the right. Rated: background `accent-tint` / `danger-tint`, and the
-bottom rule takes `accent` / `danger`. The bar stays — a rated row still shows what the
+**Row** (the list) — `surface`, no rule, 12 × 16. Name at 17, attribute chips
+under it, the bar at the right. Rated: background `accent-tint` / `danger-tint`, across the
+whole row including behind the desktop side buttons. The bar stays — a rated row still shows what the
 network thinks, beside what the viewer said.
 
 **Chip** — 28 px tall, 4 px radius, 12 px horizontal, display 500 at 15. Five tones:
@@ -235,16 +239,18 @@ asks before anything is written. The link row swipes right to *turn on* while of
 left to *turn off* and right to *new link*, each asking first. It is the one swipe on a phone
 that nothing else explains, so at phone width only it carries a second line, text 400 at 15 in
 `muted`: *swipe to turn on*, or *swipe to turn off or make a new one*. No other row carries a
-swipe affordance: the settings rows below it learn the gesture from it.
+swipe affordance: the settings, reports and install rows below it learn the gesture from it.
 
-**Side buttons (desktop only)** — 56 px wide, full row height, welded to each end with no
-gap and no radius: no on the left, yes on the right. Unpressed they carry `accent-soft` /
-`danger-soft` with the glyph in `*-ink`. The side matching the viewer's current rating goes
-`surface-muted` with a `muted` **minus**, because pressing it clears. On a row whose sides are
-not a rating, each button carries its word and the same icon at 16 px instead (display 600 at
-15, at least 56 px wide and as wide as the word needs): a friend's row has the left button alone, *remove*; the link row has
-*turn on* alone, or *turn off* and *new link*; a lookup setting has *turn on* or *turn off* alone. They replace the swipe and nothing else: the rest
-of the desktop is the phone layout in a 720 px column.
+**Side buttons (desktop only)** — 56 px wide, inset 4 px from the row's edges on every side, 4
+px radius: no on the left, yes on the right. The inset is what keeps them one row's: with no
+rule between rows, buttons flush to the row would run down the list as one coloured column.
+Unpressed they carry `accent-soft` / `danger-soft` with the glyph in `*-ink`. The side matching
+the viewer's current rating goes `surface-muted` with a `muted` **minus**, because pressing it
+clears. On a row whose sides are not a rating, each button carries its word and the same icon
+at 16 px instead (display 600 at 15, at least 56 px wide and as wide as the word needs): a
+friend's row has the left button alone, *remove*; the link row has *turn on* alone, or *turn
+off* and *new link*; a lookup setting has *turn on* or *turn off* alone. They replace the swipe
+and nothing else: the rest of the desktop is the phone layout in a 720 px column.
 
 **Section heading** — display 600 at 15, `.06em` tracking, `muted`, on the canvas rather than
 in a bar: *your vine* on the people screen, *suggested* over a thing's rail. It names a group
@@ -261,8 +267,7 @@ a score, and nothing else is said about them.
 **Buttons** — 44 px, 4 px radius, display 600 at 17. *primary* is `accent` fill with
 `accent-on`; *soft* is `accent-soft` with `accent-ink` and an `accent` border; *muted* is
 `surface-muted` with `text`; *quiet* is `surface` with `muted`. The people screen carries
-two: sign out (muted) and the theme control on the viewer's own row, and *install* on the
-install line where the browser offers one. While the link is on, its row ends in two icon
+two: sign out (muted) and the theme control on the viewer's own row. While the link is on, its row ends in two icon
 buttons, 44 px, `muted`, each named by its `aria-label`: *share* (`LuShare2`), only where the
 device has a share sheet (feature-tested), and *copy* (`LuCopy`, then `LuCheck` in
 `accent-ink` once it has). The viewer's own name
@@ -287,8 +292,14 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
     disabled, once sent. Nothing else sits there: the link is the title bar's icon, with no
     row, no credit and no admin control of its own.
   - **People**: back arrow and *you and your vine*, and **no avatar** — this is where the
-    avatar leads. Under it, in order: the viewer's own row, the link row, the install line,
-    the two lookup settings, then *your vine*, then the delete line. A setting is a one-line
+    avatar leads. Under it, in order: the viewer's own row, the link row, the two lookup
+    settings, an admin's *names people reported*, the install row where the browser offers one,
+    then *your vine*, then the delete line. The reports and install rows are each one action
+    with no button on them (`components/ui/action-row.tsx`): 56 px, text 400 at 16 in `text`,
+    and the whole row is the target — a tap, or a swipe right with the action's word behind it
+    (*reports* `LuFlag`, *install* `LuDownload`); on desktop the whole row is the button, with
+    no side button, taking `surface-hover` under the pointer. Where the browser only installs
+    by hand, the install line is the instruction in `muted`, and does nothing. A setting is a one-line
     row, 56 px, text 400 at 16, that says what is so — *lookups are on*, *lookups use your
     location*, in `muted` when off — and swipes like the link row: left to *turn off*, right
     to *turn on*, a worded side button on desktop. No toggle is drawn: the sentence is the
