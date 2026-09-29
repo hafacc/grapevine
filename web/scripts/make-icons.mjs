@@ -13,11 +13,12 @@ import { fileURLToPath } from "node:url";
 
 const web = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-// The accent and the colour that sits on it (web/DESIGN-UI.md). The LIGHT
+// The accent (web/DESIGN-UI.md). The LIGHT
 // accent in both themes: a launcher icon has no theme to follow, and the darker
 // teal is the one that still reads against a white background.
 const ACCENT = "#0f7e75";
-const ON_ACCENT = "#ffffff";
+// `background_color` in app/manifest.ts, the light theme's `--color-bg`.
+const LAUNCH_BACKGROUND = "#e8eced";
 // The dark theme's accent, for the one icon that knows which theme it is in.
 const DARK_ACCENT = "#3fb3a6";
 
@@ -180,12 +181,13 @@ const bare = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}
 `;
 
 // Full-bleed, because Android crops a maskable icon to whatever shape the
-// launcher uses. Apple's touch icon is
-// the same square: iOS rounds it itself, and composites a transparent one on
-// black.
+// launcher uses, and iOS composites a transparent touch icon on black. The
+// fill is the manifest's `background_color`: Android's launch screen draws this
+// icon in a circle on that colour, and a fill that matches leaves just the
+// grapes.
 const square = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}" width="${BOX}" height="${BOX}">
-  <rect width="${BOX}" height="${BOX}" fill="${ACCENT}" />
-  ${mark(ON_ACCENT)}
+  <rect width="${BOX}" height="${BOX}" fill="${LAUNCH_BACKGROUND}" />
+  ${mark(ACCENT)}
 </svg>
 `;
 
