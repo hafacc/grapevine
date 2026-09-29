@@ -33,12 +33,15 @@ export type Party = {
   readonly photoURL: string | null;
 };
 
-// Three screens (DESIGN §1): the list, a thing, and the people.
-// Every variant round-trips through `screenHash`/`screenForHash`, so each screen
-// has a URL — `#/`, `#/item/<id>` and `#/people`.
+// Four screens (DESIGN §1): the list, a thing, the people, and an admin's
+// reported names. Every variant round-trips through `screenHash`/`screenForHash`,
+// so each screen has a URL — `#/`, `#/item/<id>`, `#/people` and `#/reports`.
 export type Screen =
   | { readonly kind: "list" }
   | { readonly kind: "people" }
+  // Only an admin's: anybody else who opens it is put on the list, as for a
+  // fragment that names no screen.
+  | { readonly kind: "reports" }
   // `id` is the item's id, which is the text somebody typed, so the URL of a
   // thing reads as the thing.
   | { readonly kind: "item"; readonly id: string };

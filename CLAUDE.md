@@ -429,9 +429,11 @@ two people and two keyboards and does not pretend to stop a determined one.
 - kebab-case filenames; `utils/` for logic and database access, `components/` for UI,
   `components/ui/` for primitives; `"use client"` on anything touching the store, Supabase or a
   browser API.
-- **Three routes and no more**: `#/` (the list), `#/item/<id>` and `#/people`; the three written
-  pages are static routes the router stays off. A pasted link to a thing gets the list seeded under
-  it so Back goes somewhere. `web/tests/router.test.ts` asserts
+- **Four routes and no more**: `#/` (the list), `#/item/<id>`, `#/people` and `#/reports` (an
+  admin's review queue; anybody else who opens it is put on the list, as for a fragment that names
+  no screen, once the profile says they are not an admin); the three written pages are static
+  routes the router stays off. A pasted link to a thing gets the list seeded under it so Back goes
+  somewhere, and one to `#/reports` the list and the people screen. `web/tests/router.test.ts` asserts
   that any other fragment names no screen. `#/invite/<token>` is not a route: the store takes the
   token out of the address before the router reads it (`utils/invites.ts`). A live one is asked
   on one full screen, `components/link-question.tsx`, in place of whatever screen is up and for
@@ -547,9 +549,10 @@ tests check a patched neighbourhood equals a fresh load over generated event seq
 
 ## Reports
 
-No client reads `reports` except through the admins' review queue (0014): the *names people
-reported* row on the people screen, shown only to an admin and opened by a tap or a swipe, lists every reported name with its count, and removes
-or dismisses one. Three `security definer` functions in `public` are the whole of it, each
+No client reads `reports` except through the admins' review queue (0014): a screen of its own,
+`#/reports` (`components/reports-view.tsx`), opened by the *names people reported* row on the
+people screen, which only an admin sees. It lists every reported name with its count, and a
+name's row swipes left to remove it, asking first, and right to dismiss it. Three `security definer` functions in `public` are the whole of it, each
 checking `private.is_admin()` first: `reported_names()` answers anybody else nothing, and
 `remove_reported_name(text)` and `dismiss_reports(text)` refuse with `42501`.
 

@@ -30,7 +30,7 @@ import DeleteAccountLine from "./delete-account";
 import { useAction, useDialog } from "./dialog";
 import LookupSettingsLines from "./lookup-settings";
 import RenameSheet from "./rename-sheet";
-import ReportsLine from "./reports-sheet";
+import { ReportsLine } from "./reports-view";
 import ThemeButton from "./theme-button";
 import ActionRow from "./ui/action-row";
 import IconButton from "./ui/icon-button";

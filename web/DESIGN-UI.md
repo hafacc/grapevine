@@ -35,8 +35,8 @@ not as a lit berry. If a retrace produces three visible rim sides, the inner hex
 - Geometry, in the 64 × 64 viewBox: berry radius 10.2, centres at ±17.6 in x and 15.3 in y
   (3 on top, 2, then 1), outline 2.2 wide, corner radius 17% of the berry radius, inner
   hexagon offset about 4.2 toward the lower-right vertex.
-- The mark is used at 22 px in the top bar beside the wordmark and at 48 px on the empty
-  screen. Below about 18 px the rim closes up; use a solid bunch there, not this.
+- The mark is used at 22 px in the top bar beside the wordmark and at 48 px over an empty
+  list, search or queue (`components/ui/centered-note.tsx`). Below about 18 px the rim closes up; use a solid bunch there, not this.
 - The solid bunch is the favicon: the same six hexagons filled in `accent`, following the
   theme, on no background — a disc that fits in 16 px leaves each berry a blot. Each berry is
   4 px across its flats with 1 px between, so the upright sides land on pixel edges.
@@ -80,7 +80,7 @@ There is no notification badge: nothing in the product waits for the viewer.
   and the field.
 - Surfaces are separated by 1 px rules, never by shadow. **Rows are not**: inside a scrolling
   list nothing draws a line between one row and the next — the list, a thing's attributes,
-  the people screen's rows, a sheet's rows. What keeps its rule is structure: the top or title
+  the people screen's rows, the reported names, a sheet's rows. What keeps its rule is structure: the top or title
   bar's bottom, the bottom bar's top, the first-run hint, the *report this name* footer and the
   delete band. A section heading separates by sitting on the canvas. The one shadow in the language is on
   a card **being swiped**, so that it reads as lifted off the reveal behind it.
@@ -100,9 +100,9 @@ Fallback stack: `"Barlow", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sa
 |---|---|---|
 | 22 | display 600 | wordmark, screen title, a thing's name in its title bar |
 | 19 | text 500 | the viewer's own name |
-| 17 | text 500 | a row's name, a match's name in *is it one of these?*; body copy; display 600 for a button label |
+| 17 | text 500 | a row's name (the list's, a reported name's), a match's name in *is it one of these?*; body copy; display 600 for a button label |
 | 16 | text 400 | the search field, the link line, the lookup settings, the reports and install rows, the "nobody here by that name" note; text 500 for a name in a people row |
-| 15 | display 500 | chips, section headings (600, `.06em` tracking, muted); text 400 for the sheets' notes, a match's description and, in `faint`, the OpenStreetMap credit under the matches |
+| 15 | display 500 | chips, section headings (600, `.06em` tracking, muted); text 400 for the sheets' notes, a reported name's count, a match's description and, in `faint`, the OpenStreetMap credit under the matches |
 
 Body line-height 1.5; the empty state 1.55. Nothing is smaller than 14, and nothing between
 these sizes is a new step — pick one.
@@ -233,7 +233,8 @@ language, `0 0 20px rgba(14, 20, 23, 0.16)`. **Thumbs are for rating only.** A r
 are not a rating shows a white **word** in place of the glyph, display 600 at 17, saying what
 letting go does, with a 20 px icon stacked over it and 16 px from the edge (side by side, the
 pair is wider than the travel reveals): *remove* `LuUserMinus`, *turn on* `LuLink`, *turn
-off* `LuUnlink`, *new link* `LuRefreshCw`; on the two lookup settings, *turn on* / *turn off*
+off* `LuUnlink`, *new link* `LuRefreshCw`, *dismiss* `LuFlagOff`, and *remove* `LuTrash2` on a reported
+name; on the two lookup settings, *turn on* / *turn off*
 take `LuSearch` / `LuSearchX` and `LuMapPin` / `LuMapPinOff`. A friend's row swipes left only, to *remove*, and
 asks before anything is written. The link row swipes right to *turn on* while off; while on,
 left to *turn off* and right to *new link*, each asking first. It is the one swipe on a phone
@@ -249,7 +250,7 @@ the viewer's current rating goes `surface-muted` with a `muted` **minus**, becau
 clears. On a row whose sides are not a rating, each button carries its word and the same icon
 at 16 px instead (display 600 at 15, at least 56 px wide and as wide as the word needs): a
 friend's row has the left button alone, *remove*; the link row has *turn on* alone, or *turn
-off* and *new link*; a lookup setting has *turn on* or *turn off* alone. They replace the swipe
+off* and *new link*; a reported name has *remove* and *dismiss*; a lookup setting has *turn on* or *turn off* alone. They replace the swipe
 and nothing else: the rest of the desktop is the phone layout in a 720 px column.
 
 **Section heading** — display 600 at 15, `.06em` tracking, `muted`, on the canvas rather than
@@ -281,8 +282,8 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
 - **Phone (the design).** Top bar 56 px: the mark and the wordmark on the left, the avatar
   (44 px tap target) on the right. Then the list, scrolling. Then the
   bottom bar, pinned: the add button if there is a query, then the field and the eye. The other
-  two screens swap the top bar for a **title bar**, 56 px, and keep the bottom bar with a
-  different field:
+  screens swap the top bar for a **title bar**, 56 px; a thing and the people keep the bottom
+  bar with a different field:
   - **A thing**: back arrow, the thing's name, for a thing with a link a 44 px
     `LuExternalLink` icon button at 20 px in `muted` (`aria-label` *open on wikipedia* /
     *open on openstreetmap*, opening a new tab), its bar, and the avatar
@@ -293,7 +294,8 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
     row, no credit and no admin control of its own.
   - **People**: back arrow and *you and your vine*, and **no avatar** — this is where the
     avatar leads. Under it, in order: the viewer's own row, the link row, the two lookup
-    settings, an admin's *names people reported*, the install row where the browser offers one,
+    settings, an admin's *names people reported* (it opens the next screen), the install row
+    where the browser offers one,
     then *your vine*, then the delete line. The reports and install rows are each one action
     with no button on them (`components/ui/action-row.tsx`): 56 px, text 400 at 16 in `text`,
     and the whole row is the target — a tap, or a swipe right with the action's word behind it
@@ -304,9 +306,14 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
     location*, in `muted` when off — and swipes like the link row: left to *turn off*, right
     to *turn on*, a worded side button on desktop. No toggle is drawn: the sentence is the
     state. The location row is gone while lookups are off.
+  - **Names people reported** (`#/reports`, an admin's): back arrow and the title, no avatar and
+    no bottom bar, since there is nothing to type. A row per name: the name at 17, its count
+    under it at 15 in `muted`, 64 px at least, swiping left to *remove* (asking first) and
+    right to *dismiss*, a worded side button for each on desktop. An empty queue says *nothing
+    is reported.* in the middle, under the mark, as an empty list does.
 - **Desktop (deferred).** The whole phone in a 720 px column centred on `bg`, with a rule down
   each side from the top of the screen to the bottom: top or title bar, list, bottom bar, and
-  every screen alike — the list, a thing and people share the one column, set once around
+  every screen alike — the list, a thing, people and the reported names share the one column, set once around
   whichever screen is showing (`app/page.tsx`), so nothing inside a screen sizes itself. **Only
   the canvas spans the width.** A bar's fill and its hairline stop at the column's rules, so the
   wordmark, a back button, the avatar, the field and the eye all sit at the column's edges, 16 px

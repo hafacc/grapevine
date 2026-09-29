@@ -6,6 +6,7 @@ import FeedView from "../components/feed-view";
 import LinkQuestion from "../components/link-question";
 import LockedScreen from "../components/locked-screen";
 import PeopleView from "../components/people-view";
+import ReportsView from "../components/reports-view";
 import Button from "../components/ui/button";
 import WelcomeScreen from "../components/welcome-screen";
 import { Mark } from "../components/wordmark";
@@ -13,10 +14,16 @@ import { asksAboutLink } from "../utils/invites";
 import { useGrapevine } from "../utils/store";
 import type { Screen } from "../utils/types";
 
-// Three screens (DESIGN §1). Each one fills the height it is given and carries
-// its own top bar, its own scroller and its own bottom field, so there is no
-// frame here to keep in step with three layouts.
-function CurrentScreen({ screen }: { screen: Screen }): ReactElement {
+// Four screens (DESIGN §1). Each one fills the height it is given and carries
+// its own title bar and its own scroller, so there is no frame here to keep in
+// step with four layouts.
+function CurrentScreen({
+  screen,
+  admin,
+}: {
+  screen: Screen;
+  admin: boolean;
+}): ReactElement {
   switch (screen.kind) {
     case "list":
       return <FeedView />;
@@ -24,6 +31,9 @@ function CurrentScreen({ screen }: { screen: Screen }): ReactElement {
       return <EntityView itemId={screen.id} />;
     case "people":
       return <PeopleView />;
+    // The list, for the moment before the store puts anybody else there.
+    case "reports":
+      return admin ? <ReportsView /> : <FeedView />;
   }
 }
 
@@ -133,7 +143,7 @@ export default function Page(): ReactElement {
           so with `h-full` and another with `flex-1`, and both need a parent
           that has a height to give. */}
       <div className="flex min-h-0 flex-grow flex-col">
-        <CurrentScreen screen={screen} />
+        <CurrentScreen screen={screen} admin={Boolean(profile?.admin)} />
       </div>
     </div>
   );
