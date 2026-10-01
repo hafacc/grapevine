@@ -148,7 +148,7 @@ jobs:
       # Pinned, like every other tool here. It is the one that applies
       # forward-only migrations to production, so "whatever shipped today" is
       # the last version of it that should float.
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.117.0
 

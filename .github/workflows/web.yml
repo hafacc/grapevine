@@ -71,7 +71,7 @@ jobs:
       # this is the step that applies forward-only migrations to real data, and
       # `latest` would make the tool that does it the one unreviewed input to a
       # deploy.
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.117.0
 
