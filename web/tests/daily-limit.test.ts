@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isDailyLimit } from "../utils/supabase";
+import { isDailyLimit } from "../src/lib/utils/supabase";
 
 // The code `private.count_write` raises. A refusal read as a generic failure
 // tells somebody to try again, which will fail the same way until tomorrow.

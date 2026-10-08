@@ -7,7 +7,11 @@ Read DESIGN §1 before changing any screen.
 
 ## Layout
 
-    web/         Next.js app, static export. Bun. The only thing a user touches.
+    web/         SvelteKit app (Svelte 5), static export. Bun. The only thing a user
+                 touches. `src/routes/` is the app at `/` and the three written pages,
+                 `src/lib/components/` the UI (`ui/` the primitives), `src/lib/utils/`
+                 logic and database access, `static/` the icons, `sw/` the service
+                 worker.
     shared/      Pure TypeScript, zero runtime dependencies, imported where it lives by web/
                  and by the Edge Function (Deno reads the TypeScript). No generated copy
                  of it exists anywhere. Bun.
@@ -61,10 +65,11 @@ bash supabase/tests/run-local.sh 09_items # one, by prefix
 cd web && bun install            # once, and again when web/package.json changes
 cd web && bun run dev            # dev server on :3000, against the real project
 cd web && bun run dev:local      # dev server on :3001, against the local Supabase stack
-cd web && bun run lint           # THE gate: tsc + service-worker tsc + biome
+cd web && bun run lint           # THE gate: svelte-kit sync + svelte-check +
+                                 # service-worker tsc + biome
 cd web && bun run fmt            # biome format --write
 cd web && bun run test           # unit suites
-cd web && bun run export         # next build -> web/out/
+cd web && bun run export         # vite build -> web/out/
 cd web && bun run check:pwa      # installability, offline, and each written page's own text.
                                  # Drives a real Chrome, needs NO stack: it builds the export,
                                  # serves it itself and signs nothing in. Not in CI.
@@ -123,7 +128,17 @@ cd rust && cargo run --release --features serde --example compute-user -- /tmp/w
 `rust/` pins its toolchain in `rust/rust-toolchain.toml`. `cargo test` builds the core with no
 dependencies: `serde` sits behind a feature (the examples need `--features serde`) and the wasm
 bindings behind another. `web`'s `lint` needs nothing built first, so a fresh checkout can run the
-gate straight away.
+gate straight away: `svelte-kit sync` writes the generated `tsconfig` the others extend. `web` is on
+TypeScript 6, because `svelte-check` does not run on 7 alone; `shared/` stays on 7, and is checked by
+both. Biome lints and formats `.svelte` files, script and markup, and sorts their imports. Its
+formatter strips the leading whitespace inside a `<pre>` or a `<textarea>` (no file has either), and
+refuses a file whose `{@const}` carries a type annotation.
+
+**`web`'s `dev`, `lint`, `fmt`, `test` and `export` need no Node.** Each tool's bin file asks for
+`node` in its shebang, so the scripts call them as `bun --bun <tool>`, and `vite.config.ts` runs the
+service worker's `tsc` with `process.execPath`; CI installs bun and nothing else. A tool added to a
+script without `--bun` runs under whatever Node is on PATH, or fails where there is none. The
+`check:*` scripts that drive Chrome are run with `node`.
 
 ## The algorithm in the crate
 
@@ -235,7 +250,7 @@ reaches the project only through `supabase config push`).
   deletes the account's link (a trigger on `friendships`), so a link's owner is never locked.
   Redeeming a live link writes a friendship, which is the unlock. Nothing deletes a locked
   account. The client asks
-  `account_locked()` with the profile and shows `components/locked-screen.tsx` (*your account is
+  `account_locked()` with the profile and shows `components/locked-screen.svelte` (*your account is
   locked*) instead of the list, unless the device holds a live link. The people screen warns
   before the last connection goes. An admin (see "Admins") is never locked, which is how the
   first account makes the first link. **Anything new a client can
@@ -340,7 +355,7 @@ The rules below are the ones that are easy to break:
   spends one of `private.daily_write_limit()` (the ONLY place the number is written) per account per
   UTC day, via `private.count_write` keyed on `auth.uid()`. Deletes are free; connections with no
   `auth.uid()` are not counted. Past it, SQLSTATE `PT429`, which `isDailyLimit` in
-  `web/utils/supabase.ts` turns into a sentence with no number in it.
+  `web/src/lib/utils/supabase.ts` turns into a sentence with no number in it.
 
 **Three standing hazards, in the order they will bite.**
 
@@ -414,21 +429,39 @@ two people and two keyboards and does not pretend to stop a determined one.
 - **A fresh-identity cost is not a sybil defence.** Google-only changes nothing in DESIGN §2.1: no
   row of that table rests on the cost of an account. Do not write "Google sign-in stops bot farms"
   anywhere.
-- **Local-stack mode is `NEXT_PUBLIC_LOCAL_SUPABASE=1` ANDed with `NODE_ENV !== "production"`.**
-  The NODE_ENV half folds the branch away in a production bundle; the flag alone compiles to a
-  runtime read and ships localhost's address.
-- **The project's address is configured in exactly one place, `web/utils/project.ts`.** It is a
-  plain module with no `"use client"`, because `app/layout.tsx` is a server component and reads
-  the origin at build time for its `preconnect`. Do not add an environment variable beside it.
-- **`shared/` reaches `web/` by a tsconfig path alias**, not a `file:` dependency: bun installs one
-  of those as symlinks that Turbopack refuses to follow ("Invalid symlink"). The alias is in
-  `web/tsconfig.json`, and `next.config.js` sets `turbopack.root` to the repo so a file above
-  `web/` is inside the module graph. Nothing needs building.
+- **Local-stack mode is `VITE_LOCAL_SUPABASE=1` ANDed with `import.meta.env.DEV`.** Vite replaces
+  the `DEV` half with a literal, which folds the branch away in a production bundle; the flag
+  alone would leave a build one variable away from localhost. The condition is written out at each
+  of its uses in `project.ts`, because a bundler folds `false && …` where it stands and need not
+  look inside a function; `check:pwa` fails an export that carries the local address or key.
+- **The project's address is configured in exactly one place, `web/src/lib/utils/project.ts`.** It
+  is a plain module that touches nothing of the browser, because the root layout reads the origin
+  while the pages are prerendered, for its `preconnect`, and `bun test` reads it too. Do not add an
+  environment variable beside it.
+- **`shared/` reaches `web/` by an alias**, not a `file:` dependency, which bun installs as a tree
+  of symlinks. It is declared twice, and both are needed: `resolve.alias` in `web/vite.config.ts`
+  for the bundler, and `paths` in `web/tsconfig.json` for the type checker and `bun test`.
+  `server.fs.allow` there is the repo, so the dev server may read a file above `web/`. Nothing
+  needs building.
+- **The app's screens are not SvelteKit's routes.** SvelteKit routes `/` and the three written
+  pages; the four screens live in the fragment and are `web/src/lib/utils/router.ts`'s. It keeps
+  its entries in `history.state` beside SvelteKit's own keys, merged and never replaced, and calls
+  the browser's `pushState` and `replaceState` through `utils/history.ts`. Do not turn on
+  SvelteKit's hash router or make a screen a route.
+- **State is runes in `.svelte.ts` modules, and logic is plain `.ts`.** `store.svelte.ts` is the
+  one store, a module of `$state` that `startGrapevine()` (called by the root layout) keeps in
+  step with the session; `ratings.ts`, `recs.ts` and `references.ts` hold their shared values in
+  plain cells (`cell.ts`) so `bun test` can import them, and each has a `.svelte.ts` beside it
+  with the reader a component uses. A reader's fields are read off it where they are used —
+  `recs.failed`, never copied out — or they stop following changes. Anything that outlives a tap
+  reads its props first and keeps what it read: a prop read after an `await` is the parent's value
+  then, which may be another thing's or nothing.
 - **Comments say why, and name the thing that was rejected or the failure prevented.** Not what
   the code does.
-- kebab-case filenames; `utils/` for logic and database access, `components/` for UI,
-  `components/ui/` for primitives; `"use client"` on anything touching the store, Supabase or a
-  browser API.
+- kebab-case filenames; under `web/src/lib/`, `utils/` for logic and database access,
+  `components/` for UI, `components/ui/` for primitives. Everything is prerendered, so nothing
+  touches `window`, storage or Supabase while a component is being set up: that goes in `onMount`
+  or an `$effect`.
 - **Four routes and no more**: `#/` (the list), `#/item/<id>`, `#/people` and `#/reports` (an
   admin's review queue; anybody else who opens it is put on the list, as for a fragment that names
   no screen, once the profile says they are not an admin); the three written pages are static
@@ -436,8 +469,8 @@ two people and two keyboards and does not pretend to stop a determined one.
   somewhere, and one to `#/reports` the list and the people screen. `web/tests/router.test.ts` asserts
   that any other fragment names no screen. `#/invite/<token>` is not a route: the store takes the
   token out of the address before the router reads it (`utils/invites.ts`). A live one is asked
-  on one full screen, `components/link-question.tsx`, in place of whatever screen is up and for
-  every account alike; `components/invite-gate.tsx` says the rest (dead, or your own) in a
+  on one full screen, `components/link-question.svelte`, in place of whatever screen is up and for
+  every account alike; `components/invite-gate.svelte` says the rest (dead, or your own) in a
   dialog.
 
 ## UI design language
@@ -452,14 +485,21 @@ middle on either side. It is drawn as it is, with no step and no shading. An att
 carries no `W`, and its bar draws `s`. No score, or `W = 0`, draws the empty track ("nothing known
 yet"). Storage keeps `s` and `W` apart; only the client combines them.
 
-`web/app/globals.css` carries the palette; `--shadow-*` does a second job as the 1 px rule
-around a panel.
+`web/src/app.css` carries the palette and the two faces' `@font-face` rules (the files are the
+`@fontsource` packages'); `--shadow-*` does a second job as the 1 px rule around a panel. The
+glyphs are `components/ui/icons.ts`, copied from Lucide and drawn by `icon.svelte`: Lucide redraws
+its icons between releases, and a package would change them under the app.
+
+The theme is `utils/theme.svelte.ts`: a choice of system, light or dark kept under
+`grapevine-theme`, put on `<html>` as a class. The script in `src/app.html` does the same before
+the first paint, and the two read the one key.
 
 **Tailwind only emits a utility it has seen, and a missing one fails silently.** A recursive
-`content` glob in `tailwind.config.js` does NOT recurse in this build: it matched only the top
-level of `components/`, so every primitive under `components/ui` rendered unstyled. The sources are
-listed one level at a time as `@source` lines in `globals.css`, `tailwind.config.js` keeps only
-`darkMode`, and `web/tests/styles.test.ts` fails when a new directory of components has no line.
+`content` glob has failed to recurse before: it matched only the top level of `components/`, so
+every primitive under `components/ui` rendered unstyled. The sources are listed one level at a
+time as `@source` lines in `src/app.css`, `tailwind.config.js` keeps only `darkMode`, and
+`web/tests/styles.test.ts` fails when a new directory of components has no line. Tailwind runs as
+a Vite plugin (`@tailwindcss/vite`).
 
 ## What the list is drawn from
 
@@ -550,7 +590,7 @@ tests check a patched neighbourhood equals a fresh load over generated event seq
 ## Reports
 
 No client reads `reports` except through the admins' review queue (0014): a screen of its own,
-`#/reports` (`components/reports-view.tsx`), opened by the *names people reported* row on the
+`#/reports` (`components/reports-view.svelte`), opened by the *names people reported* row on the
 people screen, which only an admin sees. It lists every reported name with its count, and a
 name's row swipes left to remove it, asking first, and right to dismiss it. Three `security definer` functions in `public` are the whole of it, each
 checking `private.is_admin()` first: `reported_names()` answers anybody else nothing, and
@@ -635,9 +675,9 @@ repository inactivity and nothing goes red.
 
 ## The written pages
 
-Three statically exported routes — `/about/`, `/privacy/`, `/help/` — each a plain server
-component importing no store and needing no session, so the full text sits in the exported HTML.
-`components/doc-page.tsx` is the shell. `check:pwa` greps one sentence out of each exported page,
+Three prerendered routes — `/about/`, `/privacy/`, `/help/` (`web/src/routes/`) — each importing
+no store and needing no session, so the full text sits in the exported HTML.
+`components/doc-page.svelte` is the shell. `check:pwa` greps one sentence out of each exported page,
 and its list is three on purpose: a page list that shrinks silently is how a page goes missing.
 The pages have no diagrams and no formulas, and say each thing once, in as few words as they can.
 
@@ -658,8 +698,8 @@ order cannot be reconstructed: `ratings.rated_at` exists.
 
 ## Icons
 
-`web/scripts/make-icons.mjs` reads `docs/mark.svg` and writes `app/icon.svg` plus the four PNGs in
-`web/public/`. It needs `rsvg-convert` (`brew install librsvg`); the outputs are committed. Run it
+`web/scripts/make-icons.mjs` reads `docs/mark.svg` and writes `icon.svg` and the four PNGs into
+`web/static/`. It needs `rsvg-convert` (`brew install librsvg`); the outputs are committed. Run it
 when the accent or the mark changes.
 
 The mark is **hex grapes**: six hexagons in a 3-2-1 bunch, no stem, each an outlined hexagon with a
@@ -672,7 +712,7 @@ grotesque it has.
 ## Supabase setup (do once)
 
 **Status**: the project exists and this checkout is linked to it (the ref is in `supabase/.temp/`,
-not committed); `web/utils/project.ts` carries its URL and anon key. Steps 1–6 are done: the Google
+not committed); `web/src/lib/utils/project.ts` carries its URL and anon key. Steps 1–6 are done: the Google
 OAuth client and a `config push`, `pg_cron`, migrations `0001`–`0007`, and `refresh-recs`.
 `refresh-suggestions` has been deleted from the project by hand. **Step 7
 is not**, and waits on the repository. Until the first `web.yml` run pushes `config.toml` again, the
@@ -681,7 +721,7 @@ provider is on, and `site_url` is not `grapevine.hafa.cc`. `supabase config diff
 The consent screen's privacy-policy URL (step 2) also predates `grapevine.hafa.cc`, and is changed
 by hand in the Google Cloud console. Nothing below is needed to run against the local stack.
 
-1. **Create a project**, free tier. Its URL and **anon** key go in `web/utils/project.ts` as
+1. **Create a project**, free tier. Its URL and **anon** key go in `web/src/lib/utils/project.ts` as
    `PROJECT_URL` and `PROJECT_ANON_KEY` (a blank one disables sign-in).
 2. **A Google OAuth client**, Web application. Its only authorized redirect URI is
    `https://<project-ref>.supabase.co/auth/v1/callback`: Supabase receives the provider's redirect
@@ -804,7 +844,7 @@ owner's own account needs a connection or the admin row ("Admins") before it can
 ### The domain (do once, by hand)
 
 **The site is `https://grapevine.hafa.cc/`, served from the root of its own origin**, not
-`hafa.cc/grapevine/`. So the export has no base path: `next.config.js` sets none, `start_url`, the
+`hafa.cc/grapevine/`. So the export has no base path: `vite.config.ts` sets none, `start_url`, the
 manifest `scope` and the worker's scope are all `/`, and `check:pwa` serves the export at the root.
 The `grapevine-` cache prefix and `grapevine-theme` key are kept for the day something else is
 served from this origin.
@@ -883,7 +923,7 @@ By hand, against the deployed site:
 
 - **Sign in.** Google's consent screen cannot be automated, so redirect-URL mismatches, a stale
   OAuth client and the PKCE/fragment collision otherwise fail in production, on a real person.
-- `web/utils/project.ts` carries a real project URL and anon key.
+- `web/src/lib/utils/project.ts` carries a real project URL and anon key.
 - `supabase/config.toml` — anonymous off, email signup off, no second factor, Google the only
   external provider, no SMTP section — and the deployed project agrees.
 - **From a Google session, `supabase.auth.updateUser({ email: "someone-else@example.com" })` must

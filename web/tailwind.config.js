@@ -1,5 +1,5 @@
 export default {
-  // Sources are declared in `app/globals.css` with `@source`, not here: the
-  // recursive globs this key wants do not recurse in this build.
+  // Sources are declared in `src/app.css` with `@source`, not here: the
+  // recursive globs this key wants have failed to recurse before.
   darkMode: "class",
 };

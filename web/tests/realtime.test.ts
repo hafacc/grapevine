@@ -24,7 +24,7 @@ function subscribedTables(): string[] {
       const path = join(directory, entry.name);
       if (entry.isDirectory()) {
         walk(path);
-      } else if (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")) {
+      } else if (entry.name.endsWith(".ts") || entry.name.endsWith(".svelte")) {
         const source = readFileSync(path, "utf8");
         // A `table:` key inside a `.on("postgres_changes", …)` argument. The
         // two are matched together rather than by grepping for `table:` alone,
@@ -38,8 +38,7 @@ function subscribedTables(): string[] {
       }
     }
   };
-  walk(join(import.meta.dir, "..", "utils"));
-  walk(join(import.meta.dir, "..", "components"));
+  walk(join(import.meta.dir, "..", "src"));
   return [...found].sort();
 }
 

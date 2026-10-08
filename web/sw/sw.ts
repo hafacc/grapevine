@@ -5,7 +5,7 @@
 const worker = self as unknown as ServiceWorkerGlobalScope;
 
 // The app shell, and only the app shell: the feed the app opens on is kept in
-// local storage by `utils/recs.ts`, so the HTML and JS needed to start at all is
+// local storage by `src/lib/utils/recs.ts`, so the HTML and JS needed to start at all is
 // the only thing missing. Cross-origin requests are left alone entirely — every
 // one of them is a read or a write that belongs to a signed-in session, and a
 // cached answer to one of those is somebody's data served from disk.
@@ -21,7 +21,7 @@ const VERSION = `${CACHE_PREFIX}v1`;
 // Documents are the opposite — the same URL means something new after every
 // deploy — so those are network first, which is what stops an installed app
 // opening a build that shipped weeks ago.
-const IMMUTABLE = /\/_next\/static\//;
+const IMMUTABLE = /\/_app\/immutable\//;
 
 worker.addEventListener("install", (event) => {
   // The entry point only — its URL is the scope, where the chunks it pulls in

@@ -3,8 +3,8 @@ import {
   inviteUrl,
   isInviteToken,
   readInviteArrival,
-} from "../utils/invites";
-import { screenForHash } from "../utils/store";
+} from "../src/lib/utils/invites";
+import { screenForHash } from "../src/lib/utils/router";
 
 const TOKEN = "q7Vb0T3kz_P-8rWm2cYxNf4aLhJd6sUoE1iGvK9tRyZ";
 

@@ -17,7 +17,7 @@ const web = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // accent in both themes: a launcher icon has no theme to follow, and the darker
 // teal is the one that still reads against a white background.
 const ACCENT = "#0f7e75";
-// `background_color` in app/manifest.ts, the light theme's `--color-bg`.
+// `background_color` in src/routes/manifest.webmanifest/+server.ts, the light theme's `--color-bg`.
 const LAUNCH_BACKGROUND = "#e8eced";
 // The dark theme's accent, for the one icon that knows which theme it is in.
 const DARK_ACCENT = "#3fb3a6";
@@ -163,7 +163,7 @@ function solidMark() {
     .join("");
 }
 
-// The browser tab, and nothing else reads `app/icon.svg`: every install surface
+// The browser tab, and nothing else reads `static/icon.svg`: every install surface
 // takes one of the PNGs below. The tab strip is the background instead, so the accent follows the
 // theme the way it does in the app — the light theme's teal is 2.4:1 on Chrome's
 // dark tab strip.
@@ -192,13 +192,13 @@ const square = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BO
 `;
 
 const OUTPUTS = [
-  { source: bare, size: 192, path: "public/icon-192.png" },
-  { source: bare, size: 512, path: "public/icon-512.png" },
-  { source: square, size: 512, path: "public/icon-maskable-512.png" },
-  { source: square, size: 180, path: "public/apple-touch-icon.png" },
+  { source: bare, size: 192, path: "static/icon-192.png" },
+  { source: bare, size: 512, path: "static/icon-512.png" },
+  { source: square, size: 512, path: "static/icon-maskable-512.png" },
+  { source: square, size: 180, path: "static/apple-touch-icon.png" },
 ];
 
-await writeFile(resolve(web, "app/icon.svg"), favicon);
+await writeFile(resolve(web, "static/icon.svg"), favicon);
 
 for (const { source, size, path } of OUTPUTS) {
   const rendered = spawnSync(
