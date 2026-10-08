@@ -3,7 +3,7 @@ import {
   LOCAL_ANON_KEY as SCRIPT_ANON_KEY,
   LOCAL_SUPABASE_URL as SCRIPT_URL,
 } from "../scripts/local-session.mjs";
-import { LOCAL_ANON_KEY, LOCAL_SUPABASE_URL } from "../utils/project.ts";
+import { LOCAL_ANON_KEY, LOCAL_SUPABASE_URL } from "../src/lib/utils/project.ts";
 
 // The app and the check scripts talk to one local stack, and neither can import
 // the other's copy of its address: `project.ts` must not pull `postgres` into

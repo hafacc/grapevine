@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { createSerializer } from "../utils/serial";
+import { createSerializer } from "../src/lib/utils/serial";
 
 // A write the test finishes by hand, so a slow request can be made to land
 // after a fast one.

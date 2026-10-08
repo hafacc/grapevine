@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { nextSessionUser } from "../utils/session-user";
+import { nextSessionUser } from "../src/lib/utils/session-user";
 
 describe("nextSessionUser", () => {
   const session = (id: string) => ({ user: { id } });

@@ -3,9 +3,7 @@
   "vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
   "files": {
     "includes": [
-      "app/**/*.{ts,tsx}",
-      "components/**/*.{ts,tsx}",
-      "utils/**/*.{ts,tsx}",
+      "src/**/*.{ts,svelte}",
       "scripts/**/*.{ts,mjs}",
       "sw/**/*.ts",
       "*.{json,js,mjs,ts}"
@@ -15,6 +13,14 @@
   "formatter": { "enabled": true, "indentStyle": "space" },
   "linter": { "enabled": true, "rules": { "preset": "recommended" } },
   "javascript": { "formatter": { "quoteStyle": "double" } },
+  "html": {
+    "experimentalFullSupportEnabled": true,
+    "formatter": {
+      "enabled": true,
+      "indentScriptAndStyle": true,
+      "selfCloseVoidElements": "always"
+    }
+  },
   "assist": {
     "enabled": true,
     "actions": { "source": { "organizeImports": "on" } }

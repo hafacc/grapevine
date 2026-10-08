@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { authErrorMessage } from "../utils/auth";
+import { authErrorMessage } from "../src/lib/utils/auth";
 import {
   exchangeFailure,
   readSignInReturn,
   SIGN_IN_TIMED_OUT,
   withoutCode,
-} from "../utils/sign-in-return";
+} from "../src/lib/utils/sign-in-return";
 
 const BASE = "https://grapevine.hafa.cc/";
 

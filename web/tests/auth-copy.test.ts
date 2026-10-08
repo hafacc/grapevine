@@ -16,11 +16,11 @@ const BUDGET = 42;
 // One door means one shared slot: `authErrorMessage` is what the welcome card
 // renders, so its lines are the ones that have to fit.
 //
-// Read rather than imported: it lives in a "use client" module that pulls in
-// supabase-js, and a copy-length check should not need a browser to run. Scanning
-// the source also picks up a line added later, which is the half of this that a
-// fixed list would miss.
-const AUTH = readFileSync("utils/auth.ts", "utf8");
+// Read rather than imported: it lives in a module that pulls in supabase-js,
+// and a copy-length check should not need a browser to run. Scanning the source
+// also picks up a line added later, which is the half of this that a fixed list
+// would miss.
+const AUTH = readFileSync("src/lib/utils/auth.ts", "utf8");
 
 function literals(source: string): string[] {
   return [...source.matchAll(/"((?:[^"\\\n]|\\.)*)"/g)]

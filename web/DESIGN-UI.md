@@ -36,7 +36,7 @@ not as a lit berry. If a retrace produces three visible rim sides, the inner hex
   (3 on top, 2, then 1), outline 2.2 wide, corner radius 17% of the berry radius, inner
   hexagon offset about 4.2 toward the lower-right vertex.
 - The mark is used at 22 px in the top bar beside the wordmark and at 48 px over an empty
-  list, search or queue (`components/ui/centered-note.tsx`). Below about 18 px the rim closes up; use a solid bunch there, not this.
+  list, search or queue (`components/ui/centered-note.svelte`). Below about 18 px the rim closes up; use a solid bunch there, not this.
 - The solid bunch is the favicon: the same six hexagons filled in `accent`, following the
   theme, on no background — a disc that fits in 16 px leaves each berry a blot. Each berry is
   4 px across its flats with 1 px between, so the upright sides land on pixel edges.
@@ -93,8 +93,12 @@ There is no notification badge: nothing in the product waits for the viewer.
 | text | Barlow | 400 / 500 | names, body, the search field |
 
 Fallback stack: `"Barlow", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif`
-(and `"Barlow Semi Condensed", "Barlow", …` for display). Fonts from Google Fonts with
-`display=swap`.
+(and `"Barlow Semi Condensed", "Barlow", …` for display). Both are self-hosted from the
+`@fontsource` packages with `font-display: swap`, over an Arial resized to each face's metrics so
+the swap moves nothing.
+
+Icons are named here as `components/ui/icons.ts` names them (`LuCheck`, `LuCopy`, …): Lucide's
+glyphs, copied in so a new release of Lucide cannot redraw one, and drawn by `icon.svelte`.
 
 | px | face | what |
 |---|---|---|
@@ -139,8 +143,8 @@ unreadable.
 
 Light is the bare `:root`; dark is under `@media (prefers-color-scheme: dark)` guarded as
 `:root:not(.light):not([data-theme="light"])` and again under `.dark, :root[data-theme="dark"]`.
-Both spellings, because `app/layout.tsx` configures next-themes with `attribute="class"`;
-honouring only one would make the other silently do nothing.
+Both spellings, because `utils/theme.svelte.ts` and the script in `src/app.html` write the
+class; honouring only one would make the other silently do nothing.
 
 **How far the dark column has been checked.** Only by arithmetic, comparing each dark pair
 against its own light equivalent rather than against a threshold, since light is the column
@@ -287,7 +291,7 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
   - **A thing**: back arrow, the thing's name, for a thing with a link a 44 px
     `LuExternalLink` icon button at 20 px in `muted` (`aria-label` *open on wikipedia* /
     *open on openstreetmap*, opening a new tab), its bar, and the avatar
-    (`components/avatar-button.tsx`, the same button the top bar uses). The whole bar is the
+    (`components/avatar-button.svelte`, the same button the top bar uses). The whole bar is the
     thing's rating row. The page ends in a quiet *report this name* line — `surface`, a top
     rule, text 400 at 15 in `muted`, pushed to the bottom of the page — which reads *reported*,
     disabled, once sent. Nothing else sits there: the link is the title bar's icon, with no
@@ -297,7 +301,7 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
     settings, an admin's *names people reported* (it opens the next screen), the install row
     where the browser offers one,
     then *your vine*, then the delete line. The reports and install rows are each one action
-    with no button on them (`components/ui/action-row.tsx`): 56 px, text 400 at 16 in `text`,
+    with no button on them (`components/ui/action-row.svelte`): 56 px, text 400 at 16 in `text`,
     and the whole row is the target — a tap, or a swipe right with the action's word behind it
     (*reports* `LuFlag`, *install* `LuDownload`); on desktop the whole row is the button, with
     no side button, taking `surface-hover` under the pointer. Where the browser only installs
@@ -314,7 +318,7 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
 - **Desktop (deferred).** The whole phone in a 720 px column centred on `bg`, with a rule down
   each side from the top of the screen to the bottom: top or title bar, list, bottom bar, and
   every screen alike — the list, a thing, people and the reported names share the one column, set once around
-  whichever screen is showing (`app/page.tsx`), so nothing inside a screen sizes itself. **Only
+  whichever screen is showing (`src/routes/+page.svelte`), so nothing inside a screen sizes itself. **Only
   the canvas spans the width.** A bar's fill and its hairline stop at the column's rules, so the
   wordmark, a back button, the avatar, the field and the eye all sit at the column's edges, 16 px
   in, where they sit on a phone. The swipe is replaced by the side buttons. A dialog is centred
@@ -324,18 +328,18 @@ name*. The last line on the screen, *delete your account*, is a full-width `dang
   since a locked account has nothing under it to lay a sheet over; a written page's
   header sits over its own text column. Nothing else is designed; a second pane is a decision,
   not a layout tweak.
-- **The written pages** (`/about/`, `/privacy/`, `/help/`) keep `components/doc-page.tsx`:
+- **The written pages** (`/about/`, `/privacy/`, `/help/`) keep `components/doc-page.svelte`:
   text face at body size, display-face headings, bare canvas, cards only where they earn it.
 
 ## Tailwind: the `@source` rule
 
 **Tailwind only emits a utility it has SEEN, and one it never emitted fails silently** — the
 class is on the element, the rule is not in the stylesheet, and the screen just looks a little
-wrong. A recursive `content` glob in `tailwind.config.js` does **not** recurse in this build:
-it matches only the top level of `components/`, so every primitive under `components/ui`
-renders unstyled while the screens around them look right.
+wrong. A recursive `content` glob in `tailwind.config.js` has failed to recurse before: it
+matched only the top level of `components/`, so every primitive under `components/ui`
+rendered unstyled while the screens around them looked right.
 
 So the sources are listed **one directory level at a time** as `@source` lines in
-`web/app/globals.css`, `tailwind.config.js` holds nothing but `darkMode`, and
+`web/src/app.css`, `tailwind.config.js` holds nothing but `darkMode`, and
 `web/tests/styles.test.ts` fails when a new directory of components has no line of its own.
 A new directory means a new `@source` line and a new line in that test, in the same commit.

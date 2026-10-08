@@ -291,7 +291,7 @@ separate in storage, so a different reading needs no recompute.
 
 ### Search
 
-Built in `shared/src/search.ts` and `searchFeed` in `web/utils/discover.ts`; migration `0008`
+Built in `shared/src/search.ts` and `searchFeed` in `web/src/lib/utils/discover.ts`; migration `0008`
 reserves `!`, `@` and `#`.
 
 **What is typed is free text.** Split on whitespace. A word may start with `!`, then `@` or
@@ -401,7 +401,7 @@ operator is not part of a name; the catalog lookup is skipped for the same reaso
 already on the client. No count, no rater, no number; a note names only words the viewer typed.
 
 **Cost on a phone.** Folding and splitting each name and attribute is cached across keystrokes,
-the list recomputes on React's deferred value so typing stays ahead of it, and the relation is
+the list recomputes a step behind the field so typing stays ahead of it, and the relation is
 built once per feed. On a synthetic 3 000-thing feed with twelve attributes each, under Bun on an
 M-series Mac: about 13 ms for one word and 25–40 ms for four, against 10–12 ms for a matcher that
 ranks by kind of match (below); the relation about 16 ms. A phone is several times slower, and a feed of 3 000
@@ -1259,12 +1259,12 @@ The rule that a chip tapped but never thumbed creates nothing is §1's (item 4 o
 
 ### 3.1 Stack
 
-Next.js static export on GitHub Pages, React, Tailwind, Biome, Bun for scripts and tests. The
+SvelteKit static export on GitHub Pages, Svelte 5, Tailwind, Biome, Bun for scripts and tests. The
 backend is **Supabase**: Postgres with row-level security, PostgREST in front of it, GoTrue for
 auth, Realtime for the two channels that have to feel live, and one Deno Edge Function for the
 per-viewer work. **Nothing runs on a schedule outside the database** (§3.7). Repo layout:
 
-    web/            Next.js app (static export). The only thing a user touches
+    web/            SvelteKit app (static export). The only thing a user touches
     shared/         pure TypeScript used by web/ and the Edge Function: id
                     normalization, the search fold, search, attribute suggestions,
                     feed folding, the staleness rule, the neighbourhood cache's codec

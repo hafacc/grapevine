@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isTransient, retryTransient } from "../utils/supabase";
+import { isTransient, retryTransient } from "../src/lib/utils/supabase";
 
 const noWait = async (): Promise<void> => {};
 

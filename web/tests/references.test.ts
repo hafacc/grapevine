@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import type { Candidate } from "grapevine-shared/references";
-import { readLookupSettings } from "../utils/lookup";
+import { readLookupSettings } from "../src/lib/utils/lookup";
 import {
   type CatalogView,
   chooseMatch,
   classifyMatches,
   heldReference,
-} from "../utils/references";
+} from "../src/lib/utils/references";
 
 function candidate(
   source: "wikidata" | "osm",

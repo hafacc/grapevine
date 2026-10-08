@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { searchRanges, validateItemId } from "../utils/items";
+import { searchRanges, validateItemId } from "../src/lib/utils/items";
 
 // The id IS the text somebody typed, folded (DESIGN §3.2), so what this refuses
 // is exactly what the column `CHECK` refuses — and it refuses it in the field,

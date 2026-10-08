@@ -5,7 +5,7 @@ import {
   fillTone,
   SEGMENTS,
   segmentFills,
-} from "../utils/bar";
+} from "../src/lib/utils/bar";
 
 // DESIGN §1 "The bar": map the value to (v + 1) / 2 and fill four segments with
 // it, as it is.
