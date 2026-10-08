@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { forgetCachedFeeds } from "../utils/recs";
-import { signOutFailed } from "../utils/store";
+import { forgetCachedFeeds } from "../src/lib/utils/recs";
+import { signOutFailed } from "../src/lib/utils/auth";
 
 // The part of `Storage` the cleanup reads, over a plain map.
 function storage(entries: Record<string, string>): Storage {

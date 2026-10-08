@@ -143,7 +143,7 @@ console.log("\nthe list is the feed");
 await page.go(`${ORIGIN}/#/`, 12000);
 await settle(1500);
 
-// `cautiousScore` in `utils/bar.ts`, restated because node cannot import it:
+// `cautiousScore` in `src/lib/utils/bar.ts`, restated because node cannot import it:
 // `s · W / (1 + W)`, and nothing to draw at `W = 0`.
 const cautious = (entry) =>
   entry.conf > 0 ? (entry.score * entry.conf) / (1 + entry.conf) : null;

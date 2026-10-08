@@ -8,7 +8,7 @@
 //
 // Nothing here is a secret. `supabase start` prints the same URL, the same ports
 // and the same JWT secret on every machine; they authorize nothing anywhere
-// else, which is why `utils/project.ts` already carries the matching anon key in
+// else, which is why `src/lib/utils/project.ts` already carries the matching anon key in
 // the source. It declares the two below itself rather than being imported from
 // here — this file runs under plain `node` and imports `postgres` — and
 // `tests/local-stack.test.ts` is what stops the two copies drifting.
@@ -104,8 +104,8 @@ export function mintSession(uid, email) {
         role: "authenticated",
         email,
         // What a Google session carries, because that is the only provider there
-        // is: `utils/store.tsx` reads the address off the session and nothing
-        // reads the rest.
+        // is: `src/lib/utils/store.svelte.ts` reads the address off the session
+        // and nothing reads the rest.
         app_metadata: { provider: "google", providers: ["google"] },
         user_metadata: {},
         created_at: new Date().toISOString(),

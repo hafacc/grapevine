@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { initials } from "../utils/initials";
+import { initials } from "../src/lib/utils/initials";
 
 describe("initials", () => {
   it("takes the first and last word's first letters", () => {

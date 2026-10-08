@@ -1,14 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { forgetHintsSeen } from "../utils/first-run";
-import { asksAboutLink, heldLink } from "../utils/invites";
+import { forgetHintsSeen } from "../src/lib/utils/first-run";
+import { asksAboutLink, heldLink } from "../src/lib/utils/invites";
 import {
   explainWriteFailure,
   isForbiddenCall,
   lockedAfterUnfriend,
   NAME_REMOVED_MESSAGE,
-} from "../utils/refusal";
-import { reportFailed } from "../utils/reports";
-import { DAILY_LIMIT_MESSAGE } from "../utils/supabase";
+} from "../src/lib/utils/refusal";
+import { reportFailed } from "../src/lib/utils/reports";
+import { DAILY_LIMIT_MESSAGE } from "../src/lib/utils/supabase";
 
 const FALLBACK = "couldn't save that just now. try again.";
 const REFUSED = { code: "42501", message: "accept a link first" };

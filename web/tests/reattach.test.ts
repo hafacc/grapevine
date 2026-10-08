@@ -9,7 +9,7 @@ import {
   REATTACH_DELAYS,
   REATTACH_QUIET,
   type ReattachState,
-} from "../utils/reattach";
+} from "../src/lib/utils/reattach";
 
 // Walks a run of losses through the decision, returning what each one bought.
 function run(

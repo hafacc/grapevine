@@ -15,7 +15,7 @@
     // The rationale belongs in the source, not in what every visitor downloads.
     "removeComments": true,
     "rootDir": "sw",
-    "outDir": "public"
+    "outDir": "static"
   },
   "include": ["sw/sw.ts"]
 }

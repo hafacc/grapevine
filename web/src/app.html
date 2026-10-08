@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta
+      name="theme-color"
+      content="#e8eced"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0e1417"
+      media="(prefers-color-scheme: dark)"
+    />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="grapevine" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="icon" href="%grapevine.icon%" />
+    <link rel="apple-touch-icon" href="%grapevine.apple-touch-icon%" />
+    <script>
+      try {
+        const stored = localStorage.getItem("grapevine-theme");
+        const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+        const resolved =
+          stored === "light" || stored === "dark"
+            ? stored
+            : dark
+              ? "dark"
+              : "light";
+        document.documentElement.classList.remove("light", "dark");
+        document.documentElement.classList.add(resolved);
+        document.documentElement.style.colorScheme = resolved;
+      } catch {}
+      addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        window.grapevineInstallPrompt = event;
+      });
+    </script>
+    %grapevine.dev% %sveltekit.head%
+  </head>
+  <body>
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

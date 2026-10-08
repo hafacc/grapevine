@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { glyphSide, swipeOutcome } from "../utils/swipe";
+import { glyphSide, swipeOutcome } from "../src/lib/utils/swipe";
 
 // DESIGN §1: right is yes, left is no, and swiping the way you already voted
 // clears that rating — the reveal turns grey with a minus rather than green or

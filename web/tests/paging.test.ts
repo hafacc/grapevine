@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { readAllPages } from "../utils/paging";
+import { readAllPages } from "../src/lib/utils/paging";
 
 // A table of `total` rows served `size` at a time, as PostgREST's `range` does.
 function table(total: number) {

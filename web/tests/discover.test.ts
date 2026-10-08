@@ -7,9 +7,9 @@ import {
   lookAlike,
   matchesText,
   searchFeed,
-} from "../utils/discover";
+} from "../src/lib/utils/discover";
 import type { TagRelation } from "grapevine-shared/search";
-import type { Item, Ratings, RecsEntry } from "../utils/types";
+import type { Item, Ratings, RecsEntry } from "../src/lib/utils/types";
 
 const entry = (
   itemId: string,
