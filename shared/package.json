@@ -2,6 +2,7 @@
   "private": true,
   "name": "grapevine-shared",
   "version": "0.0.0",
+  "license": "MIT",
   "type": "module",
   "description": "Pure TypeScript shared by the web app and the Edge Function: no dependencies.",
   "main": "src/index.ts",
