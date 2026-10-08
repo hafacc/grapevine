@@ -1,28 +1,23 @@
 {
+  // Written by `svelte-kit sync`, which `lint` runs first: SvelteKit's own
+  // options, and the types of `$app/*`.
+  "extends": "$app/tsconfig",
   "compilerOptions": {
-    "target": "es2022",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
     "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
+    // The scripts under `scripts/` that plain `node` runs are imported by the
+    // tests for their constants, not checked as TypeScript.
+    "checkJs": false,
     // `shared/` has no build step: it is TypeScript source, imported here and
     // by the Edge Function, so id normalization has exactly one definition.
-    // A path alias rather than a `file:` dependency because bun installs one as
-    // a tree of symlinks Turbopack refuses to follow.
-    // No `baseUrl`: TypeScript 7 removed it, and paths resolve against this
-    // file's directory without one.
+    // `vite.config.ts` carries the same names for the bundler; these are for
+    // the type checker and for `bun test`, which reads this file.
+    // No `baseUrl`: paths resolve against this file's directory without one.
     "paths": {
       "grapevine-shared": ["../shared/src/index.ts"],
       // `entries.ts` too, for the one type the Edge Function and this app both
       // have to agree on. It is a separate entry because that module imports
       // `./index.ts` by its real name — Deno resolves the path it is given —
-      // which is also why `allowImportingTsExtensions` is on below.
+      // which is also why `allowImportingTsExtensions` is on.
       "grapevine-shared/entries": ["../shared/src/entries.ts"],
       // The *suggested* rail's estimator, its own entry because it is the one
       // module here nothing on a server imports — it reads the viewer's own
@@ -38,33 +33,20 @@
       // only the browser asks them.
       "grapevine-shared/references": ["../shared/src/references.ts"]
     },
-    "allowImportingTsExtensions": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "incremental": true,
     // TypeScript does not sweep `node_modules/@types`, so anything not reached
-    // by an explicit reference has to be named here. `next-env.d.ts` is
-    // generated and untracked, so a fresh checkout has only this list: next's image types are what give
-    // `import mark from "…svg"` a type, and without them `lint` fails until a
-    // build has written that file. Nothing references bun-types, and without it
-    // the `bun:test` imports fail to resolve. `node` rides along as a bun-types
-    // dependency; naming it keeps `scripts/seed-local.ts`'s `process`/`Buffer`
-    // independent of that.
-    "types": ["bun", "node", "next/image-types/global"],
-    "plugins": [{ "name": "next" }]
+    // by an explicit reference has to be named here. `$app/types` is
+    // SvelteKit's. Nothing references bun-types, and without it the `bun:test`
+    // imports fail to resolve. `node` rides along as a bun-types dependency;
+    // naming it keeps `scripts/seed-local.ts`'s `process`/`Buffer` independent
+    // of that.
+    "types": ["$app/types", "bun", "node"]
   },
   "include": [
-    "next-env.d.ts",
-    "app/**/*.ts",
-    "app/**/*.tsx",
-    "components/**/*.ts",
-    "components/**/*.tsx",
-    "utils/**/*.ts",
-    "utils/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.svelte",
     "scripts/**/*.ts",
     "tests/**/*.ts",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    "vite.config.ts"
   ],
   "exclude": ["node_modules"]
 }

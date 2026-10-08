@@ -1,0 +1,278 @@
+import type { RealtimeChannel } from "@supabase/supabase-js";
+// What `refresh-recs` answers with. It lives in `shared/` because the Edge
+// Function that writes the response and this file that reads it are the two ends
+// of one call.
+import type { RefreshResult } from "grapevine-shared/entries";
+import { type Cell, createCell } from "./cell";
+import { retryTransient, subscribeChannel, supabase } from "./supabase";
+import type { RecsEntry } from "./types";
+
+export type { RefreshResult };
+
+export const NO_ENTRIES: readonly RecsEntry[] = [];
+
+/** The feed, as the last read or refresh left it. */
+export type FeedState = {
+  readonly uid: string | null;
+  readonly entries: readonly RecsEntry[];
+  readonly computedAt: number;
+  readonly ready: boolean;
+  // The stored feed could not be read, which is not "there is nothing in it".
+  // Kept apart for the same reason `profileUnreachable` is, and read by every
+  // screen below: the sentences they render about an empty feed are only true
+  // when the emptiness is an answer.
+  readonly failed: boolean;
+  // The last ask to bring the feed up to date failed. With a stored feed that
+  // is a stale screen; with none it is the whole reason the screen is empty,
+  // and "nothing yet" would be a claim about the viewer.
+  readonly refreshFailed: boolean;
+};
+
+const NO_FEED: FeedState = {
+  uid: null,
+  entries: NO_ENTRIES,
+  computedAt: 0,
+  ready: false,
+  failed: false,
+  refreshFailed: false,
+};
+
+export const feedCell: Cell<FeedState> = createCell(NO_FEED);
+
+// Per viewer, because a shared device is two feeds and neither may be shown to
+// the other.
+const CACHE_PREFIX = "grapevine.recs.";
+
+function cacheKey(uid: string): string {
+  return `${CACHE_PREFIX}${uid}`;
+}
+
+/**
+ * Every cached feed on this device, whoever's it was.
+ *
+ * Called on sign-out, so the next person at a shared device finds nothing of
+ * the last one's: a key per viewer keeps two feeds apart while both are in
+ * use, and keeps neither private once one of them has left.
+ */
+export function forgetCachedFeeds(storage: Storage): void {
+  const keys: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key?.startsWith(CACHE_PREFIX)) keys.push(key);
+  }
+  for (const key of keys) storage.removeItem(key);
+}
+
+type CachedFeed = {
+  entries: readonly RecsEntry[];
+  computedAt: number;
+};
+
+/**
+ * The last feed this browser saw, for first paint and for offline.
+ *
+ * It is the viewer's own feed, which they may see anyway, and it is the only
+ * thing on the device that could make the list render before the network
+ * answers. Every access is guarded: storage throws in a private window, and it
+ * can come back with whatever an older version of this app wrote.
+ */
+function readCache(uid: string): CachedFeed | null {
+  try {
+    const raw = window.localStorage.getItem(cacheKey(uid));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      entries?: unknown;
+      computedAt?: unknown;
+    };
+    if (!Array.isArray(parsed.entries) || typeof parsed.computedAt !== "number")
+      return null;
+    return {
+      entries: parsed.entries as RecsEntry[],
+      computedAt: parsed.computedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(uid: string, feed: CachedFeed): void {
+  try {
+    window.localStorage.setItem(cacheKey(uid), JSON.stringify(feed));
+  } catch {
+    // A full quota costs first paint on the next open and nothing else.
+  }
+}
+
+function apply(uid: string, feed: CachedFeed): void {
+  if (feedCell.get().uid !== uid) return;
+  feedCell.set({ ...feedCell.get(), uid, ...feed, ready: true, failed: false });
+  writeCache(uid, feed);
+}
+
+/**
+ * The stored feed, which is one row and one request.
+ *
+ * Through `my_feed` rather than the table: a feed computed before a name was
+ * removed still holds it until the viewer's next recompute, and `my_feed`
+ * leaves out every name removed since (0017). What it answers is what the
+ * cache below keeps, so first paint shows a removed name only when it was
+ * removed after this browser last read the feed.
+ */
+async function loadStored(uid: string): Promise<void> {
+  const { data, error } = await supabase().rpc("my_feed").maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    // Nobody has run the recompute for this account yet. That is an answer — an
+    // empty feed — and not a reason to keep waiting.
+    if (feedCell.get().uid === uid)
+      feedCell.set({ ...feedCell.get(), ready: true, failed: false });
+    return;
+  }
+  const row = data as {
+    computed_at: string;
+    entries: unknown;
+  };
+  apply(uid, {
+    entries: Array.isArray(row.entries)
+      ? (row.entries as RecsEntry[])
+      : NO_ENTRIES,
+    computedAt: Date.parse(row.computed_at) || 0,
+  });
+}
+
+/**
+ * Asks the Edge Function to bring this viewer's feed up to date, and takes the
+ * answer inline.
+ *
+ * There is no uid parameter and there cannot be one: the function reads the
+ * caller from the verified token and from nowhere else, so the only feed it can
+ * touch is the caller's own. When it recomputed, the entries come back in the
+ * same response — one body instead of a stamp followed by a second read of
+ * everything the stamp was about.
+ */
+export async function refreshMyRecs(): Promise<RefreshResult> {
+  const asked = feedCell.get().uid;
+  const settle = (refreshFailed: boolean): void => {
+    const current = feedCell.get();
+    if (current.uid === asked && current.refreshFailed !== refreshFailed)
+      feedCell.set({ ...current, refreshFailed });
+  };
+  const { data, error } = await supabase().functions.invoke<RefreshResult>(
+    "refresh-recs",
+    {
+      method: "POST",
+    },
+  );
+  if (error || !data) {
+    settle(true);
+    throw error ?? new Error("the recompute returned nothing");
+  }
+  settle(false);
+
+  const uid = feedCell.get().uid;
+  if (uid) {
+    if (data.entries)
+      apply(uid, {
+        entries: data.entries,
+        computedAt: data.computedAt,
+      });
+    // Current on the server, and this browser has never seen it: the cold start
+    // this function deliberately does not re-send.
+    else if (data.computedAt !== feedCell.get().computedAt)
+      await loadStored(uid);
+  }
+  return data;
+}
+
+/**
+ * The one channel, and how the screens share it.
+ *
+ * The list and a thing both read the feed, and each of them subscribing would be
+ * two joins on one topic over one socket — which is not two times the delivery
+ * but one topic whose membership the first unmount tears down for everybody. So
+ * the subscription is counted: the first reader opens it, the last one to leave
+ * closes it, and the read that fills the cell happens once per session rather
+ * than once per screen. `useMyRecs` in `recs.svelte.ts` is the reader.
+ */
+let attached: {
+  key: string;
+  channel: RealtimeChannel;
+  readers: number;
+} | null = null;
+
+function detach(): void {
+  if (!attached) return;
+  void supabase().removeChannel(attached.channel);
+  attached = null;
+}
+
+/** Takes a share of the feed's channel for `uid`, opening it for the first. */
+export function retainFeed(uid: string, generation: number): void {
+  const key = `${uid}:${generation}`;
+  if (attached?.key === key) {
+    attached.readers += 1;
+    return;
+  }
+  detach();
+
+  if (feedCell.get().uid !== uid) {
+    const cached = readCache(uid);
+    feedCell.set({
+      uid,
+      entries: cached?.entries ?? NO_ENTRIES,
+      computedAt: cached?.computedAt ?? 0,
+      // A cache is something to look at, not an answer: `ready` waits for the
+      // row, so "you have nothing yet" is never said on the strength of a
+      // browser that has never asked.
+      ready: false,
+      failed: false,
+      refreshFailed: false,
+    });
+  }
+
+  void retryTransient(() => loadStored(uid)).catch((failure) => {
+    console.error("recs: load failed", failure);
+    // `ready` stays false: a screen may only say "you have nothing yet" about a
+    // feed it has read, and this one it has not.
+    if (feedCell.get().uid === uid)
+      feedCell.set({ ...feedCell.get(), ready: false, failed: true });
+  });
+
+  const channel = supabase()
+    .channel(`recs:${uid}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "user_recs",
+        filter: `user_id=eq.${uid}`,
+      },
+      (payload) => {
+        const row = payload.new as {
+          computed_at?: string;
+          entries?: unknown;
+        };
+        if (!Array.isArray(row.entries) || typeof row.computed_at !== "string")
+          return;
+        apply(uid, {
+          entries: row.entries as RecsEntry[],
+          computedAt: Date.parse(row.computed_at) || 0,
+        });
+      },
+    );
+  subscribeChannel(channel, "recs");
+  attached = { key, channel, readers: 1 };
+}
+
+/** Gives a share back, closing the channel with the last. */
+export function releaseFeed(uid: string, generation: number): void {
+  if (attached?.key !== `${uid}:${generation}`) return;
+  attached.readers -= 1;
+  if (attached.readers === 0) detach();
+}
+
+/** Nobody is signed in: the feed on screen was somebody's. */
+export function forgetFeed(): void {
+  feedCell.set(NO_FEED);
+}

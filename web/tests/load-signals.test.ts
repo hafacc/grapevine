@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const here = join(import.meta.dir, "..");
+const here = join(import.meta.dir, "..", "src");
 
 /**
  * A signal that exists and that nothing reads is the defect this suite is for.
@@ -14,6 +14,10 @@ const here = join(import.meta.dir, "..");
  *
  * So the rule is checked against the source rather than kept as a convention: a
  * screen that reads one of these may not read it without its failure flag.
+ *
+ * A reader is kept whole — `const recs = useMyRecs()` — and its fields read off
+ * it, because copying them out would stop them following a change. So what is
+ * looked for is the name each call is given, and that name's `.failed`.
  */
 function sources(directory: string): { path: string; text: string }[] {
   const found: { path: string; text: string }[] = [];
@@ -23,7 +27,7 @@ function sources(directory: string): { path: string; text: string }[] {
     })) {
       const path = `${relative}/${entry.name}`;
       if (entry.isDirectory()) walk(path);
-      else if (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts")) {
+      else if (entry.name.endsWith(".svelte") || entry.name.endsWith(".ts")) {
         found.push({ path, text: readFileSync(join(here, path), "utf8") });
       }
     }
@@ -32,37 +36,34 @@ function sources(directory: string): { path: string; text: string }[] {
   return found;
 }
 
-const SCREENS = [...sources("components"), ...sources("app")];
+const SCREENS = [...sources("lib/components"), ...sources("routes")];
 
 /**
- * The names one call destructures, per call site.
+ * Whether each call site reads the failure of the reader it made.
  *
- * `[^}]*` and not `[\s\S]*?`: an outer brace would let a name taken from the
- * call ABOVE satisfy the check for this one, which is the vacuous pass that
+ * Per call and not per file: a name taken from another reader in the same file
+ * must not satisfy the check for this one, which is the vacuous pass that
  * makes a source scan worse than nothing.
  */
-function destructured(text: string, hook: string): string[][] {
-  return [
-    ...text.matchAll(new RegExp(`const\\s*\\{([^}]*)\\}\\s*=\\s*${hook}\\(`, "g")),
-  ].map((match) =>
-    (match[1] ?? "")
-      .split(",")
-      .map((name) => (name.split(":")[0] ?? "").trim())
-      .filter(Boolean),
-  );
-}
-
-function callers(hook: string): { path: string; names: string[] }[] {
+function callers(hook: string): { path: string; readsFailure: boolean }[] {
   return SCREENS.flatMap(({ path, text }) =>
-    destructured(text, hook).map((names) => ({ path, names })),
+    [...text.matchAll(new RegExp(`const\\s+(\\w+)\\s*=\\s*${hook}\\(`, "g"))].map(
+      (match) => ({
+        path,
+        readsFailure: new RegExp(`\\b${match[1]}\\.failed\\b`).test(text),
+      }),
+    ),
   );
 }
 
 describe("a failed read is never drawn as an empty one", () => {
   // Without this the two below pass vacuously when the flag is gone
   // altogether.
-  it("both hooks report one", () => {
-    for (const file of ["utils/recs.ts", "utils/ratings.ts"]) {
+  it("both readers report one", () => {
+    for (const file of [
+      "lib/utils/recs.svelte.ts",
+      "lib/utils/ratings.svelte.ts",
+    ]) {
       expect(readFileSync(join(here, file), "utf8")).toContain(
         "failed: mine && state.failed",
       );
@@ -75,7 +76,7 @@ describe("a failed read is never drawn as an empty one", () => {
       expect(reading.length).toBeGreaterThan(0);
       expect(
         reading
-          .filter(({ names }) => !names.includes("failed"))
+          .filter(({ readsFailure }) => !readsFailure)
           .map(({ path }) => path),
       ).toEqual([]);
     });

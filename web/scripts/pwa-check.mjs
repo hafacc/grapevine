@@ -4,23 +4,24 @@
 //   cd web && bun run check:pwa
 //
 // It builds the export and serves it itself, because both claims are about the
-// PRODUCTION bundle: `next dev` serves modules a cache would hand back stale, so
-// the worker deliberately does not register there and none of this is reachable
-// from the dev server the other checks use. No stack either — nothing here signs
-// in.
+// PRODUCTION bundle: the dev server serves modules a cache would hand back
+// stale, so the worker deliberately does not register there and none of this is
+// reachable from the dev server the other checks use. No stack either — nothing
+// here signs in.
 //
 // What it does NOT cover is a signed-in app offline. There is no database
 // persistence layer to exercise — supabase-js caches nothing — so what an
 // offline viewer sees is the copy of their own feed the app keeps in
-// `localStorage` (`utils/recs.ts`). `check:discover` is what asserts that copy,
-// because seeing it needs a session and a seeded stack.
+// `localStorage` (`src/lib/utils/recs.ts`). `check:discover` is what asserts
+// that copy, because seeing it needs a session and a seeded stack.
 
 import { spawnSync } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, resolve, sep } from "node:path";
 
 import { bodyText, expect, finish, openBrowser, until } from "./harness.mjs";
+import { LOCAL_ANON_KEY, LOCAL_SUPABASE_URL } from "./local-session.mjs";
 
 const PORT = 4173;
 // At the root, because that is what production is: the site has an origin of
@@ -57,14 +58,36 @@ for (const [route, sentence] of [
   ["about", "Swipe a row right for yes, left for no."],
 ]) {
   const html = await readFile(resolve("out", route, "index.html"), "utf8");
-  // Next escapes an apostrophe in text as `&#x27;`, so the needle is compared
-  // against the same folding rather than the raw source.
+  // A sentence may be broken across lines in the source, and is in the HTML
+  // where it is; a reader sees one space either way.
   expect(
     `/${route}/ carries its own text`,
-    html.replaceAll("&#x27;", "'").includes(sentence),
+    html.replace(/\s+/g, " ").includes(sentence),
     sentence,
   );
 }
+
+// The local stack's address and key are folded out of a production bundle by
+// `usingLocalStack` and its two siblings in `src/lib/utils/project.ts`, and
+// that folding is the bundler's to do. So the export is read for them: a build
+// that carries either is one variable away from pointing at somebody's laptop.
+console.log("\nthe export does not know the local stack");
+const shipped = [];
+for (const entry of await readdir(resolve("out"), {
+  recursive: true,
+  withFileTypes: true,
+})) {
+  if (!entry.isFile() || !/\.(js|html|json|webmanifest)$/.test(entry.name))
+    continue;
+  const text = await readFile(join(entry.parentPath, entry.name), "utf8");
+  if (text.includes(LOCAL_SUPABASE_URL) || text.includes(LOCAL_ANON_KEY))
+    shipped.push(entry.name);
+}
+expect(
+  "no exported file carries the local stack's address or key",
+  shipped.length === 0,
+  shipped.join(" "),
+);
 
 // Serving `out/` rather than pointing at Pages: the worker needs a secure
 // context, and localhost is one. Served by this script rather than by
@@ -76,10 +99,12 @@ const TYPES = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json",
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".txt": "text/plain; charset=utf-8",
   ".webmanifest": "application/manifest+json",
+  ".woff2": "font/woff2",
 };
 const ROOT = resolve("out");
 
@@ -163,7 +188,7 @@ expect(
   JSON.stringify(parsed.icons ?? []),
 );
 
-// `--color-bg` (web/DESIGN-UI.md), which is also what `layout.tsx` gives the
+// `--color-bg` (web/DESIGN-UI.md), which is also what `src/app.html` gives the
 // light theme colour. The launcher paints this behind the app before a pixel of
 // it has run, so a restyle that missed the manifest would show as a flash of the
 // previous palette on every cold start — and nothing else would catch it.
@@ -240,12 +265,12 @@ for (const [what, secret] of [
 expect(
   "the pages are cached, keyed on the path alone",
   keys.some((key) => key.endsWith("/about/")),
-  keys.filter((key) => !key.includes("/_next/")).join(" "),
+  keys.filter((key) => !key.includes("/_app/")).join(" "),
 );
 
 console.log(
   "  documents held:",
-  keys.filter((key) => !key.includes("/_next/")).join(" ") || "(none)",
+  keys.filter((key) => !key.includes("/_app/")).join(" ") || "(none)",
 );
 
 console.log("\nand it opens with the network pulled");

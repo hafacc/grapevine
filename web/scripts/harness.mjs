@@ -254,9 +254,9 @@ export const tap = (selector) => `(() => {
   return Boolean(found);
 })()`;
 
-// Through the prototype's own setter, so React sees the change: assigning
-// `field.value` directly updates the DOM and leaves the component's state where
-// it was, and the screen then behaves as though nothing was typed.
+// With an `input` event behind it, so the component sees the change: assigning
+// `field.value` alone updates the DOM and leaves the component's state where it
+// was, and the screen then behaves as though nothing was typed.
 export const fill = (selector, value) => `(() => {
   const field = document.querySelector(${JSON.stringify(selector)});
   if (!field) return false;

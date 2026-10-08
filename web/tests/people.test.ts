@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { matchesPerson, type PersonRow } from "../utils/people";
+import { matchesPerson, type PersonRow } from "../src/lib/utils/people";
 
 const person = (uid: string, displayName: string): PersonRow => ({
   uid,

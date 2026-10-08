@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { screenForHash, screenHash, stackForHash } from "../utils/store";
-import type { Screen } from "../utils/types";
+import { screenForHash, screenHash, stackForHash } from "../src/lib/utils/router";
+import type { Screen } from "../src/lib/utils/types";
 
 // Four screens, each with a URL, and a pasted one has to name the same screen
 // it was copied from — the fragment is the only routing this static export has.

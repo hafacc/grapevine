@@ -1,0 +1,389 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* Every directory that holds a class name, listed one level at a time: a
+   double-star glob has failed to recurse before, and a utility never emitted
+   fails silently. `tests/styles.test.ts` fails on a directory with no line. */
+@source "./routes/*.svelte";
+@source "./routes/*/*.svelte";
+@source "./lib/components/*.svelte";
+@source "./lib/components/ui/*.svelte";
+
+/* The two faces (web/DESIGN-UI.md "Type"), self-hosted into the export from
+   the @fontsource packages: only the weights in use, each cut into the three
+   subsets the browser picks from by `unicode-range`. The root layout preloads
+   the latin ones.
+
+   500 of the condensed face for chips, the add button and every other
+   display-face label that is not a heading; a weight that is not loaded is
+   drawn synthetically. */
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("@fontsource/barlow/files/barlow-vietnamese-400-normal.woff2")
+    format("woff2");
+  unicode-range: U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+329,U+1EA0-1EF9,U+20AB;
+}
+
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("@fontsource/barlow/files/barlow-latin-ext-400-normal.woff2")
+    format("woff2");
+  unicode-range: U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("@fontsource/barlow/files/barlow-latin-400-normal.woff2")
+    format("woff2");
+  unicode-range: U+0-FF,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@fontsource/barlow/files/barlow-vietnamese-500-normal.woff2")
+    format("woff2");
+  unicode-range: U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+329,U+1EA0-1EF9,U+20AB;
+}
+
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@fontsource/barlow/files/barlow-latin-ext-500-normal.woff2")
+    format("woff2");
+  unicode-range: U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@fontsource/barlow/files/barlow-latin-500-normal.woff2")
+    format("woff2");
+  unicode-range: U+0-FF,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("@fontsource/barlow/files/barlow-vietnamese-600-normal.woff2")
+    format("woff2");
+  unicode-range: U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+329,U+1EA0-1EF9,U+20AB;
+}
+
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("@fontsource/barlow/files/barlow-latin-ext-600-normal.woff2")
+    format("woff2");
+  unicode-range: U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("@fontsource/barlow/files/barlow-latin-600-normal.woff2")
+    format("woff2");
+  unicode-range: U+0-FF,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-vietnamese-500-normal.woff2")
+    format("woff2");
+  unicode-range: U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+329,U+1EA0-1EF9,U+20AB;
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-ext-500-normal.woff2")
+    format("woff2");
+  unicode-range: U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-500-normal.woff2")
+    format("woff2");
+  unicode-range: U+0-FF,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-vietnamese-600-normal.woff2")
+    format("woff2");
+  unicode-range: U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+329,U+1EA0-1EF9,U+20AB;
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-ext-600-normal.woff2")
+    format("woff2");
+  unicode-range: U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-600-normal.woff2")
+    format("woff2");
+  unicode-range: U+0-FF,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+/* What is drawn until a face has loaded: Arial, resized so the swap moves
+   nothing. The numbers are each face's own metrics against Arial's. */
+@font-face {
+  font-family: "Barlow Fallback";
+  src: local("Arial");
+  ascent-override: 103.43%;
+  descent-override: 20.69%;
+  line-gap-override: 0%;
+  size-adjust: 96.68%;
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed Fallback";
+  src: local("Arial");
+  ascent-override: 115.49%;
+  descent-override: 23.1%;
+  line-gap-override: 0%;
+  size-adjust: 86.59%;
+}
+
+:root {
+  --font-barlow: "Barlow", "Barlow Fallback";
+  --font-barlow-condensed:
+    "Barlow Semi Condensed", "Barlow Semi Condensed Fallback";
+}
+
+/* The palette of `web/DESIGN-UI.md`.
+
+   `*-soft` and `*-tint` are two fills and both are needed: a thing's own screen
+   already carries its verdict as a background, so a rated attribute inside it
+   has to mark itself against a tinted page and takes the stronger `*-soft`,
+   while a rated row in the list sits on plain `surface` and takes `*-tint`.
+   Collapsing them makes one of the two unreadable. */
+@theme {
+  --color-bg: #e8eced;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f4f4;
+  /* The one token DESIGN-UI's table does not name: a row under a pointer,
+     which a phone has no state for. */
+  --color-surface-hover: #e6ecec;
+  --color-text: #0e1417;
+  --color-muted: #55666d;
+  --color-faint: #92a1a7;
+  --color-border: #cad4d7;
+
+  --color-accent: #0f7e75;
+  /* Accent text and glyphs ON a soft or tinted fill, where the accent itself
+     is too light to read. */
+  --color-accent-ink: #0a5a53;
+  --color-accent-soft: #d6e8e5;
+  --color-accent-tint: #eaf4f2;
+  --color-accent-on: #ffffff;
+
+  --color-danger: #bf4f3b;
+  --color-danger-ink: #8e3524;
+  --color-danger-soft: #f3dcd6;
+  --color-danger-tint: #faeae5;
+
+  /* The bar. The track is outlined so the level is countable rather than
+     guessed against whatever the row's background happens to be. */
+  --color-track: #dde5e6;
+  --color-track-edge: #9aa8aa;
+
+  /* The reveal behind a swipe that clears a rating: neither yes nor no. */
+  --color-clear: #8d9b9d;
+
+  /* One corner radius, 4px, on everything. A scale was four decisions where one
+     would do, so the other steps are cleared rather than left to fall back on
+     Tailwind's own — `rounded-xs` is the exception DESIGN-UI allows, for parts
+     under about 8px tall, which in practice is the bar's segments. */
+  --radius-*: initial;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+
+  /* Rules, not depth. `shadow-card`/`panel` are the 1px border drawn around a
+     panel; `shadow-lift` is the one real shadow in the language, on a card
+     being swiped, so it reads as lifted off the reveal behind it. */
+  --shadow-card: 0 0 0 1px var(--color-border);
+  --shadow-panel: 0 0 0 1px var(--color-border);
+  --shadow-lift: 0 0 20px rgba(14, 20, 23, 0.16);
+
+  --font-sans:
+    var(--font-barlow), ui-sans-serif, system-ui, "Helvetica Neue", Arial,
+    sans-serif;
+  /* The wordmark, titles, buttons, chips and section headings: the condensed
+     face. */
+  --font-display:
+    var(--font-barlow-condensed), var(--font-barlow), ui-sans-serif, system-ui,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Dark under both guards and under two spellings of each. The media query is
+   what a first paint with no script has to go on; the class is what
+   `src/app.html` and `theme.svelte.ts` write, so an explicit light choice has
+   to win over the system preference. `data-theme` is the attribute DESIGN-UI
+   names and the class is the one written — both are honoured here so the two
+   cannot disagree.
+
+   Every value here is derived from its light counterpart and checked only by
+   arithmetic (DESIGN-UI "How far the dark column has been checked"). */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not([data-theme="light"]) {
+    --color-bg: #0e1417;
+    --color-surface: #151d21;
+    --color-surface-muted: #1c262b;
+    --color-surface-hover: #223037;
+    --color-text: #dee7ea;
+    --color-muted: #8b9aa1;
+    --color-faint: #5e6e75;
+    --color-border: #253136;
+
+    --color-accent: #3fb3a6;
+    --color-accent-ink: #6ecec1;
+    --color-accent-soft: #13312e;
+    --color-accent-tint: #102a28;
+    --color-accent-on: #0e1417;
+
+    --color-danger: #dd6b55;
+    --color-danger-ink: #ee8d79;
+    /* Not derived: the derived pair measured 1.11 and 1.02 against `surface`,
+       so a no-rated row was the same colour as an unrated one. */
+    --color-danger-soft: #412923;
+    --color-danger-tint: #39241f;
+
+    --color-track: #1f2a2e;
+    --color-track-edge: #4a5a61;
+
+    --color-clear: #5e6e75;
+  }
+}
+
+.dark,
+:root[data-theme="dark"] {
+  --color-bg: #0e1417;
+  --color-surface: #151d21;
+  --color-surface-muted: #1c262b;
+  --color-surface-hover: #223037;
+  --color-text: #dee7ea;
+  --color-muted: #8b9aa1;
+  --color-faint: #5e6e75;
+  --color-border: #253136;
+
+  --color-accent: #3fb3a6;
+  --color-accent-ink: #6ecec1;
+  --color-accent-soft: #13312e;
+  --color-accent-tint: #102a28;
+  --color-accent-on: #0e1417;
+
+  --color-danger: #dd6b55;
+  --color-danger-ink: #ee8d79;
+  --color-danger-soft: #412923;
+  --color-danger-tint: #39241f;
+
+  --color-track: #1f2a2e;
+  --color-track-edge: #4a5a61;
+
+  --color-clear: #5e6e75;
+}
+
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* In px, not on the root element: Tailwind's spacing scale is in rem, so
+   shrinking the root would shrink every gap and gutter with the type.
+
+   The side insets are the notch and the rounded corners of a phone held
+   sideways, which `viewport-fit=cover` lets the page reach under. The bottom
+   one is each screen's own bottom bar's to pad, since that bar's fill is what
+   should run under the home indicator; there is no top one to pad while the
+   installed app keeps the default status bar. */
+body {
+  font-size: 17px;
+  line-height: 1.5;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* A heading in this language is the condensed face with a little tracking, not
+   a heavier weight of the body face. */
+.font-heading {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* A section heading: condensed, tracked out, muted, on the canvas rather than
+   in a bar. */
+.label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Keyboard focus, on theme. The browser default is a blue that belongs to no
+   palette here. `:focus-visible` only, so a mouse click never draws it — the
+   ring is for people navigating by keyboard, and showing it on tap reads as an
+   error state.
+
+   In the base layer, not outside every layer: an unlayered rule beats every
+   Tailwind utility whatever its specificity, so `outline-none` on an input
+   would be a no-op and the ring would hug the typed text inside its box. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+}
