@@ -49,7 +49,10 @@
       class="relative block h-[9px] w-[15px] overflow-hidden rounded-xs border border-track-edge bg-track"
     >
       <span
-        class={["absolute inset-0", lit === "accent" ? "bg-accent" : "bg-danger"]}
+        class={[
+          "absolute inset-0",
+          lit === "accent" ? "bg-accent" : "bg-danger",
+        ]}
         style:width={`${(fills[index] ?? 0) * 100}%`}
       ></span>
     </span>
