@@ -351,7 +351,12 @@
            is not a fact about the viewer. Under a query, only once the catalog
            has answered and the list has caught up with the field, or it would
            flash on every keystroke. -->
-      {#if rows.length === 0 && recs.ready && !recs.failed && !neverComputed && listQuery === query && (query.length === 0 || !searching)}
+      {#if rows.length === 0 &&
+        recs.ready &&
+        !recs.failed &&
+        !neverComputed &&
+        listQuery === query &&
+        (query.length === 0 || !searching)}
         {#if allHidden}
           <p class="px-4 py-4 text-[16px] text-muted">
             you've rated everything here. the eye shows it again.

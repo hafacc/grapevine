@@ -78,7 +78,10 @@
     />
     <p
       aria-live="polite"
-      class={["min-h-5 text-sm leading-5", failed ? "text-danger" : "text-muted"]}
+      class={[
+        "min-h-5 text-sm leading-5",
+        failed ? "text-danger" : "text-muted",
+      ]}
     >
       {failed ? "that didn't work. check your connection and try again." : ""}
     </p>
