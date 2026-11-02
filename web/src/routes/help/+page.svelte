@@ -28,6 +28,15 @@
     </li>
     <li>Open a thing to rate its attributes the same way.</li>
     <li>The eye hides what you've already rated.</li>
+    <li>
+      Bring ratings from imdb, letterboxd, trakt, netflix, goodreads,
+      storygraph, google maps or spotify: on the people screen, import ratings
+      from another app. Each can be imported once every 30 days.
+    </li>
+    <li>
+      Take your ratings with you: save your ratings to a file, on the same
+      screen.
+    </li>
     <li>Report a bad name at the bottom of its screen.</li>
   </ul>
 
@@ -35,7 +44,10 @@
   <ul class={list}>
     <li>Type several words: “starbucks quiet” puts quiet starbucks first.</li>
     <li>Start a word with ! to see the lowest-rated first.</li>
-    <li>Start it with @ to look at names only, # at attributes only.</li>
+    <li>Start a word with # to look at attributes only.</li>
+    <li>
+      Type what you want, like “fantasy book”: the ones you'd like come first.
+    </li>
   </ul>
 
   <h2 class={h2}>your vine</h2>
@@ -44,10 +56,20 @@
     <li>Tap your avatar to see your vine.</li>
     <li>
       Copy your link and send it to someone. When they open it and confirm,
-      you're in each other's vines.
+      you're in their vine. Add them to yours from the same screen.
     </li>
     <li>Turn your link off, or replace it, at any time.</li>
-    <li>Swipe someone's row to remove them from your vine.</li>
+    <li>
+      Every critic is listed on the people screen. Add any without a link.
+    </li>
+    <li>
+      Search there by name, or by what a critic rates: “pizza” finds critics who
+      rate pizza.
+    </li>
+    <li>
+      Swipe someone's row to remove them from your vine, or to stop them
+      following you.
+    </li>
     <li>
       Remove the last person and your account is locked until someone sends you
       a link.
@@ -58,13 +80,13 @@
   <h2 class={h2}>a recommendation is wrong</h2>
   <p class={p}>
     <strong>Thumb it down.</strong>
-    That teaches grapevine whose taste matches yours.
+    That teaches grapevine how your taste differs.
   </p>
 
   <h2 class={h2}>my list is empty</h2>
   <p class={p}>
-    Your list is built from your vine's thumbs, so add someone to it. A new
-    rating can take a few minutes to reach you.
+    Your list is built from your thumbs and your vine's, so rate a few things
+    and add someone to your vine.
   </p>
 
   <h2 class={h2}>contact</h2>

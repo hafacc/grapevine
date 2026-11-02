@@ -1,0 +1,719 @@
+name,attribute,rating,source,id
+"big al's pizza (rio vista, billerica)",,yes,osm,n13954630403
+"big al's pizza (rio vista, billerica)",pizza,yes,,
+"pizza project (north brighton, boston)",,yes,osm,n14182741801
+"pizza project (north brighton, boston)",pizza,yes,,
+"the best of everything (downtown ridgewood, ridgewood)",,yes,osm,n7270863946
+"the best of everything (downtown ridgewood, ridgewood)",pizza,yes,,
+"newton square pizza (beaver brook, worcester)",,yes,osm,n6936269745
+"newton square pizza (beaver brook, worcester)",pizza,yes,,
+"solar slice (marietta, georgia)",,yes,osm,w275604789
+"solar slice (marietta, georgia)",pizza,yes,,
+"king dough (holy cross, indianapolis)",,yes,osm,w234905874
+"king dough (holy cross, indianapolis)",pizza,yes,,
+"futuro (holy cross, indianapolis)",,yes,osm,w234920823
+"futuro (holy cross, indianapolis)",pizza,yes,,
+"hi hat (mission, san francisco)",,yes,osm,n4069228330
+"hi hat (mission, san francisco)",pizza,yes,,
+"tony's pizza napoletana (telegraph hill, san francisco)",,yes,osm,n3702219083
+"tony's pizza napoletana (telegraph hill, san francisco)",pizza,yes,,
+"mama's boy (financial district, oakland)",,yes,osm,n10776717440
+"mama's boy (financial district, oakland)",pizza,yes,,
+"zachary's chicago pizza (oakland, california)",,yes,osm,w269129361
+"zachary's chicago pizza (oakland, california)",pizza,yes,,
+"outta sight pizza (civic center, san francisco)",,yes,osm,n10008162923
+"outta sight pizza (civic center, san francisco)",pizza,yes,,
+"square pie guys (south of market, san francisco)",,yes,osm,w256042033
+"square pie guys (south of market, san francisco)",pizza,yes,,
+"gianni’s deli (needham heights, needham)",,yes,osm,n11074264487
+"gianni’s deli (needham heights, needham)",pizza,yes,,
+"saint francis apizza (hyde park) (east hyde park business district, cincinnati)",,yes,osm,w1450424306
+"saint francis apizza (hyde park) (east hyde park business district, cincinnati)",pizza,yes,,
+"northeast pizza (pendleton heights, kansas city)",,yes,osm,n13894315397
+"northeast pizza (pendleton heights, kansas city)",pizza,yes,,
+"guardia (mount lookout business district, cincinnati)",,yes,osm,n13375174776
+"guardia (mount lookout business district, cincinnati)",pizza,yes,,
+"taglio (columbia tusculum, cincinnati)",,yes,osm,w1455874497
+"taglio (columbia tusculum, cincinnati)",pizza,yes,,
+"pizza pie cafe (orem, utah)",,no,osm,n12105540601
+"pizza pie cafe (orem, utah)",pizza,yes,,
+"pie hole (downtown, salt lake city)",,no,osm,n1581342044
+"pie hole (downtown, salt lake city)",pizza,yes,,
+"taste of new york pizza (bridgewood, west des moines)",,yes,osm,n1817732964
+"taste of new york pizza (bridgewood, west des moines)",pizza,yes,,
+"centro (western gateway, des moines)",,yes,osm,n830971466
+"centro (western gateway, des moines)",pizza,yes,,
+"stone l'oven pizza (east brewster, brewster)",,yes,osm,w680548190
+"stone l'oven pizza (east brewster, brewster)",pizza,yes,,
+"caloroso eatery & bar (shelton, connecticut)",,yes,osm,n13201645891
+"caloroso eatery & bar (shelton, connecticut)",pizza,yes,,
+"nicky's place (bradford manor, east haven)",,yes,osm,w727438386
+"nicky's place (bradford manor, east haven)",pizza,yes,,
+"blue square pizza (brampton circle, hopkinton)",,yes,osm,n7642990876
+"blue square pizza (brampton circle, hopkinton)",pizza,yes,,
+"kim's uncle pizza (westmont, illinois)",,yes,osm,w622494892
+"kim's uncle pizza (westmont, illinois)",pizza,yes,,
+"anthony's coal fired pizza (keystone islands, north miami)",,no,osm,n9335252337
+"anthony's coal fired pizza (keystone islands, north miami)",pizza,yes,,
+"marc's artisanal pizzeria (isle of normandy, miami beach)",,yes,osm,n13602859542
+"marc's artisanal pizzeria (isle of normandy, miami beach)",pizza,yes,,
+"strad pizza (scottsdale, arizona)",,yes,osm,n12725132024
+"strad pizza (scottsdale, arizona)",pizza,yes,,
+"lucci's pizza (delawanna, clifton)",,yes,osm,n13746300280
+"lucci's pizza (delawanna, clifton)",pizza,yes,,
+"ceres (chinatown, new york)",,yes,osm,n10979262390
+"ceres (chinatown, new york)",pizza,yes,,
+"manville pizza (weston, manville)",,yes,osm,n7169881972
+"manville pizza (weston, manville)",pizza,yes,,
+"bird pizzeria (optimist park, charlotte)",,yes,osm,w1264387254
+"bird pizzeria (optimist park, charlotte)",pizza,yes,,
+"zarella pizzeria & taverna (river north, chicago)",,yes,osm,n5028745127
+"zarella pizzeria & taverna (river north, chicago)",pizza,yes,,
+"smith & lentz (east nashville, nashville)",,yes,osm,w764672151
+"smith & lentz (east nashville, nashville)",pizza,yes,,
+"pizz’amici (river west, chicago)",,yes,osm,n13099684895
+"pizz’amici (river west, chicago)",pizza,yes,,
+"cello's pizzeria (east village, new york)",,yes,osm,n7067197489
+"cello's pizzeria (east village, new york)",pizza,yes,,
+"sullivan street bakery (chelsea district, new york)",,yes,osm,n2703242521
+"sullivan street bakery (chelsea district, new york)",pizza,yes,,
+"pacidough's pizza joint (south toms river, new jersey)",,yes,osm,n11918271638
+"pacidough's pizza joint (south toms river, new jersey)",pizza,yes,,
+"casano's pizza parlor (rutherford, new jersey)",,yes,osm,n11513454448
+"casano's pizza parlor (rutherford, new jersey)",pizza,yes,,
+"zee's pizzeria (uptown historic district, new orleans)",,yes,osm,n10790502061
+"zee's pizzeria (uptown historic district, new orleans)",pizza,yes,,
+"tower of pizza (bonnabel place, metairie)",,yes,osm,n7633880333
+"tower of pizza (bonnabel place, metairie)",pizza,yes,,
+"st. pizza (lower garden district, new orleans)",,yes,osm,n13659737201
+"st. pizza (lower garden district, new orleans)",pizza,yes,,
+"gio's pizza (metairie, louisiana)",,yes,osm,n8890827070
+"gio's pizza (metairie, louisiana)",pizza,yes,,
+"wawa (furnace branch, glen burnie)",,no,osm,w220288474
+"wawa (furnace branch, glen burnie)",pizza,yes,,
+"matthew's pizzeria (highlandtown, baltimore)",,yes,osm,n5000471044
+"matthew's pizzeria (highlandtown, baltimore)",pizza,yes,,
+"frank's pizza & pasta (rosemont east, baltimore)",,yes,osm,n7276635104
+"frank's pizza & pasta (rosemont east, baltimore)",pizza,yes,,
+"tinybrickoven (federal hill, baltimore)",,yes,osm,n13144898208
+"tinybrickoven (federal hill, baltimore)",pizza,yes,,
+"square pie (block group 1, philadelphia, pa, philadelphia)",,yes,osm,n10573790068
+"square pie (block group 1, philadelphia, pa, philadelphia)",pizza,yes,,
+"dough head pizza (pennsport, philadelphia)",,yes,osm,n12360591360
+"dough head pizza (pennsport, philadelphia)",pizza,yes,,
+"amazing pizza (south salem, salem)",,yes,osm,n11922635195
+"amazing pizza (south salem, salem)",pizza,yes,,
+"enzo's pizzeria (central square historic district, lynn)",,yes,osm,n6282215659
+"enzo's pizzeria (central square historic district, lynn)",pizza,yes,,
+"fine line (crescent beach, revere)",,yes,osm,n14277931760
+"fine line (crescent beach, revere)",pizza,yes,,
+"cenzo's (winnetka heights historic district, dallas)",,yes,osm,w465783736
+"cenzo's (winnetka heights historic district, dallas)",pizza,yes,,
+"paul's pizza (teaticket, falmouth)",,yes,osm,w213070735
+"paul's pizza (teaticket, falmouth)",pizza,yes,,
+"smitty's pub & pizza (whittenton, taunton)",,yes,osm,n13937658695
+"smitty's pub & pizza (whittenton, taunton)",pizza,yes,,
+"pizza friendly pizza (east humboldt park, chicago)",,yes,osm,n10032623917
+"pizza friendly pizza (east humboldt park, chicago)",pizza,yes,,
+"new york pizza pie (rochester hills, michigan)",,yes,osm,n3951661157
+"new york pizza pie (rochester hills, michigan)",pizza,yes,,
+"pizza lupo (upper lawrenceville, pittsburgh)",,yes,osm,n12328277480
+"pizza lupo (upper lawrenceville, pittsburgh)",pizza,yes,,
+"pizzeria davide (strip district, pittsburgh)",,yes,osm,n9330765502
+"pizzeria davide (strip district, pittsburgh)",pizza,yes,,
+"ianni's pizzeria (delmont, pennsylvania)",,yes,osm,w576522319
+"ianni's pizzeria (delmont, pennsylvania)",pizza,yes,,
+"delmar pizzeria (brooklyn, new york)",,yes,osm,n6086429650
+"delmar pizzeria (brooklyn, new york)",pizza,yes,,
+"knapp street pizza (brooklyn, new york)",,yes,osm,n5537012523
+"knapp street pizza (brooklyn, new york)",pizza,yes,,
+"joe & sal's pizza (brooklyn, new york)",,yes,osm,n9129531424
+"joe & sal's pizza (brooklyn, new york)",pizza,yes,,
+"bar pizza & salad co (mansfield crossing, mansfield)",,yes,osm,n11265214171
+"bar pizza & salad co (mansfield crossing, mansfield)",pizza,yes,,
+"the next page (east weymouth, weymouth)",,yes,osm,n1450724359
+"the next page (east weymouth, weymouth)",pizza,yes,,
+"tree house brewing company (tewksbury, massachusetts)",,yes,osm,n6818513835
+"tree house brewing company (tewksbury, massachusetts)",pizza,yes,,
+"romano's pizza (derry village, derry)",,yes,osm,w171978269
+"romano's pizza (derry village, derry)",pizza,yes,,
+"mickey's ny pizza (derry village, derry)",,yes,osm,w33724495
+"mickey's ny pizza (derry village, derry)",pizza,yes,,
+"papa gino's (west derry, londonderry)",,yes,osm,w173322694
+"papa gino's (west derry, londonderry)",pizza,yes,,
+"five squared (river north, chicago)",,yes,osm,n11699821602
+"five squared (river north, chicago)",pizza,yes,,
+"sasso's coal fired pizza (downtown torrington historic district, torrington)",,yes,osm,w391119392
+"sasso's coal fired pizza (downtown torrington historic district, torrington)",pizza,yes,,
+"oakland pizza co. (wapping, south windsor)",,yes,osm,n9251516868
+"oakland pizza co. (wapping, south windsor)",pizza,yes,,
+"gg's wood fired pizza (milford, connecticut)",,yes,osm,n5532119912
+"gg's wood fired pizza (milford, connecticut)",pizza,yes,,
+"little pops ny pizzeria (naperville, illinois)",,yes,osm,n7998411427
+"little pops ny pizzeria (naperville, illinois)",pizza,yes,,
+"vincitori apizza (niantic, east lyme)",,yes,osm,w1386008378
+"vincitori apizza (niantic, east lyme)",pizza,yes,,
+"coniglio's old fashioned (morristown, new jersey)",,yes,osm,n10286498610
+"coniglio's old fashioned (morristown, new jersey)",pizza,yes,,
+"massa (scotch plains, new jersey)",,yes,osm,n10291914952
+"massa (scotch plains, new jersey)",pizza,yes,,
+"bunny's sports bar (academy heights, south orange)",,yes,osm,w1319323895
+"bunny's sports bar (academy heights, south orange)",pizza,yes,,
+"labriola (magnificent mile, chicago)",,yes,osm,n3660899325
+"labriola (magnificent mile, chicago)",pizza,yes,,
+"lamp pizzeria (scottsdale, arizona)",,yes,osm,n5819923964
+"lamp pizzeria (scottsdale, arizona)",pizza,yes,,
+"la grande orange grocery (camelback east, phoenix)",,yes,osm,n2778505224
+"la grande orange grocery (camelback east, phoenix)",pizza,yes,,
+"forbici (hyde park village, tampa)",,yes,osm,n368996619
+"forbici (hyde park village, tampa)",pizza,yes,,
+"piper's scratch pizza shop (fountains, palm harbor)",,yes,osm,n10945262393
+"piper's scratch pizza shop (fountains, palm harbor)",pizza,yes,,
+"the nona slice house (safety harbor, florida)",,yes,osm,w522991787
+"the nona slice house (safety harbor, florida)",pizza,yes,,
+"cristino's coal oven pizza (clearwater, florida)",,yes,osm,n4833082521
+"cristino's coal oven pizza (clearwater, florida)",pizza,yes,,
+"pizza box (edge district, saint petersburg)",,yes,osm,n4460713290
+"pizza box (edge district, saint petersburg)",pizza,yes,,
+"ciro pizza cafe (huguenot, new york)",,yes,osm,n4586479689
+"ciro pizza cafe (huguenot, new york)",pizza,yes,,
+"pier 76 (saint george, new york)",,yes,osm,n8333874053
+"pier 76 (saint george, new york)",pizza,yes,,
+"alla vita (fulton river district, chicago)",,yes,osm,n6221680435
+"alla vita (fulton river district, chicago)",pizza,yes,,
+"pie life pizza (pasadena council district 6, pasadena)",,yes,osm,n12194961301
+"pie life pizza (pasadena council district 6, pasadena)",pizza,yes,,
+"ozzy's apizza (north glendale, glendale)",,yes,osm,n11725340869
+"ozzy's apizza (north glendale, glendale)",pizza,yes,,
+"buddy's union villa (daley corner, easton)",,yes,osm,n13879300901
+"buddy's union villa (daley corner, easton)",pizza,yes,,
+"venus cafe (whitman, massachusetts)",,yes,osm,w214091278
+"venus cafe (whitman, massachusetts)",pizza,yes,,
+"denly gardens (east weymouth, weymouth)",,yes,osm,w103022516
+"denly gardens (east weymouth, weymouth)",pizza,yes,,
+"dacoopas (day square, boston)",,yes,osm,n11010735275
+"dacoopas (day square, boston)",pizza,yes,,
+"enzina pizzeria (west end, waltham)",,yes,osm,n11065321505
+"enzina pizzeria (west end, waltham)",pizza,yes,,
+"dino’s brick oven pizzeria (montrose, wakefield)",,yes,osm,n5502363508
+"dino’s brick oven pizzeria (montrose, wakefield)",pizza,yes,,
+"peppino's (park slope, new york)",,yes,osm,n5827853292
+"peppino's (park slope, new york)",pizza,yes,,
+"loui's pizza (warren, michigan)",,yes,osm,n14040651701
+"loui's pizza (warren, michigan)",pizza,yes,,
+"sicily’s pizzeria (mexicantown, detroit)",,yes,osm,w330643551
+"sicily’s pizzeria (mexicantown, detroit)",pizza,yes,,
+"lucatelli's (pine run, doylestown township)",,yes,osm,n2807416609
+"lucatelli's (pine run, doylestown township)",pizza,yes,,
+"tomato pie (olga, south pasadena)",,yes,osm,n14024990092
+"tomato pie (olga, south pasadena)",pizza,yes,,
+"greenbush bar (south campus, madison)",,yes,osm,n3157963461
+"greenbush bar (south campus, madison)",pizza,yes,,
+"grampa's pizzeria (marquette, madison)",,yes,osm,w677658215
+"grampa's pizzeria (marquette, madison)",pizza,yes,,
+"uncle jerry's pizza (cary, illinois)",,yes,osm,n12662652500
+"uncle jerry's pizza (cary, illinois)",pizza,yes,,
+"sal's pizza (lake in the hills, illinois)",,yes,osm,n5214754654
+"sal's pizza (lake in the hills, illinois)",pizza,yes,,
+"roma restaurant (tuckahoe, eastchester)",,yes,osm,n12437363682
+"roma restaurant (tuckahoe, eastchester)",pizza,yes,,
+"schlittz & giggles (perkins overpass district, baton rouge)",,no,osm,w1006032203
+"schlittz & giggles (perkins overpass district, baton rouge)",pizza,yes,,
+"sunrise pizzeria (rye, new york)",,yes,osm,n13058238991
+"sunrise pizzeria (rye, new york)",pizza,yes,,
+"valentino's (east campus, lincoln)",,no,osm,n11851387446
+"valentino's (east campus, lincoln)",pizza,yes,,
+"belleville (munjoy hill, portland)",,yes,osm,n7171975238
+"belleville (munjoy hill, portland)",pizza,yes,,
+"monte's fine foods (lunts corner, portland)",,yes,osm,n7170757945
+"monte's fine foods (lunts corner, portland)",pizza,yes,,
+"romo's pizza (bethlehem center, bethlehem)",,yes,osm,n8165673595
+"romo's pizza (bethlehem center, bethlehem)",pizza,yes,,
+"leone's subs & pizza (winter hill, somerville, massachusetts, somerville)",,yes,osm,n13443078236
+"leone's subs & pizza (winter hill, somerville, massachusetts, somerville)",pizza,yes,,
+"mortadella head (davis square, somerville)",,yes,osm,n6121992844
+"mortadella head (davis square, somerville)",pizza,yes,,
+"ziggy's (oak square, boston)",,yes,osm,n12110539501
+"ziggy's (oak square, boston)",pizza,yes,,
+"marino's pizza & restaurant (central state, schenectady)",,yes,osm,w126453440
+"marino's pizza & restaurant (central state, schenectady)",pizza,yes,,
+"151 bar and restaurant (downtown, schenectady)",,no,osm,n11175499703
+"151 bar and restaurant (downtown, schenectady)",pizza,yes,,
+"whitman brewing company (saratoga springs, new york)",,yes,osm,w139211623
+"whitman brewing company (saratoga springs, new york)",pizza,yes,,
+"grand street pizza (lower east side, new york)",,yes,osm,n9224791783
+"grand street pizza (lower east side, new york)",pizza,yes,,
+"the slice shop (northalsted, chicago)",,yes,osm,n11305067106
+"the slice shop (northalsted, chicago)",pizza,yes,,
+"philomena's pizza (sunnyside gardens, new york)",,yes,osm,n2065685392
+"philomena's pizza (sunnyside gardens, new york)",pizza,yes,,
+"camille's wood fired pizza (tolland, connecticut)",,yes,osm,n5099622595
+"camille's wood fired pizza (tolland, connecticut)",pizza,yes,,
+"the little rendezvous (meriden, connecticut)",,yes,osm,n7495847714
+"the little rendezvous (meriden, connecticut)",pizza,yes,,
+"fuoco apizza (west cheshire, cheshire)",,yes,osm,n3676648428
+"fuoco apizza (west cheshire, cheshire)",pizza,yes,,
+"brewport (bridgeport downtown south historic district, bridgeport)",,yes,osm,n8606503636
+"brewport (bridgeport downtown south historic district, bridgeport)",pizza,yes,,
+"dante's pizza (new canaan, connecticut)",,yes,osm,n12586153882
+"dante's pizza (new canaan, connecticut)",pizza,yes,,
+"grigg street (greenwich, connecticut)",,yes,osm,n12255162975
+"grigg street (greenwich, connecticut)",pizza,yes,,
+"wheated (kensington, new york)",,yes,osm,n6044324743
+"wheated (kensington, new york)",pizza,yes,,
+"the brooklyn firefly (bay ridge, new york)",,yes,osm,n9786078580
+"the brooklyn firefly (bay ridge, new york)",pizza,yes,,
+"la villa (bath beach, new york)",,yes,osm,n6921710508
+"la villa (bath beach, new york)",pizza,yes,,
+"amore pizza cafe (columbus circle, new york)",,no,osm,n4957074132
+"amore pizza cafe (columbus circle, new york)",pizza,yes,,
+"fazio's (bushwick, new york)",,yes,osm,n5720916379
+"fazio's (bushwick, new york)",pizza,yes,,
+"star pizza (richwood place, houston)",,no,osm,w846944326
+"star pizza (richwood place, houston)",pizza,yes,,
+"pizzeria g (garden city, new york)",,yes,osm,n14285230301
+"pizzeria g (garden city, new york)",pizza,yes,,
+"taglio pizza (mineola, new york)",,yes,osm,n5567870983
+"taglio pizza (mineola, new york)",pizza,yes,,
+"grand hotel tremezzo (tremezzo, tremezzina)",,no,osm,n9009820554
+"grand hotel tremezzo (tremezzo, tremezzina)",pizza,yes,,
+"farini (san polo, venice)",,yes,osm,n6281435103
+"farini (san polo, venice)",pizza,yes,,
+"antico forno (san polo, venice)",,yes,osm,n4441007690
+"antico forno (san polo, venice)",pizza,yes,,
+"sexton’s pizza (hilliard, ohio)",,yes,osm,n9851787082
+"sexton’s pizza (hilliard, ohio)",pizza,yes,,
+"roma's pizza (downtown, houston)",,no,osm,n6152292124
+"roma's pizza (downtown, houston)",pizza,yes,,
+"crust brothers (scottsdale, arizona)",,yes,osm,n9046094120
+"crust brothers (scottsdale, arizona)",pizza,yes,,
+"craft 64 (downtown scottsdale, scottsdale)",,yes,osm,w567996088
+"craft 64 (downtown scottsdale, scottsdale)",pizza,yes,,
+"pane bianco (encanto, phoenix)",,yes,osm,w153061624
+"pane bianco (encanto, phoenix)",pizza,yes,,
+"classic slice (bay view, milwaukee)",,no,osm,n7220903166
+"classic slice (bay view, milwaukee)",pizza,yes,,
+"no name pub (big pine key, florida)",,no,osm,w147639029
+"no name pub (big pine key, florida)",pizza,yes,,
+"sammataro pizza (central east austin, austin)",,yes,osm,n9403202717
+"sammataro pizza (central east austin, austin)",pizza,yes,,
+"via 313 pizza (rainey street historic district, austin)",,yes,osm,n11390573667
+"via 313 pizza (rainey street historic district, austin)",pizza,yes,,
+"via della slice shop (downtown, phoenix)",,yes,osm,n2120429173
+"via della slice shop (downtown, phoenix)",pizza,yes,,
+"pizza marvin (fox point, providence)",,yes,osm,w231960678
+"pizza marvin (fox point, providence)",pizza,yes,,
+"nellie's place (waldwick, new jersey)",,yes,osm,w675058522
+"nellie's place (waldwick, new jersey)",pizza,yes,,
+"vinny's pizza (dekalb, illinois)",,no,osm,w1207622895
+"vinny's pizza (dekalb, illinois)",pizza,yes,,
+"stubborn brother (indian hills, toledo)",,yes,osm,n6266842120
+"stubborn brother (indian hills, toledo)",pizza,yes,,
+"bricco (westmont, haddon township)",,yes,osm,n6952944773
+"bricco (westmont, haddon township)",pizza,yes,,
+"west chester pizza cafe (east bradford shops, west chester)",,yes,osm,w152691504
+"west chester pizza cafe (east bradford shops, west chester)",pizza,yes,,
+"mad mushroom (davis bottom/southend park, lexington)",,no,osm,n3227559524
+"mad mushroom (davis bottom/southend park, lexington)",pizza,yes,,
+"lexlive (central business district, lexington)",,no,osm,w373231396
+"lexlive (central business district, lexington)",pizza,yes,,
+"teglia pizza bar (montclair, new jersey)",,yes,osm,n14088568038
+"teglia pizza bar (montclair, new jersey)",pizza,yes,,
+"frank's pizza (downtown, houston)",,no,osm,n2700275156
+"frank's pizza (downtown, houston)",pizza,yes,,
+"gypsy poet (midtown, houston)",,yes,osm,w555490837
+"gypsy poet (midtown, houston)",pizza,yes,,
+"rustique (hamilton park, jersey city)",,yes,osm,n1887434635
+"rustique (hamilton park, jersey city)",pizza,yes,,
+"sal's (west new york, new jersey)",,yes,osm,n12902272914
+"sal's (west new york, new jersey)",pizza,yes,,
+"five boys fresh pizza (hudson square, new york)",,no,osm,n6732642783
+"five boys fresh pizza (hudson square, new york)",pizza,yes,,
+"prima pizza kitchen (somerville, new jersey)",,yes,osm,n11735108943
+"prima pizza kitchen (somerville, new jersey)",pizza,yes,,
+"marcello's pizza-grill (hamilton square, hamilton township)",,yes,osm,n12795524061
+"marcello's pizza-grill (hamilton square, hamilton township)",pizza,yes,,
+"fini pizza (williamsburg, new york)",,yes,osm,n10838958947
+"fini pizza (williamsburg, new york)",pizza,yes,,
+"the stopalong (wicker park, chicago)",,yes,osm,n5597509522
+"the stopalong (wicker park, chicago)",pizza,yes,,
+"o’scugnizzo pizzeria (utica, new york)",,yes,osm,w756787775
+"o’scugnizzo pizzeria (utica, new york)",pizza,yes,,
+"pavone's pizza (dewitt, new york)",,yes,osm,n2112272249
+"pavone's pizza (dewitt, new york)",pizza,yes,,
+"paladino's pizza (northern lights, salina)",,yes,osm,n11036314981
+"paladino's pizza (northern lights, salina)",pizza,yes,,
+"the chancellors (hammersmith, london borough of hammersmith and fulham)",,yes,osm,w97403235
+"the chancellors (hammersmith, london borough of hammersmith and fulham)",pizza,yes,,
+"founders tavern (southold, new york)",,no,osm,w461238768
+"founders tavern (southold, new york)",pizza,yes,,
+"stella's pizza (east watertown, watertown)",,yes,osm,n7021090933
+"stella's pizza (east watertown, watertown)",pizza,yes,,
+"angela's coal fired pizza (oakland vale, saugus)",,yes,osm,w29564714
+"angela's coal fired pizza (oakland vale, saugus)",pizza,yes,,
+"pleasant cafe (roslindale, boston)",,yes,osm,n12071603941
+"pleasant cafe (roslindale, boston)",pizza,yes,,
+"red rose pizzeria (downtown springfield railroad district, springfield)",,yes,osm,n2329379675
+"red rose pizzeria (downtown springfield railroad district, springfield)",pizza,yes,,
+"il buco al mare (amagansett, east hampton)",,yes,osm,n8791908416
+"il buco al mare (amagansett, east hampton)",pizza,yes,,
+"lucia pizza (sheepshead bay, new york)",,yes,osm,n9106019887
+"lucia pizza (sheepshead bay, new york)",pizza,yes,,
+"dominic's ii (mission bay, boca raton)",,yes,osm,n1725626450
+"dominic's ii (mission bay, boca raton)",pizza,yes,,
+"pizza nostra (port credit, mississauga)",,yes,osm,n3342252360
+"pizza nostra (port credit, mississauga)",pizza,yes,,
+"superpoint (spadina–fort york, toronto)",,yes,osm,n6240358437
+"superpoint (spadina–fort york, toronto)",pizza,yes,,
+"pizzeria badiali (ossington, toronto)",,yes,osm,n2580208957
+"pizzeria badiali (ossington, toronto)",pizza,yes,,
+"descendant (south riverdale, toronto)",,yes,osm,n13276774159
+"descendant (south riverdale, toronto)",pizza,yes,,
+"bitondo's pizzeria (trinity-bellwoods, toronto)",,yes,osm,n13696424284
+"bitondo's pizzeria (trinity-bellwoods, toronto)",pizza,yes,,
+"north of brooklyn pizzeria (west queen west, toronto)",,yes,osm,n6433456350
+"north of brooklyn pizzeria (west queen west, toronto)",pizza,yes,,
+"siamo (miami springs, florida)",,no,osm,n6083283129
+"siamo (miami springs, florida)",pizza,yes,,
+"pizza delicious (bywater, new orleans)",,yes,osm,n4037593576
+"pizza delicious (bywater, new orleans)",pizza,yes,,
+"a little bit of philly (virginia gardens, florida)",,yes,osm,n1757177234
+"a little bit of philly (virginia gardens, florida)",pizza,yes,,
+"pizzeria uno (river north, chicago)",,yes,osm,w210680487
+"pizzeria uno (river north, chicago)",pizza,yes,,
+"the angelo pizza (old city, philadelphia)",,yes,osm,n13593256431
+"the angelo pizza (old city, philadelphia)",pizza,yes,,
+"contessa (block a, boston)",,yes,osm,n12072372541
+"contessa (block a, boston)",pizza,yes,,
+"picco (south end, boston)",,yes,osm,n3372091699
+"picco (south end, boston)",pizza,yes,,
+"coppa (villa victoria, boston)",,yes,osm,n9273725903
+"coppa (villa victoria, boston)",pizza,yes,,
+"cafe podima (beacon hill, boston)",,no,osm,n2708166036
+"cafe podima (beacon hill, boston)",pizza,yes,,
+"apollonia's pizzeria (mid-wilshire, los angeles)",,yes,osm,n11861562208
+"apollonia's pizzeria (mid-wilshire, los angeles)",pizza,yes,,
+"heirloom pizzeria (fairfax, los angeles)",,yes,osm,n12101029601
+"heirloom pizzeria (fairfax, los angeles)",pizza,yes,,
+"gaetano's pizza & pasta (kendall, florida)",,yes,osm,n12038509112
+"gaetano's pizza & pasta (kendall, florida)",pizza,yes,,
+"call me gaby (miami beach, florida)",,yes,osm,n10232521783
+"call me gaby (miami beach, florida)",pizza,yes,,
+"fantini's 'new haven style' apizza (north river shores, florida)",,yes,osm,n9926589563
+"fantini's 'new haven style' apizza (north river shores, florida)",pizza,yes,,
+"michael's original pizzeria & tavern (buena park, chicago)",,yes,osm,n5356226639
+"michael's original pizzeria & tavern (buena park, chicago)",pizza,yes,,
+"chimney rock inn (chimney rock, bridgewater township)",,yes,osm,w756587557
+"chimney rock inn (chimney rock, bridgewater township)",pizza,yes,,
+"planet pizza (central business district, orlando)",,no,osm,n13822234582
+"planet pizza (central business district, orlando)",pizza,yes,,
+"mcdonald's (orlando, florida)",,no,osm,w407009720
+"mcdonald's (orlando, florida)",pizza,yes,,
+"pizza bruno (orlando, florida)",,yes,osm,n12850777424
+"pizza bruno (orlando, florida)",pizza,yes,,
+"carnegie pizza (times square, new york)",,yes,osm,n10151666949
+"carnegie pizza (times square, new york)",pizza,yes,,
+"redeemer pizza (river north rino art district, denver)",,yes,osm,n11869405627
+"redeemer pizza (river north rino art district, denver)",pizza,yes,,
+"blue pan pizza (denver, colorado)",,yes,osm,n2793929043
+"blue pan pizza (denver, colorado)",pizza,yes,,
+"pizza palace (chilhowee park, knoxville)",,no,osm,n266561079
+"pizza palace (chilhowee park, knoxville)",pizza,yes,,
+"phil's pizza (bridgeport, chicago)",,yes,osm,w210167554
+"phil's pizza (bridgeport, chicago)",pizza,yes,,
+"giuseppina’s (greenwood heights, new york)",,yes,osm,n2550097296
+"giuseppina’s (greenwood heights, new york)",pizza,yes,,
+"luigi's pizza (greenwood heights, new york)",,yes,osm,n2547760413
+"luigi's pizza (greenwood heights, new york)",pizza,yes,,
+"baby luc's (carroll gardens, new york)",,yes,osm,n2494252035
+"baby luc's (carroll gardens, new york)",pizza,yes,,
+"buddy's pizza (pittsfield charter township, michigan)",,yes,osm,w549989960
+"buddy's pizza (pittsfield charter township, michigan)",pizza,yes,,
+"mama santa's (little italy, cleveland)",,yes,osm,w531468186
+"mama santa's (little italy, cleveland)",pizza,yes,,
+"sam's pizza palace (wildwood, new jersey)",,yes,osm,n4351908293
+"sam's pizza palace (wildwood, new jersey)",pizza,yes,,
+"paesan's pizza (latham, colonie)",,yes,osm,w751178536
+"paesan's pizza (latham, colonie)",pizza,yes,,
+"napoli's pizzeria (malta, new york)",,yes,osm,n13900240301
+"napoli's pizzeria (malta, new york)",pizza,yes,,
+"7-eleven (montauk, east hampton)",,no,osm,w471655998
+"7-eleven (montauk, east hampton)",pizza,yes,,
+"il buco alimentari (noho, new york)",,yes,osm,n9668165673
+"il buco alimentari (noho, new york)",pizza,yes,,
+"urban coalhouse pizza + bar (red bank, new jersey)",,yes,osm,n6248693474
+"urban coalhouse pizza + bar (red bank, new jersey)",pizza,yes,,
+"mancini pizza (colchester plaza, east brunswick)",,yes,osm,n9172135197
+"mancini pizza (colchester plaza, east brunswick)",pizza,yes,,
+"joey's house of pizza (nashville, tennessee)",,yes,osm,w633014918
+"joey's house of pizza (nashville, tennessee)",pizza,yes,,
+"five points pizza (east nashville, nashville)",,yes,osm,n6391959286
+"five points pizza (east nashville, nashville)",pizza,yes,,
+"squan tavern (manasquan, new jersey)",,yes,osm,w735254472
+"squan tavern (manasquan, new jersey)",pizza,yes,,
+"rosie’s pizza (point pleasant beach, new jersey)",,yes,osm,n11172310533
+"rosie’s pizza (point pleasant beach, new jersey)",pizza,yes,,
+"three brothers from italy (seaside heights, new jersey)",,no,osm,w358266636
+"three brothers from italy (seaside heights, new jersey)",pizza,yes,,
+"maruca's tomato pies (seaside heights, new jersey)",,yes,osm,n5554701525
+"maruca's tomato pies (seaside heights, new jersey)",pizza,yes,,
+"stella 34 trattoria (herald square, new york)",,no,osm,n12383161574
+"stella 34 trattoria (herald square, new york)",pizza,yes,,
+"lazzaro (financial district, new york)",,no,osm,n5978557997
+"lazzaro (financial district, new york)",pizza,yes,,
+"zazzy's pizza (west village, new york)",,yes,osm,n9615093450
+"zazzy's pizza (west village, new york)",pizza,yes,,
+"vito & nick's pizzeria (clarkdale, lake township)",,yes,osm,w163522956
+"vito & nick's pizzeria (clarkdale, lake township)",pizza,yes,,
+"art of pizza (printer's row, chicago)",,yes,osm,n7980056950
+"art of pizza (printer's row, chicago)",pizza,yes,,
+"craft pizza (wicker park, chicago)",,yes,osm,n3652970968
+"craft pizza (wicker park, chicago)",pizza,yes,,
+"amarone (north miami, florida)",,yes,osm,n13724367401
+"amarone (north miami, florida)",pizza,yes,,
+"reservoir (academy heights, south orange)",,yes,osm,w1340120926
+"reservoir (academy heights, south orange)",pizza,yes,,
+"fredi the pizzaman (melvindale, michigan)",,yes,osm,w485725520
+"fredi the pizzaman (melvindale, michigan)",pizza,yes,,
+"joe's pizza (ann arbor, michigan)",,yes,osm,n9403993530
+"joe's pizza (ann arbor, michigan)",pizza,yes,,
+"tomatoes apizza (west bloomfield charter township, michigan)",,yes,osm,n7487291325
+"tomatoes apizza (west bloomfield charter township, michigan)",pizza,yes,,
+"supino pizzeria (midtown, detroit)",,yes,osm,n4121692999
+"supino pizzeria (midtown, detroit)",pizza,yes,,
+"sac's (queens, new york)",,yes,osm,n3818834843
+"sac's (queens, new york)",pizza,yes,,
+"marabella pizza (queens, new york)",,yes,osm,n2844950243
+"marabella pizza (queens, new york)",pizza,yes,,
+"renato's pizza masters (croxton, jersey city)",,yes,osm,n12229901733
+"renato's pizza masters (croxton, jersey city)",pizza,yes,,
+"brooklyn's brick oven pizzeria (hackensack, new jersey)",,yes,osm,w624286326
+"brooklyn's brick oven pizzeria (hackensack, new jersey)",pizza,yes,,
+"pizzata pizzeria (fitler square, philadelphia)",,yes,osm,n12833966323
+"pizzata pizzeria (fitler square, philadelphia)",pizza,yes,,
+"joe's pizza (sunset strip, west hollywood)",,yes,osm,n5145895696
+"joe's pizza (sunset strip, west hollywood)",pizza,yes,,
+"wood street pizza (north philadelphia, philadelphia)",,yes,osm,n2795233692
+"wood street pizza (north philadelphia, philadelphia)",pizza,yes,,
+"angelino's (fairmount, philadelphia)",,yes,osm,n13738837713
+"angelino's (fairmount, philadelphia)",pizza,yes,,
+"fiori's pizzaria (brookline, pittsburgh)",,yes,osm,n5484929417
+"fiori's pizzaria (brookline, pittsburgh)",pizza,yes,,
+"pizza collective (lincoln square, new york)",,yes,osm,n8727756019
+"pizza collective (lincoln square, new york)",pizza,yes,,
+"jack's lounge (hyannis, barnstable)",,no,osm,w211869395
+"jack's lounge (hyannis, barnstable)",pizza,yes,,
+"il rione (gordon square, cleveland)",,yes,osm,w573600398
+"il rione (gordon square, cleveland)",pizza,yes,,
+"sabatini's pizza (exeter, pennsylvania)",,yes,osm,n2970524490
+"sabatini's pizza (exeter, pennsylvania)",pizza,yes,,
+"gerry's pizzeria (wilkes-barre, pennsylvania)",,yes,osm,n6083981695
+"gerry's pizzeria (wilkes-barre, pennsylvania)",pizza,yes,,
+"angelo's pizzeria (iron triangle, wilkes-barre)",,yes,osm,n6091296236
+"angelo's pizzeria (iron triangle, wilkes-barre)",pizza,yes,,
+"reservoir tavern (parsippany-troy hills, new jersey)",,yes,osm,w990484807
+"reservoir tavern (parsippany-troy hills, new jersey)",pizza,yes,,
+"luigi's coal oven pizza (rio vista isles, fort lauderdale)",,yes,osm,w612726358
+"luigi's coal oven pizza (rio vista isles, fort lauderdale)",pizza,yes,,
+"joe & pat's pizzeria & restaurant (castleton corners, new york)",,yes,osm,n12971671635
+"joe & pat's pizzeria & restaurant (castleton corners, new york)",pizza,yes,,
+"round pie pizza company (castleton corners, new york)",,yes,osm,n12971671545
+"round pie pizza company (castleton corners, new york)",pizza,yes,,
+"pizzeria giove (new dorp, new york)",,yes,osm,n10195939273
+"pizzeria giove (new dorp, new york)",pizza,yes,,
+"napoli pizza & pasta (queens, new york)",,yes,osm,n5805320749
+"napoli pizza & pasta (queens, new york)",pizza,yes,,
+"grand avenue pizza (queens, new york)",,yes,osm,n5156147337
+"grand avenue pizza (queens, new york)",pizza,yes,,
+"rosario’s (steinway, new york)",,yes,osm,n11992815869
+"rosario’s (steinway, new york)",pizza,yes,,
+"mom’s new york pizza (miami beach, florida)",,no,osm,n11015747005
+"mom’s new york pizza (miami beach, florida)",pizza,yes,,
+"norm's pizza (downtown brooklyn, new york)",,yes,osm,n6747363679
+"norm's pizza (downtown brooklyn, new york)",pizza,yes,,
+"krispy pizza (dyker heights, new york)",,yes,osm,w249062520
+"krispy pizza (dyker heights, new york)",pizza,yes,,
+"gino's (bay ridge, new york)",,yes,osm,n10797403540
+"gino's (bay ridge, new york)",pizza,yes,,
+"razza (communipaw, jersey city)",,yes,osm,n7330680517
+"razza (communipaw, jersey city)",pizza,yes,,
+"lincoln financial field (south philadelphia, philadelphia)",,no,osm,w32891768
+"lincoln financial field (south philadelphia, philadelphia)",pizza,yes,,
+"de lorenzo's tomato pies (robbinsville, robbinsville township)",,yes,osm,n4881047230
+"de lorenzo's tomato pies (robbinsville, robbinsville township)",pizza,yes,,
+"papa's tomato pies (robbinsville, robbinsville township)",,yes,osm,n4148935735
+"papa's tomato pies (robbinsville, robbinsville township)",pizza,yes,,
+"7-eleven (midtown, new york)",,no,osm,n2377128211
+"7-eleven (midtown, new york)",pizza,yes,,
+"mangia (flatiron district, new york)",,no,osm,n6955034545
+"mangia (flatiron district, new york)",pizza,yes,,
+"l'arte della pizza (park slope, new york)",,yes,osm,n5600702495
+"l'arte della pizza (park slope, new york)",pizza,yes,,
+"lo duca pizza (brooklyn, new york)",,yes,osm,n9760077798
+"lo duca pizza (brooklyn, new york)",pizza,yes,,
+"canyon pizza (holmes-foster historic district, state college)",,no,osm,n2661728708
+"canyon pizza (holmes-foster historic district, state college)",pizza,yes,,
+"f&f pizzeria (carroll gardens, new york)",,yes,osm,n10963424770
+"f&f pizzeria (carroll gardens, new york)",pizza,yes,,
+"bocce club pizza (grover cleveland terrace, amherst)",,yes,osm,w1157907681
+"bocce club pizza (grover cleveland terrace, amherst)",pizza,yes,,
+"las vegas motor speedway (nevada, united states)",,no,osm,w27545410
+"las vegas motor speedway (nevada, united states)",pizza,yes,,
+"gino's (long beach, new york)",,yes,osm,n11048560912
+"gino's (long beach, new york)",pizza,yes,,
+"nick’s (forest hills, new york)",,yes,osm,n13009415299
+"nick’s (forest hills, new york)",pizza,yes,,
+"sbarro (herald square, new york)",,no,osm,n4299951695
+"sbarro (herald square, new york)",pizza,yes,,
+"sunnyside pizza (sunnyside gardens, new york)",,no,osm,n2485355797
+"sunnyside pizza (sunnyside gardens, new york)",pizza,yes,,
+"mama mia 44sw (manhattan community board 4, new york)",,no,osm,n2273972179
+"mama mia 44sw (manhattan community board 4, new york)",pizza,yes,,
+"ciro's pizza pomodoro (hans town, royal borough of kensington and chelsea)",,no,osm,n8028586290
+"ciro's pizza pomodoro (hans town, royal borough of kensington and chelsea)",pizza,yes,,
+"grand apizza (clinton, connecticut)",,yes,osm,n3633015758
+"grand apizza (clinton, connecticut)",pizza,yes,,
+"faraci pizza (ballwin, missouri)",,no,osm,w461169527
+"faraci pizza (ballwin, missouri)",pizza,yes,,
+"pat's pizza (dorchester, boston)",,yes,osm,w937491939
+"pat's pizza (dorchester, boston)",pizza,yes,,
+"pino's (cleveland circle, boston)",,yes,osm,n10650463847
+"pino's (cleveland circle, boston)",pizza,yes,,
+"artichoke basille's pizza (east village, new york)",,yes,osm,n7362999640
+"artichoke basille's pizza (east village, new york)",pizza,yes,,
+"healthy choice gourmet deli & pizza (nomad, new york)",,no,osm,n2703449301
+"healthy choice gourmet deli & pizza (nomad, new york)",pizza,yes,,
+"tony's baltimore grill (chelsea, atlantic city)",,no,osm,w1322118425
+"tony's baltimore grill (chelsea, atlantic city)",pizza,yes,,
+"roseland apizza (east derby, derby)",,yes,osm,w892502444
+"roseland apizza (east derby, derby)",pizza,yes,,
+"ernie's pizzeria (amity, new haven)",,yes,osm,w338073615
+"ernie's pizzeria (amity, new haven)",pizza,yes,,
+"sal's pizza (mamaroneck, new york)",,yes,osm,w840223954
+"sal's pizza (mamaroneck, new york)",pizza,yes,,
+"little caesars (princeton, west virginia)",,no,osm,w551533522
+"little caesars (princeton, west virginia)",pizza,yes,,
+"slice (hunters point, new york)",,yes,osm,n4768241543
+"slice (hunters point, new york)",pizza,yes,,
+"stromboli pizza (east village, new york)",,no,osm,n1379410005
+"stromboli pizza (east village, new york)",pizza,yes,,
+"red wagon pizza (armatage, minneapolis)",,yes,osm,n1494893153
+"red wagon pizza (armatage, minneapolis)",pizza,yes,,
+"surly brewing co. (university, minneapolis)",,yes,osm,w318446421
+"surly brewing co. (university, minneapolis)",pizza,yes,,
+"village square pizza (alphabet city, new york)",,yes,osm,n9373941165
+"village square pizza (alphabet city, new york)",pizza,yes,,
+"meadowlands racing & entertainment (east rutherford, new jersey)",,no,osm,w1501238980
+"meadowlands racing & entertainment (east rutherford, new jersey)",pizza,yes,,
+"king umberto (elmont, new york)",,yes,osm,w609097530
+"king umberto (elmont, new york)",pizza,yes,,
+"vezzo (murray hill, new york)",,yes,osm,n2709335829
+"vezzo (murray hill, new york)",pizza,yes,,
+"denino’s pizzeria & tavern (port richmond, new york)",,yes,osm,n7927539457
+"denino’s pizzeria & tavern (port richmond, new york)",pizza,yes,,
+"chuck e. cheese (west melbourne, florida)",,no,osm,w540433450
+"chuck e. cheese (west melbourne, florida)",pizza,yes,,
+"johnny's pizzeria (west mount vernon, mount vernon)",,yes,osm,n13286444017
+"johnny's pizzeria (west mount vernon, mount vernon)",pizza,yes,,
+"antico pizza napoletana (howell station, atlanta)",,yes,osm,n2390865222
+"antico pizza napoletana (howell station, atlanta)",pizza,yes,,
+"costco (delawanna, clifton)",,no,osm,w277926168
+"costco (delawanna, clifton)",pizza,yes,,
+"santillo's brick oven pizza (elizabeth, new jersey)",,yes,osm,w1153496604
+"santillo's brick oven pizza (elizabeth, new jersey)",pizza,yes,,
+"friendly gourmet pizza (financial district, new york)",,no,osm,n5383989328
+"friendly gourmet pizza (financial district, new york)",pizza,yes,,
+"santucci's (bella vista, philadelphia)",,yes,osm,n4839107785
+"santucci's (bella vista, philadelphia)",pizza,yes,,
+"made in new york pizza (upper west side, new york)",,yes,osm,n2745558092
+"made in new york pizza (upper west side, new york)",pizza,yes,,
+"mister o1 (miami beach, florida)",,yes,osm,n4001931789
+"mister o1 (miami beach, florida)",pizza,yes,,
+"riko's pizza (springdale, stamford)",,yes,osm,n11950754970
+"riko's pizza (springdale, stamford)",pizza,yes,,
+"colony grill (stamford, connecticut)",,yes,osm,n13058283702
+"colony grill (stamford, connecticut)",pizza,yes,,
+"johnny pepperoni (uptown, hoboken)",,yes,osm,n7186896603
+"johnny pepperoni (uptown, hoboken)",pizza,yes,,
+"sally's apizza (wooster square, new haven)",,yes,osm,n2567417097
+"sally's apizza (wooster square, new haven)",pizza,yes,,
+"frank pepe pizzeria napoletana (wooster square, new haven)",,yes,osm,n2567417096
+"frank pepe pizzeria napoletana (wooster square, new haven)",pizza,yes,,
+"modern apizza (goatville, new haven)",,yes,osm,n470623969
+"modern apizza (goatville, new haven)",pizza,yes,,
+"basile's pizza (downtown, hoboken)",,yes,osm,n6789145031
+"basile's pizza (downtown, hoboken)",pizza,yes,,
+"da nico (little italy, new york)",,no,osm,n6206834487
+"da nico (little italy, new york)",pizza,yes,,
+"churchill downs (louisville, kentucky)",,no,osm,w24685850
+"churchill downs (louisville, kentucky)",pizza,yes,,
+"joe's pizza (east village, new york)",,yes,osm,w247862508
+"joe's pizza (east village, new york)",pizza,yes,,
+"motorino (east village, new york)",,yes,osm,n2611490850
+"motorino (east village, new york)",pizza,yes,,
+"florina pizzeria & paninoteca (beacon hill, boston)",,yes,osm,n8120171451
+"florina pizzeria & paninoteca (beacon hill, boston)",pizza,yes,,
+"lucali (columbia street waterfront district, new york)",,yes,osm,n4196029141
+"lucali (columbia street waterfront district, new york)",pizza,yes,,
+"famous ben's pizza (soho, new york)",,yes,osm,n9170066779
+"famous ben's pizza (soho, new york)",pizza,yes,,
+"bravo pizza (flatiron district, new york)",,no,osm,n7360048867
+"bravo pizza (flatiron district, new york)",pizza,yes,,
+"a slice of new york (theater district, new york)",,no,osm,n7039664885
+"a slice of new york (theater district, new york)",pizza,yes,,
+"the new park tavern (east rutherford, new jersey)",,yes,osm,n11513639282
+"the new park tavern (east rutherford, new jersey)",pizza,yes,,
+"brooklyn pizza masters (sutton, new york)",,yes,osm,n10982344506
+"brooklyn pizza masters (sutton, new york)",pizza,yes,,
+"kinchley's tavern (rolling gardens, mahwah)",,yes,osm,w46135870
+"kinchley's tavern (rolling gardens, mahwah)",pizza,yes,,
+"upside pizza (little italy, new york)",,no,osm,n2547241666
+"upside pizza (little italy, new york)",pizza,yes,,
+"rico's pizza (westside, gary)",,no,osm,n12365673166
+"rico's pizza (westside, gary)",pizza,yes,,
+"pepe giallo (chelsea district, new york)",,yes,osm,n6543504647
+"pepe giallo (chelsea district, new york)",pizza,yes,,
+"stanton street pizza (lower east side, new york)",,no,osm,n9652667219
+"stanton street pizza (lower east side, new york)",pizza,yes,,
+"frank's trattoria (kips bay, new york)",,yes,osm,n10073864131
+"frank's trattoria (kips bay, new york)",pizza,yes,,
+"louie's pizza (woburn highlands, woburn)",,yes,osm,w214145264
+"louie's pizza (woburn highlands, woburn)",pizza,yes,,
+"l’industrie pizzeria (williamsburg, new york)",,yes,osm,n5994548785
+"l’industrie pizzeria (williamsburg, new york)",pizza,yes,,
+"joe & pat's (east village, new york)",,yes,osm,n9581876702
+"joe & pat's (east village, new york)",pizza,yes,,
+"emmett's (university village, new york)",,yes,osm,n2722711709
+"emmett's (university village, new york)",pizza,yes,,
+"best pizza (williamsburg, new york)",,yes,osm,n5962563885
+"best pizza (williamsburg, new york)",pizza,yes,,
+"big lou's pizza (san antonio, texas)",,no,osm,w350704228
+"big lou's pizza (san antonio, texas)",pizza,yes,,
+"bravo pizza (nomad, new york)",,yes,osm,n7080440667
+"bravo pizza (nomad, new york)",pizza,yes,,
+"evel pie (fremont east entertainment district, las vegas)",,no,osm,w204346651
+"evel pie (fremont east entertainment district, las vegas)",pizza,yes,,
+"joe's pizza (downtown santa monica, santa monica)",,yes,osm,n8321579217
+"joe's pizza (downtown santa monica, santa monica)",pizza,yes,,
+"cottage inn pizza (germantown, ann arbor)",,no,osm,w256667358
+"cottage inn pizza (germantown, ann arbor)",pizza,yes,,
+"new york pizza depot (germantown, ann arbor)",,no,osm,n4958401112
+"new york pizza depot (germantown, ann arbor)",pizza,yes,,
+"buddy's pizza (west dearborn downtown, dearborn)",,yes,osm,w262607373
+"buddy's pizza (west dearborn downtown, dearborn)",pizza,yes,,
+"joe's pizza (chelsea district, new york)",,yes,osm,n2377128167
+"joe's pizza (chelsea district, new york)",pizza,yes,,
+"bella napoli (rose hill, new york)",,yes,osm,n3356089622
+"bella napoli (rose hill, new york)",pizza,yes,,
+"home slice pizza (north loop, austin)",,no,osm,n6819941182
+"home slice pizza (north loop, austin)",pizza,yes,,
+"acquolina (telegraph hill, san francisco)",,yes,osm,n371002140
+"acquolina (telegraph hill, san francisco)",pizza,yes,,
+"steamboat wharf pizza (mikas pond, nantucket)",,yes,osm,w213827851
+"steamboat wharf pizza (mikas pond, nantucket)",pizza,yes,,
+"ernesto's (north end, boston)",,yes,osm,n7039659062
+"ernesto's (north end, boston)",pizza,yes,,
+"lynwood cafe (randolph, massachusetts)",,yes,osm,w215761022
+"lynwood cafe (randolph, massachusetts)",pizza,yes,,
+"town spa pizza (stoughton, massachusetts)",,yes,osm,w216195882
+"town spa pizza (stoughton, massachusetts)",pizza,yes,,

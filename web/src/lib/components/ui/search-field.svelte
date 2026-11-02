@@ -5,7 +5,7 @@
   /**
    * The only text input in the product, and it is always at the bottom: on the
    * list it searches and adds, on a thing's screen it filters attributes and adds
-   * one, on the people screen it filters people and asks a handle to connect.
+   * one, on the people screen it filters accounts.
    *
    * With a query the border and the magnifier take the accent, so the screen says
    * it is filtered without a word for it.

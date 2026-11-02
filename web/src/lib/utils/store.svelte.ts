@@ -1,19 +1,30 @@
 import { onMount, untrack } from "svelte";
 import {
+  fetchFollowers,
+  fetchFollowing,
+  fetchLocked,
+  fetchOwnProfile,
+  fetchPrefilled,
+  follow as pgFollow,
+  removeFollower as pgRemoveFollower,
+  unfollow as pgUnfollow,
+  updateProfileIdentity,
+} from "./accounts";
+import {
   googleSignIn,
   deleteAccount as pgDeleteAccount,
   signOutFailed,
 } from "./auth";
 import { clientState, recordDebugEvent } from "./debug";
 import { forgetHintsSeen } from "./first-run";
-import {
-  fetchFriends,
-  fetchLocked,
-  fetchOwnProfile,
-  unfriend as pgUnfriend,
-  updateProfileIdentity,
-} from "./friends";
+import { forgetFollowed } from "./followed-cache";
 import { replaceHistory } from "./history";
+import {
+  forgetImportOffers,
+  importOfferWaiting,
+  setImportOffer,
+} from "./import-offer";
+import { forgetImportResumes } from "./import-resume";
 import {
   fetchMyLink,
   forgetInvite,
@@ -26,12 +37,18 @@ import {
   takeInvite,
 } from "./invites";
 import {
+  forgetPrefilledOffers,
+  prefilledOfferWaiting,
+  setPrefilledOffer,
+} from "./prefilled-offer";
+import { forgetRatingsUnless } from "./ratings";
+import {
   HEALTHY,
   onChannelJoined as joinedHealth,
   onChannelLoss,
 } from "./reattach";
-import { forgetCachedFeeds } from "./recs";
-import { explainWriteFailure, lockedAfterUnfriend } from "./refusal";
+import { forgetCachedFeeds, forgetFeedUnless, refreshMyRecs } from "./recs";
+import { explainWriteFailure, lockedAfterUnfollow } from "./refusal";
 import {
   historyDepth,
   LIST_SCREEN,
@@ -58,7 +75,7 @@ import {
   supabaseConfigured,
   whenSocketOpen,
 } from "./supabase";
-import type { Friend, Profile, Screen } from "./types";
+import type { Account, Profile, Screen } from "./types";
 
 export type { SessionUser };
 
@@ -81,7 +98,7 @@ const AUTH_GATE_MS = 15_000;
 // account cannot be reached. Longer than every retry `retryTransient` makes.
 const PROFILE_GATE_MS = 15_000;
 
-const EMPTY_FRIENDS: Friend[] = [];
+const NO_ACCOUNTS: Account[] = [];
 
 // Everything below is replaced, never mutated, so each is `$state.raw`: a
 // screen pushed into `history.state` has to be a plain object, and a proxy
@@ -108,9 +125,8 @@ let authReady = $state(false);
 // cancelled, for the welcome screen to say; null otherwise.
 let signInError = $state<string | null>(null);
 // Re-attaching channels the server dropped. Bumping `generation` re-subscribes
-// every one of them, here and in the two readers that own their own —
-// `useMyRecs` and `useMyRatings`, one retry budget for the whole app rather
-// than one each; `retryTimer` being non-null doubles as the guard that
+// every one of them and has `useMyRecs` and `useMyRatings` read again, one
+// retry budget for the whole app rather than one each; `retryTimer` being non-null doubles as the guard that
 // collapses a burst of losses into one retry.
 let generation = $state(0);
 // Every channel died and the retry budget is spent, or the socket has stayed
@@ -122,8 +138,14 @@ let retryTimer: ReturnType<typeof setTimeout> | null = null;
 // A re-attach that is due and waiting for the socket to come back. One at a
 // time, so only one set of channels is made when the socket returns.
 let socketWait: (() => void) | null = null;
-let friends = $state.raw<Friend[]>(EMPTY_FRIENDS);
-// A friending link this device was handed and has not answered yet: taken out
+// The accounts the viewer follows, and the people following the viewer.
+let following = $state.raw<Account[]>(NO_ACCOUNTS);
+let followers = $state.raw<Account[]>(NO_ACCOUNTS);
+// Every prefilled account, which anybody may find and follow.
+let prefilled = $state.raw<Account[]>(NO_ACCOUNTS);
+// Whether `prefilled` has been read this session, or the read gave up.
+let prefilledRead = $state<"waiting" | "read" | "failed">("waiting");
+// A link this device was handed and has not answered yet: taken out
 // of the address on arrival and kept across the trip to Google (`invites.ts`).
 let inviteToken = $state<string | null>(null);
 // Whose that link is, read signed out as well as in: undefined until the
@@ -135,6 +157,10 @@ let inviteLookupFailed = $state(false);
 let inviteLookups = $state(0);
 // The viewer's own link: undefined until read, null while it is off.
 let myLink = $state<string | null | undefined>(undefined);
+// Whether to ask, once, if a just-joined account wants to import ratings.
+let importOffer = $state(false);
+// Whether to offer, once, the prefilled accounts to a just-joined account.
+let prefilledOffer = $state(false);
 
 // The list is only the starting guess — `start` reads the real stack out of
 // the URL, which can't happen here because this also runs at prerender.
@@ -161,7 +187,8 @@ function back(): void {
   }
 }
 
-// To the list, in place of the screen showing.
+// To the list, in place of the screen showing: where a flow that has finished
+// leaves, so Back does not return into it.
 function home(): void {
   const next: Screen[] = [LIST_SCREEN];
   replaceEntry(next);
@@ -169,11 +196,16 @@ function home(): void {
 }
 
 // What this device keeps about the account that was signed in. The session is
-// the SDK's to remove; the feed cache and the hints seen are ours.
+// the SDK's to remove; the feed cache, the thumbs of the accounts it followed
+// and the hints seen are ours.
 function forgetDevice(): void {
+  void forgetFollowed();
   try {
     forgetCachedFeeds(window.localStorage);
     forgetHintsSeen(window.localStorage);
+    forgetImportOffers(window.localStorage);
+    forgetPrefilledOffers(window.localStorage);
+    forgetImportResumes(window.localStorage);
   } catch {
     // Storage refused: there was nothing written to it to forget.
   }
@@ -198,10 +230,34 @@ function retryInviteLookup(): void {
   inviteLookups += 1;
 }
 
-async function refreshFriends(): Promise<void> {
+// The list is computed from whom the viewer follows, so a change to that is a
+// reason to compute it again.
+function recomputeList(): void {
+  void refreshMyRecs().catch((error) => console.error("recs", error));
+}
+
+// Bumped by every change to the follows made here, so a read that started
+// before one cannot put back what it was.
+let followsVersion = 0;
+
+async function refreshFollows(): Promise<void> {
   const mine = uid;
   if (!mine) return;
-  friends = await fetchFriends(mine);
+  followsVersion += 1;
+  const asked = followsVersion;
+  const [nextFollowing, nextFollowers] = await Promise.all([
+    fetchFollowing(mine),
+    fetchFollowers(mine),
+  ]);
+  if (uid !== mine || followsVersion !== asked) return;
+  const changed =
+    nextFollowing.length !== following.length ||
+    nextFollowing.some(
+      (account) => !following.some((known) => known.uid === account.uid),
+    );
+  following = nextFollowing;
+  followers = nextFollowers;
+  if (changed) recomputeList();
 }
 
 function signIn(): Promise<void> {
@@ -240,8 +296,8 @@ async function deleteAccount(): Promise<void> {
   }
 }
 
-// One row, and every friend sees the new name the next time they read a
-// profile: there is no copy of it on an edge to go around rewriting.
+// One row, and everyone sees the new name the next time they read the
+// profile: there is no copy of it anywhere to go around rewriting.
 async function updateDisplayName(displayName: string): Promise<void> {
   const mine = uid;
   if (!mine) throw new Error("not signed in");
@@ -257,15 +313,36 @@ async function updateDisplayName(displayName: string): Promise<void> {
 // token, so the next load asks again.
 async function redeemInvite(token: string): Promise<string | null> {
   const mine = uid;
+  const known = following;
   const owner = await pgRedeemInvite(token);
   forgetInvite();
   inviteToken = null;
   if (owner !== null && owner !== mine) {
-    // The friendship `redeem_invite` just wrote is what unlocks (0010).
+    // Asked after the link is answered, of somebody it added: a new
+    // account has just arrived and has nothing in its list.
+    if (mine && !known.some((account) => account.uid === owner)) {
+      setImportOffer(mine, true);
+      importOffer = true;
+      setPrefilledOffer(mine, true);
+      prefilledOffer = true;
+    }
+    // The follow `redeem_invite` just wrote is what unlocks.
     if (profile) profile = { ...profile, locked: false };
-    await refreshFriends();
+    // The link is answered and its question gone from the screen: a failed
+    // re-read has nobody to tell, and the next load reads again.
+    await refreshFollows().catch((error) => console.error("follows", error));
   }
   return owner;
+}
+
+function answerImportOffer(): void {
+  if (uid) setImportOffer(uid, false);
+  importOffer = false;
+}
+
+function answerPrefilledOffer(): void {
+  if (uid) setPrefilledOffer(uid, false);
+  prefilledOffer = false;
 }
 
 // Said no to, or found to be dead: forgotten without writing anything.
@@ -288,7 +365,7 @@ async function turnOffLink(): Promise<void> {
   myLink = null;
 }
 
-// A locked account's link is revoked with the lock (0010).
+// A locked account's link is revoked with the lock.
 function showLocked(locked: boolean): void {
   if (locked) myLink = null;
   if (profile) profile = { ...profile, locked };
@@ -311,20 +388,51 @@ async function explainFailure(
   return failure.kind === "locked" ? null : failure.text;
 }
 
-async function unfriend(friendUid: string): Promise<void> {
+// With no link: a prefilled account, or a person who already follows the
+// viewer. Anybody else is followed by accepting their link.
+async function follow(account: Account): Promise<void> {
+  await pgFollow(account);
+  followsVersion += 1;
+  if (!following.some((known) => known.uid === account.uid))
+    following = [...following, account];
+  // Following back a person is what unlocks an account they followed first.
+  if (!account.prefilled && profile?.locked)
+    profile = { ...profile, locked: false };
+  recomputeList();
+}
+
+async function unfollow(account: Account): Promise<void> {
   const mine = uid;
   if (!mine) throw new Error("not signed in");
-  const left = friends.filter((entry) => entry.uid !== friendUid);
-  await pgUnfriend(mine, friendUid);
-  friends = friends.filter((entry) => entry.uid !== friendUid);
-  // The last connection locks the account (0010).
+  await pgUnfollow(mine, account.uid);
+  followsVersion += 1;
+  following = following.filter((entry) => entry.uid !== account.uid);
+  recomputeList();
+  // Following no other person locks the account.
   showLocked(
-    await lockedAfterUnfriend(
+    await lockedAfterUnfollow(
       fetchLocked,
-      left.length,
+      following.filter((entry) => !entry.prefilled).length,
       Boolean(profile?.admin),
     ),
   );
+}
+
+async function removeFollower(account: Account): Promise<void> {
+  const mine = uid;
+  if (!mine) throw new Error("not signed in");
+  await pgRemoveFollower(mine, account.uid);
+  followsVersion += 1;
+  followers = followers.filter((entry) => entry.uid !== account.uid);
+  // The server replaced the link, so the one that person was handed is dead.
+  if (myLink) {
+    try {
+      myLink = await fetchMyLink();
+    } catch (error) {
+      console.error("link", error);
+      myLink = undefined;
+    }
+  }
 }
 
 /**
@@ -468,6 +576,10 @@ export function startGrapevine(): void {
   watch(
     () => uid,
     () => {
+      // Here and not in the screens that read them: those are gone by the
+      // time a sign-out could tell them, and what they held was somebody's.
+      forgetFeedUnless(uid);
+      forgetRatingsUnless(uid);
       cancelReattach();
       health = HEALTHY;
       listenersLost = false;
@@ -582,8 +694,8 @@ export function startGrapevine(): void {
    *
    * These change by the viewer's own action — which this tab already knows
    * about, and writes through above — so a channel each would be subscriptions
-   * bought to deliver nothing. What DOES move under a reader, the feed and a new
-   * friend, has a channel of its own.
+   * bought to deliver nothing. What DOES move under a reader, a new follower,
+   * has a channel of its own.
    *
    * `generation` is unread on purpose: bumping it is how a lost channel gets
    * re-read.
@@ -597,10 +709,17 @@ export function startGrapevine(): void {
         profile = null;
         profileReady = false;
         profileUnreachable = false;
-        friends = EMPTY_FRIENDS;
+        following = NO_ACCOUNTS;
+        followers = NO_ACCOUNTS;
+        prefilled = NO_ACCOUNTS;
+        prefilledRead = "waiting";
         myLink = undefined;
+        importOffer = false;
+        prefilledOffer = false;
         return;
       }
+      importOffer = importOfferWaiting(mine);
+      prefilledOffer = prefilledOfferWaiting(mine);
       let live = true;
       let last = 0;
       // One incident, not one per retry: this effect re-runs when the session or
@@ -608,8 +727,7 @@ export function startGrapevine(): void {
       let reported = false;
 
       /**
-       * The profile, whether the account is locked (0010) and whether it is an
-       * admin (0014).
+       * The profile, whether the account is locked and whether it is an admin.
        *
        * A read that FAILED leaves `profileReady` false and reports the session as
        * unreachable, so a returning viewer with no network sees "can't reach us"
@@ -639,17 +757,28 @@ export function startGrapevine(): void {
       };
 
       const loadSocial = async (): Promise<void> => {
-        const [link] = await Promise.all([fetchMyLink(), refreshFriends()]);
+        const [link, everyPrefilled] = await Promise.all([
+          fetchMyLink(),
+          fetchPrefilled(),
+          refreshFollows(),
+        ]);
         if (!live) return;
         myLink = link;
+        prefilled = everyPrefilled;
+        prefilledRead = "read";
       };
 
       const loadAll = (): void => {
         last = Date.now();
         void loadProfile();
-        void retryTransient(loadSocial).catch((error) =>
-          console.error("social", error),
-        );
+        // A followed account may have rated since: one small request says
+        // whether, and nothing is computed when none has.
+        recomputeList();
+        void retryTransient(loadSocial).catch((error) => {
+          console.error("social", error);
+          // A re-read that failed keeps what an earlier one read.
+          if (live && prefilledRead === "waiting") prefilledRead = "failed";
+        });
       };
 
       // A session swap must not show the old profile while the new one loads. A
@@ -678,13 +807,13 @@ export function startGrapevine(): void {
   );
 
   /**
-   * A new friend, live.
+   * A new follower, live.
    *
-   * Somebody opening the viewer's link makes a friendship the viewer did not
-   * act in, so it arrives as the INSERT of the viewer's own half of the pair,
-   * which the `friendships` read policy bounds. Deletes are not published
-   * (`0006_realtime.sql`): a deleted row has nothing to apply a policy to, and
-   * its key is both uuids, so an unfriending is seen on the next load.
+   * Somebody opening the viewer's link follows them, which the viewer did not
+   * act in, so it arrives as the INSERT of a row naming the viewer as the one
+   * followed, which the `follows` read policy bounds. Deletes are not published
+   * (`0004_realtime.sql`): a deleted row has nothing to apply a policy to, so
+   * being unfollowed, or removed as a follower, is seen on the next load.
    *
    * The payload is not read: the row wants the profile at the far end anyway,
    * so an event is a signal to re-read rather than a row to apply.
@@ -698,22 +827,22 @@ export function startGrapevine(): void {
       const mine = uid;
       if (!configured || !mine) return;
       const channel = supabase()
-        .channel(`friends:${mine}`)
+        .channel(`follows:${mine}`)
         .on(
           "postgres_changes",
           {
             event: "INSERT",
             schema: "public",
-            table: "friendships",
-            filter: `user_id=eq.${mine}`,
+            table: "follows",
+            filter: `followed_id=eq.${mine}`,
           },
           () => {
-            void refreshFriends().catch((error) =>
-              console.error("friends", error),
+            void refreshFollows().catch((error) =>
+              console.error("follows", error),
             );
           },
         );
-      subscribeChannel(channel, "friends");
+      subscribeChannel(channel, "follows");
       return () => {
         void supabase().removeChannel(channel);
       };
@@ -753,8 +882,17 @@ export const grapevine = {
   get profileUnreachable() {
     return profileUnreachable;
   },
-  get friends() {
-    return friends;
+  get following() {
+    return following;
+  },
+  get followers() {
+    return followers;
+  },
+  get prefilled() {
+    return prefilled;
+  },
+  get prefilledRead() {
+    return prefilledRead;
   },
   get inviteToken() {
     return inviteToken;
@@ -777,6 +915,15 @@ export const grapevine = {
   },
   navigate,
   back,
+  home,
+  get importOffer() {
+    return importOffer;
+  },
+  answerImportOffer,
+  get prefilledOffer() {
+    return prefilledOffer;
+  },
+  answerPrefilledOffer,
   signIn,
   signOut,
   deleteAccount,
@@ -785,7 +932,9 @@ export const grapevine = {
   dismissInvite,
   setInviteLink,
   turnOffLink,
-  unfriend,
+  follow,
+  unfollow,
+  removeFollower,
   recheckLocked,
   explainFailure,
 };

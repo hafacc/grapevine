@@ -34,8 +34,8 @@ function serviceWorker(): Plugin {
   };
 }
 
-// `shared/` has no build step: it is TypeScript source, imported here and by
-// the Edge Function, so id normalization has exactly one definition. An alias
+// `shared/` has no build step: it is TypeScript source, imported where it
+// lives, so id normalization has exactly one definition. An alias
 // rather than a `file:` dependency because bun installs one as a tree of
 // symlinks. `tsconfig.json` carries the same names for the type checker and
 // for `bun test`, and says what each entry is for.
@@ -45,6 +45,7 @@ const SHARED_ENTRIES: Readonly<Record<string, string>> = {
   "grapevine-shared/suggest-attributes": "suggest-attributes.ts",
   "grapevine-shared/search": "search.ts",
   "grapevine-shared/references": "references.ts",
+  "grapevine-shared/import": "import/index.ts",
 };
 
 export default defineConfig({
@@ -71,10 +72,24 @@ export default defineConfig({
   resolve: {
     // Exact names, so `grapevine-shared` does not also swallow
     // `grapevine-shared/search`.
-    alias: Object.entries(SHARED_ENTRIES).map(([name, entry]) => ({
-      find: new RegExp(`^${name}$`),
-      replacement: here(`../shared/src/${entry}`),
-    })),
+    alias: [
+      ...Object.entries(SHARED_ENTRIES).map(([name, entry]) => ({
+        find: new RegExp(`^${name}$`),
+        replacement: here(`../shared/src/${entry}`),
+      })),
+      // The Rust core, which `scripts/build-wasm.sh web` builds into
+      // `core-wasm/` and nothing commits. `src/core-wasm.d.ts` types the two
+      // names, so only `dev` and `export` need the build. The second keeps
+      // whatever follows it, which is the `?url` the worker asks with.
+      {
+        find: /^grapevine-core$/,
+        replacement: here("./core-wasm/grapevine_core.js"),
+      },
+      {
+        find: /^grapevine-core\/wasm/,
+        replacement: here("./core-wasm/grapevine_core_bg.wasm"),
+      },
+    ],
   },
   server: {
     // The module graph reaches `../shared` and `../docs/mark.svg`, so what the

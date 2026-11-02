@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  import type { Attribute, FeedRow } from "../utils/discover";
+  import { type Attribute, carries, type FeedRow } from "../utils/discover";
   import type { ChipTone } from "./ui/chip.svelte";
 
   // A row's worth. A thing with thirty attributes would otherwise be
@@ -15,9 +15,10 @@
     attribute: Attribute,
     matchedTags: readonly string[],
   ): ChipTone {
-    if (matchedTags.includes(attribute.tag)) return "match";
-    else if (attribute.own === 1) return "yes";
+    // The viewer's own answer first: it is theirs whatever was typed.
+    if (attribute.own === 1) return "yes";
     else if (attribute.own === -1) return "no";
+    else if (matchedTags.includes(attribute.tag)) return "match";
     else return "plain";
   }
 
@@ -25,10 +26,14 @@
   // this here" and show how the words were read; the rest keep `attributesOf`'s
   // order.
   function chipsFor(row: FeedRow): readonly Attribute[] {
-    const matched = row.attributes.filter((attribute) =>
+    // A chip says the thing has the attribute, so one the followed accounts
+    // mostly thumbed down gets none, though a search for it still finds the
+    // row.
+    const carried = row.attributes.filter(carries);
+    const matched = carried.filter((attribute) =>
       row.matchedTags.includes(attribute.tag),
     );
-    const rest = row.attributes.filter(
+    const rest = carried.filter(
       (attribute) => !row.matchedTags.includes(attribute.tag),
     );
     return [...matched, ...rest].slice(0, CHIPS_PER_ROW);

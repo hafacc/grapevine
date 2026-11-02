@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   attributesOf,
+  carries,
   feedRows,
   foldQuery,
   hiddenByEye,
@@ -8,15 +9,37 @@ import {
   matchesText,
   searchFeed,
 } from "../src/lib/utils/discover";
+import type { TagEntry } from "grapevine-shared/entries";
 import type { TagRelation } from "grapevine-shared/search";
 import type { Item, Ratings, RecsEntry } from "../src/lib/utils/types";
+
+// How surely a tag applies, as the fixtures below write it: a number on
+// `(−1, 1)` whose `(1 + s) / 2` is the chance. The core scores every tag
+// somebody put on a thing, so the fixture has to say how good an example the
+// thing is: as good as the thing itself, which keeps a row's arithmetic in
+// the two numbers written beside it.
+const applying = (lean: number, score: number): TagEntry => ({
+  score,
+  conf: 1,
+  applies: (1 + lean) / 2,
+});
 
 const entry = (
   itemId: string,
   score: number,
-  tags: Record<string, number> = {},
+  tags: Record<string, number | TagEntry> = {},
   conf = 1,
-): RecsEntry => ({ itemId, score, conf, tags });
+): RecsEntry => ({
+  itemId,
+  score,
+  conf,
+  tags: Object.fromEntries(
+    Object.entries(tags).map(([tag, said]) => [
+      tag,
+      typeof said === "number" ? applying(said, score) : said,
+    ]),
+  ),
+});
 
 const item = (id: string): Item => ({ id, searchId: id });
 
@@ -51,13 +74,22 @@ describe("matchesText", () => {
 });
 
 describe("attributesOf", () => {
-  // DESIGN §1: most uncertain first, which on §2.6's scale is `|s|` ascending,
-  // and an attribute nothing in reach has weighed in on is the least certain of
-  // all.
+  // DESIGN §1: most uncertain first, which is how good an example it is with
+  // the least behind it, and an attribute nobody followed has weighed in on
+  // is the least certain of all.
   it("orders the attributes most uncertain first", () => {
+    const said = (score: number): TagEntry => ({
+      score,
+      conf: 9,
+      applies: 0.9,
+    });
     const attributes = attributesOf(
       "café bleu",
-      entry("café bleu", 0.5, { quiet: -0.9, coffee: 0.8, pastry: 0.1 }),
+      entry("café bleu", 0.5, {
+        quiet: said(-0.9),
+        coffee: said(0.8),
+        pastry: said(0.1),
+      }),
       { "café bleu": { "late night": 1 } },
     );
     expect(attributes.map((attribute) => attribute.tag)).toEqual([
@@ -104,32 +136,31 @@ describe("feedRows, with nothing typed", () => {
     ]);
   });
 
-  // One thumb of evidence against the prior's one: half the score.
-  it("draws the thing's cautious score on the bar", () => {
+  // The score is the chance already, whatever stands behind it.
+  it("draws the thing's score on the bar, as it is", () => {
     const [top] = feedRows(entries, NOTHING_RATED, ALL);
-    expect(top.barScore).toBeCloseTo(0.45, 10);
+    expect(top.barScore).toBe(0.9);
     expect(top.matchedTag).toBe(null);
   });
 
-  // Every rated thing shows (DESIGN §2.6), a thing carried only by an
-  // attribute of it included: nothing known, ranked as the middle.
-  it("shows a thing with no support of its own, as nothing known", () => {
-    const carried = [...entries, entry("delta", 0.3, { cheap: 0.8 }, 0)];
-    const rows = feedRows(carried, NOTHING_RATED, ALL);
-    expect(rows.map((row) => row.itemId)).toEqual([
-      "bravo",
-      "alpha",
-      "delta",
-      "charlie",
-    ]);
-    expect(rows[2]?.barScore).toBe(null);
+  // A thing known only through the viewer's own record: a real score that no
+  // followed account's thumb stands behind.
+  it("draws a score nothing stands behind", () => {
+    const [row] = feedRows([entry("echo", 0.3, {}, 0)], NOTHING_RATED, ALL);
+    expect(row?.barScore).toBe(0.3);
   });
 
-  it("ranks by the score and how much stands behind it together", () => {
-    const weighed = [entry("sure", 0.6, {}, 9), entry("thin", 0.9, {}, 0.2)];
+  // The score already holds how little stands behind it, so that is not
+  // counted against it a second time.
+  it("ranks by the score, and by how much stands behind it only between equals", () => {
+    const weighed = [
+      entry("thin", 0.6, {}, 0.2),
+      entry("sure", 0.6, {}, 9),
+      entry("high", 0.9, {}, 0),
+    ];
     expect(
       feedRows(weighed, NOTHING_RATED, ALL).map((row) => row.itemId),
-    ).toEqual(["sure", "thin"]);
+    ).toEqual(["high", "sure", "thin"]);
   });
 
   it("hides exactly the things the viewer has rated", () => {
@@ -139,7 +170,7 @@ describe("feedRows, with nothing typed", () => {
     expect(shown.map((row) => row.itemId)).toEqual(["alpha", "charlie"]);
   });
 
-  // With no friends the feed is empty and never mentions what the viewer rated,
+  // Following nobody, the feed is empty and never mentions what the viewer rated,
   // so their own thumbs are the only trace of it.
   it("lists what the viewer rated when the feed has no entry for it", () => {
     const ratings: Ratings = { claude: { "": 1 } };
@@ -171,7 +202,7 @@ describe("feedRows, with nothing typed", () => {
   });
 
   it("keeps a rated thing the feed carries only by an attribute", () => {
-    const carried = [...entries, entry("delta", 0, { cheap: 0.8 }, 0)];
+    const carried = [...entries, entry("delta", 0.1, { cheap: 0.8 }, 0)];
     const ratings: Ratings = { delta: { "": -1 } };
     expect(
       feedRows(carried, ratings, ALL).map((row) => row.itemId),
@@ -189,9 +220,9 @@ describe("feedRows, with nothing typed", () => {
 
 describe("feedRows, with one word typed", () => {
   const entries = [
-    entry("café bleu", 0.2, { coffee: 0.9, quiet: 0.3 }, 0.5),
-    entry("blue bottle, mint st", 0.8, { coffee: 0.7 }, 3),
-    entry("mel's diner", 0.4, { coffee: -0.8, "late night": 0.9 }, 1),
+    entry("café bleu", 0.06, { coffee: 0.9, quiet: 0.3 }, 0.5),
+    entry("blue bottle, mint st", 0.6, { coffee: 0.7 }, 3),
+    entry("mel's diner", 0.2, { coffee: -0.8, "late night": 0.9 }, 1),
   ];
   const ids = (query: string, ratings: Ratings = NOTHING_RATED) =>
     feedRows(entries, ratings, { ...ALL, query }).map((row) => row.itemId);
@@ -200,39 +231,98 @@ describe("feedRows, with one word typed", () => {
     expect(ids("cafe")).toEqual(["café bleu"]);
   });
 
-  // Presence is (1 + s) / 2: 0.95, 0.85 and 0.1. A clear no is still shown,
-  // last, since a thing that lacks a word is lower rather than gone.
-  it("ranks by how strongly each thing has the attribute", () => {
+  // Presence is (1 + s) / 2: 0.95, 0.85 and 0.1, each with how good the thing
+  // would be to the viewer, (1 + s) / 2: 0.53, 0.8 and 0.6. So the place that
+  // is surely coffee and barely liked is under the one that is probably
+  // coffee and liked. A clear no is still shown, last, since a thing that
+  // lacks a word is lower rather than gone.
+  it("ranks by how strongly each thing has the attribute and how good it is", () => {
     expect(ids("coffee")).toEqual([
-      "café bleu",
       "blue bottle, mint st",
+      "café bleu",
       "mel's diner",
     ]);
   });
 
-  it("draws the matched attribute's score on the bar", () => {
-    const [first] = feedRows(entries, NOTHING_RATED, { ...ALL, query: "coffee" });
-    expect(first?.matchedTag).toBe("coffee");
-    expect(first?.barScore).toBe(0.9);
+  // The bar under a matched attribute is how good an example of it the thing
+  // is, drawn as it is, like a thing's own bar.
+  it("draws how good an example of the matched attribute on the bar", () => {
+    const rated = [
+      entry("café bleu", 0.2, {
+        coffee: { score: 0.9, conf: 9, applies: 0.95 },
+      }),
+    ];
+    const [bleu] = feedRows(rated, NOTHING_RATED, { ...ALL, query: "coffee" });
+    expect(bleu?.matchedTag).toBe("coffee");
+    expect(bleu?.barScore).toBe(0.9);
   });
 
+  // Their own thumb up on the attribute says it applies and that the thing is
+  // a good example: from last to first.
   it("lets the viewer's own thumb decide", () => {
-    expect(ids("coffee", { "mel's diner": { coffee: 1 } })[0]).toBe(
+    expect(ids("coffee", { "mel's diner": { coffee: 1 } })).toEqual([
       "mel's diner",
-    );
+      "blue bottle, mint st",
+      "café bleu",
+    ]);
+  });
+
+  // A thumb down on an attribute is a bad example of it, not a thing without
+  // it: still found, and last.
+  it("reads a thumb down as a bad example", () => {
+    expect(ids("coffee", { "blue bottle, mint st": { coffee: -1 } })).toEqual([
+      "café bleu",
+      "mel's diner",
+      "blue bottle, mint st",
+    ]);
+  });
+
+  // How good an example outranks how good the thing is: the book they would
+  // not like much that is a good fantasy, over the liked one that is a bad one.
+  it("ranks by how good an example over how good the thing is", () => {
+    const example = (score: number): TagEntry => ({
+      score,
+      conf: 9,
+      applies: 0.95,
+    });
+    const books = [
+      entry("liked, bad fantasy", 0.8, { fantasy: example(-0.8) }, 9),
+      entry("disliked, good fantasy", -0.4, { fantasy: example(0.8) }, 9),
+    ];
+    expect(
+      feedRows(books, NOTHING_RATED, { ...ALL, query: "fantasy" }).map(
+        (row) => row.itemId,
+      ),
+    ).toEqual(["disliked, good fantasy", "liked, bad fantasy"]);
+  });
+
+  // The followed accounts put it on with a thumb down. Found by the search,
+  // and not among what the thing is shown as having.
+  it("finds an attribute thumbed down and does not show it", () => {
+    const thumbedDown = [
+      entry("corner spot", 0.5, {
+        cafe: { score: -0.5, conf: 2, applies: 0.25 },
+      }),
+    ];
+    const [row] = feedRows(thumbedDown, NOTHING_RATED, {
+      ...ALL,
+      query: "cafe",
+    });
+    expect(row?.itemId).toBe("corner spot");
+    expect(row?.attributes.filter(carries)).toEqual([]);
   });
 
   // A catalog row with no entry reads as unknown, 0.5: above a clear no,
   // below any yes.
-  it("merges a catalog row nobody in reach has rated", () => {
+  it("merges a catalog row nobody followed has rated", () => {
     const shown = feedRows(entries, NOTHING_RATED, {
       ...ALL,
       query: "coffee",
       catalog: [item("coffee cart, ferry building"), item("café bleu")],
     });
     expect(shown.map((row) => row.itemId)).toEqual([
-      "café bleu",
       "blue bottle, mint st",
+      "café bleu",
       "coffee cart, ferry building",
       "mel's diner",
     ]);
@@ -249,7 +339,7 @@ describe("feedRows, with one word typed", () => {
   });
 
   it("shows a thing carried only by an attribute when that attribute is typed", () => {
-    const carried = [...entries, entry("delta", 0, { coffee: 0.5 }, 0)];
+    const carried = [...entries, entry("delta", 0.1, { coffee: 0.5 }, 0)];
     expect(
       feedRows(carried, NOTHING_RATED, { ...ALL, query: "coffee" }).map(
         (row) => row.itemId,
@@ -304,15 +394,15 @@ describe("lookAlike", () => {
 
 // DESIGN §1 "Search": every piece of the query reads as the name or an
 // attribute, under the split that scores each row highest, and a row's
-// strength is the per-word geometric mean of what the pieces contribute.
+// strength is the per-word geometric mean of what the pieces contribute, with
+// how good the thing is counted once more where no piece read as its name.
 describe("searchFeed, with several words", () => {
   const entries = [
-    entry("the annex", 0.1, { "hip work": 0.8, coffee: 0.8 }, 1),
-    entry("the mill", 0.1, { hip: 0.6, work: 0.6, coffee: 0.6 }, 1),
-    // Five thumbs behind 0.6: a cautious 0.5.
-    entry("hip work coffee", 0.6, {}, 5),
-    entry("kiosk", 0.1, { coffee: 0.9 }, 1),
-    entry("hilltop pizza", 0.6, {}, 5),
+    entry("the annex", 0.05, { "hip work": 0.8, coffee: 0.8 }, 1),
+    entry("the mill", 0.05, { hip: 0.6, work: 0.6, coffee: 0.6 }, 1),
+    entry("hip work coffee", 0.5, {}, 5),
+    entry("kiosk", 0.05, { coffee: 0.9 }, 1),
+    entry("hilltop pizza", 0.5, {}, 5),
   ];
   const search = (query: string) =>
     searchFeed(entries, NOTHING_RATED, { ...ALL, query });
@@ -320,38 +410,42 @@ describe("searchFeed, with several words", () => {
 
   // The owner's example: two attributes `hip work` and `coffee` (0.9 each),
   // three (0.8 each), the name (the thing's own 0.75), or only `coffee` with
-  // two words unknown ((0.5 · 0.5 · 0.95)^(1/3) ≈ 0.62).
+  // two words unknown. The three read by attribute are each barely liked
+  // (0.525), which counts once: 0.79, 0.72 and 0.59 around the name's 0.75.
   it("reads each row under its own best split", () => {
     const shown = search("hip work coffee").rows;
     expect(shown.map((row) => row.itemId)).toEqual([
       "the annex",
-      "the mill",
       "hip work coffee",
+      "the mill",
       "kiosk",
     ]);
     expect(shown[0]?.matchedTags).toEqual(["hip work", "coffee"]);
-    expect([...(shown[1]?.matchedTags ?? [])].sort()).toEqual([
+    expect(shown[1]?.matchedTags).toEqual([]);
+    expect([...(shown[2]?.matchedTags ?? [])].sort()).toEqual([
       "coffee",
       "hip",
       "work",
     ]);
-    expect(shown[2]?.matchedTags).toEqual([]);
   });
 
   it("bars the matched attribute that fits least", () => {
     const [annex] = search("hip work coffee").rows;
     expect(annex?.matchedTag).toBe("coffee");
-    expect(annex?.barScore).toBe(0.8);
+    // How good an example of it the annex is, which the fixture makes how
+    // good the annex is.
+    expect(annex?.barScore).toBe(0.05);
   });
 
   it("drops a word nothing matches, and says so", () => {
     const result = search("hip xyzzy");
     expect(result.unmatched).toEqual(["xyzzy"]);
     // hip is 0.8 on the mill, the name's 0.75 on its namesake, and a part
-    // of `hip work` on the annex; the unknown word halves each alike.
+    // of `hip work` on the annex; the unknown word halves each alike, and the
+    // two read by attribute are barely liked.
     expect(result.rows.map((row) => row.itemId)).toEqual([
-      "the mill",
       "hip work coffee",
+      "the mill",
       "the annex",
     ]);
   });
@@ -361,11 +455,10 @@ describe("searchFeed, with several words", () => {
 // contributing how good the thing is and the attribute how quiet.
 describe("searchFeed, with a name and an attribute", () => {
   const entries = [
-    // Five thumbs each, so cautious scores of 0.6, 0.6 and 0.2.
-    entry("starbucks main st", 0.72, { quiet: 0.8 }, 5),
-    entry("starbucks 5th ave", 0.72, { quiet: -0.6 }, 5),
-    entry("starbucks pike", 0.24, { quiet: 0.8 }, 5),
-    entry("reading room", 0.3, { quiet: 0.9 }, 1),
+    entry("starbucks main st", 0.6, { quiet: 0.8 }, 5),
+    entry("starbucks 5th ave", 0.6, { quiet: -0.6 }, 5),
+    entry("starbucks pike", 0.2, { quiet: 0.8 }, 5),
+    entry("reading room", 0.15, { quiet: 0.9 }, 1),
   ];
   const ids = (query: string) =>
     feedRows(entries, NOTHING_RATED, { ...ALL, query }).map(
@@ -392,15 +485,15 @@ describe("searchFeed, with a name and an attribute", () => {
 
 describe("searchFeed, with operators", () => {
   const entries = [
-    entry("dune (novel)", 0.8, { classic: 0.9 }, 2),
-    entry("dune messiah", 0.2, { classic: 0.1 }, 1),
-    entry("dunes cafe", 0.5, { quiet: 0.1 }, 1),
-    entry("beach walk", 0.6, { dune: 0.9, quiet: 0.7 }, 1),
-    entry("quiet corner", 0.4, { cheap: 0.5 }, 1),
-    entry("reading room", 0.3, { quiet: 0.9 }, 1),
-    entry("club", 0.3, { quiet: -0.8 }, 1),
-    entry("project hail mary", 0.9, {}, 1),
-    entry("mary's diner", 0.4, { "hail storm": 0.2 }, 1),
+    entry("dune (novel)", 0.53, { classic: 0.9 }, 2),
+    entry("dune messiah", 0.1, { classic: 0.1 }, 1),
+    entry("dunes cafe", 0.25, { quiet: 0.1 }, 1),
+    entry("beach walk", 0.3, { dune: 0.9, quiet: 0.7 }, 1),
+    entry("quiet corner", 0.2, { cheap: 0.5 }, 1),
+    entry("reading room", 0.15, { quiet: 0.9 }, 1),
+    entry("club", 0.15, { quiet: -0.8 }, 1),
+    entry("project hail mary", 0.45, {}, 1),
+    entry("mary's diner", 0.2, { "hail storm": 0.2 }, 1),
   ];
   const search = (query: string, ratings: Ratings = NOTHING_RATED) =>
     searchFeed(entries, ratings, { ...ALL, query });
@@ -422,23 +515,22 @@ describe("searchFeed, with operators", () => {
     expect(ids("hail mary")[0]).toBe("project hail mary");
   });
 
-  it("finds names only with @", () => {
-    const shown = ids("@dune");
-    expect(shown[0]).toBe("dune (novel)");
-    expect(shown).toContain("dune messiah");
-    expect(shown).not.toContain("beach walk");
+  // Accounts are the people screen's: `@` here is dropped, and finds things.
+  it("reads @dune as dune", () => {
+    expect(ids("@dune")).toEqual(ids("dune"));
   });
 
+  // Quiet at 0.95 and liked at 0.575, against quiet at 0.85 and liked at 0.65.
   it("finds attributes only with #", () => {
     expect(ids("#quiet")).toEqual([
-      "reading room",
       "beach walk",
+      "reading room",
       "dunes cafe",
       "club",
     ]);
   });
 
-  // `!` excludes nothing: the same things, the other way up.
+  // `!` excludes nothing: the things least quiet first.
   it("puts the low-rated first with !", () => {
     expect(ids("!#quiet")).toEqual([
       "club",
@@ -446,16 +538,12 @@ describe("searchFeed, with operators", () => {
       "beach walk",
       "reading room",
     ]);
-    const dunes = ids("!@dune");
-    expect(dunes[0]).toBe("dune messiah");
-    expect(dunes.at(-1)).toBe("dune (novel)");
     expect(ids("!quiet")).toContain("quiet corner");
   });
 
-  it("lets the viewer's own thumb decide under !", () => {
-    expect(ids("!#quiet", { "reading room": { quiet: -1 } })[0]).toBe(
-      "reading room",
-    );
+  // Their own thumb on `quiet`, either way, says it is a quiet place.
+  it("reads the viewer's own thumb as applying under !", () => {
+    expect(ids("!#quiet", { club: { quiet: -1 } }).at(-1)).toBe("club");
   });
 
   // Unknown is 0.5 either way: a thing that says nothing about the word sits
@@ -468,7 +556,7 @@ describe("searchFeed, with operators", () => {
   });
 
   it("lets an operator's term run on over plain words", () => {
-    expect(ids("!@dune messiah")[0]).toBe("dune messiah");
+    expect(ids("#hail storm")).toEqual(["mary's diner"]);
   });
 
   it("reports a word nothing matches, operators and all", () => {
@@ -478,12 +566,12 @@ describe("searchFeed, with operators", () => {
 
 describe("searchFeed, with a learned relation", () => {
   const entries = [
-    entry("reading room", 0.3, { "laptop friendly": 0.7 }, 1),
-    entry("dance hall", 0.3, { "laptop friendly": -0.6 }, 1),
-    entry("library bar", 0.3, { loud: -0.5 }, 1),
-    entry("workshop", 0.1, { quiet: 0.2 }, 1),
-    entry("club", 0.3, { loud: 0.8, cheap: 0.8 }, 1),
-    entry("diner", 0.3, { cheap: 0.8 }, 1),
+    entry("reading room", 0.15, { "laptop friendly": 0.7 }, 1),
+    entry("dance hall", 0.15, { "laptop friendly": -0.6 }, 1),
+    entry("library bar", 0.15, { loud: -0.5 }, 1),
+    entry("workshop", 0.05, { quiet: 0.2 }, 1),
+    entry("club", 0.15, { loud: 0.8, cheap: 0.8 }, 1),
+    entry("diner", 0.15, { cheap: 0.8 }, 1),
   ];
   const relation: TagRelation = (tag) =>
     tag === "quiet"

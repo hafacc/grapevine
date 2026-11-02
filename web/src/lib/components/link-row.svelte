@@ -17,7 +17,8 @@
   } from "./ui/icons";
   import RateRow from "./ui/rate-row.svelte";
 
-  // The one way to make a friend: a link, handed over somewhere else. One per
+  // How another person comes to follow the viewer: a link, handed over
+  // somewhere else. One per
   // person, with no expiry and no limit on uses. The link itself is never drawn:
   // it is a bearer secret, and copying or sharing is all anybody does with it.
   // The row swipes like any other, with words and icons rather than thumbs,

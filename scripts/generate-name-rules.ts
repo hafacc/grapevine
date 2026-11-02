@@ -270,8 +270,12 @@ function migrationSql(migration: string, rules: Rules): string {
 -- from Unicode ${VERSION}; do not edit by hand. \`shared/src/name-rules.ts\` builds
 -- these patterns and \`isNormalizedId\` compiles the same ones for the client.
 --
--- Every earlier rule stands. What is new, read off the patterns below:
+-- The shape (length, NFKC, lower case, single spaces) is the function this
+-- replaces. What the patterns below add:
 --
+--   * no word starts with \`!\`, \`#\` or \`@\`, which search reads as operators,
+--     so a stored id with a word like that could never be searched for by its
+--     own name. \`yahoo!\` stays legal: only the front of a word is taken;
 --   * the whole id is on an allow-list: UTS #39's Identifier_Status=Allowed
 --     (letters, marks and digits of the scripts in use today) plus space,
 --     ordinary punctuation and $ € £ ¥ %. No emoji, no pictographs, no
@@ -287,10 +291,13 @@ function migrationSql(migration: string, rules: Rules): string {
 --     and Hangul (UTS #39's "moderately restrictive"). Latin never shares a
 --     word with Cyrillic or Greek, which is where its look-alikes are.
 --
--- As in 0008, replacing the function is the whole change, and Postgres does not
--- re-check existing rows when a function a CHECK calls changes, so this refuses
--- to apply over a row that would now fail, and names it. The file applies in
--- one transaction, so a refusal leaves the old function in place.
+-- Replacing the function is the whole change: the column CHECKs call it, so
+-- no constraint is dropped or re-added. Postgres does not re-check existing
+-- rows when a function a CHECK calls changes, and a row the new rules refuse
+-- would sit in its table failing its own CHECK until a flipped thumb or a
+-- restore is refused. So this refuses to apply over one, and names it. The
+-- file applies in one transaction, so a refusal leaves the old function in
+-- place.
 
 create or replace function private.is_normalized_id(candidate text) returns boolean
   language sql immutable set search_path = ''

@@ -12,7 +12,8 @@
 
   /**
    * A live link's question, the same screen for every account that holds one:
-   * new, locked, or with a vine already. A full screen rather than a sheet,
+   * new, locked, or with a vine already. Saying yes follows the owner; it does
+   * not make the owner follow back. A full screen rather than a sheet,
    * because a locked account has nothing to lay a sheet over, and because it
    * continues the welcome screen the link was opened on.
    *
@@ -31,7 +32,7 @@
   const name = $derived(owner.displayName || "someone");
 
   async function add(): Promise<void> {
-    const known = new Set(grapevine.friends.map((friend) => friend.uid));
+    const known = new Set(grapevine.following.map((account) => account.uid));
     // The owner's name as asked: answering takes the question, and the owner
     // with it, off the screen.
     const asked = name;
@@ -47,7 +48,7 @@
       } else if (answered === grapevine.user?.uid) {
         await alert({
           title: "that's your own link",
-          body: "send it to someone you want in your vine.",
+          body: "send it to someone who wants to add you to their vine.",
         });
       } else if (known.has(answered)) {
         await alert({ title: `${asked} is already in your vine` });

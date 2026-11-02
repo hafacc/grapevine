@@ -1,22 +1,10 @@
 import { DAILY_LIMIT_MESSAGE, errorCode, isDailyLimit } from "./supabase";
 
-// A write refused outright (0010, 0013): either the account is locked, or the
+// A write refused outright: either the account is locked, or the
 // row names a thing that was removed. The code does not tell the two apart, so
 // the lock is asked of the server.
 export function isRefused(error: unknown): boolean {
   return errorCode(error) === "42501";
-}
-
-// `refresh-recs` answers a locked caller with this. functions-js puts the
-// response on `context` rather than a code.
-export function isForbiddenCall(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const context = (error as { context?: unknown }).context;
-  return (
-    typeof context === "object" &&
-    context !== null &&
-    (context as { status?: unknown }).status === 403
-  );
 }
 
 export const NAME_REMOVED_MESSAGE = "that name was removed.";
@@ -53,19 +41,19 @@ export async function explainWriteFailure(
 }
 
 /**
- * Whether the account is locked after an unfriending that went through. The
- * server's answer when it gives one; otherwise what 0010 would decide from the
- * friends left, since the removal itself did happen.
+ * Whether the account is locked after an unfollowing that went through. The
+ * server's answer when it gives one; otherwise what it would decide from the
+ * people still followed, since the unfollowing itself did happen.
  */
-export async function lockedAfterUnfriend(
+export async function lockedAfterUnfollow(
   checkLocked: () => Promise<boolean>,
-  friendsLeft: number,
+  peopleLeft: number,
   admin: boolean,
 ): Promise<boolean> {
   try {
     return await checkLocked();
   } catch (error) {
     console.error("locked", error);
-    return friendsLeft === 0 && !admin;
+    return peopleLeft === 0 && !admin;
   }
 }

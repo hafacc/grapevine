@@ -1,0 +1,12 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [10.7389, 59.9075] },
+      "properties": { "Published": "2019-04-02T09:00:00Z", "Star Rating": 4, "Google Maps URL": "http://maps.google.com/?cid=1",
+        "Location": { "Address": "Rådhusplassen 1, 0037 Oslo, Norway", "Business Name": "Oslo City Hall", "Country Code": "NO",
+          "Geo Coordinates": { "Latitude": "59.9075", "Longitude": "10.7389" } } } },
+    { "type": "Feature",
+      "properties": { "Published": "2020-01-02T09:00:00Z", "Star Rating": 2,
+        "Location": { "Business Name": "Fuglen", "Geo Coordinates": { "Latitude": "59.9172", "Longitude": "10.7405" } } } }
+  ]
+}

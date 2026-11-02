@@ -58,7 +58,7 @@ enabled = true
 # on the live site.
 site_url = "https://grapevine.hafa.cc/"
 # `config push` sends this list to the real project, so it names the one dev
-# server that signs in against it — `bun run dev` on :3000 — and not every
+# server that signs in against it — `bun dev` on :3000 — and not every
 # port: any local process that can listen on a port could otherwise receive a
 # production sign-in code. `dev:local` on :3001 needs no entry, because the local
 # stack has no Google and its sessions are minted. A glob over the path, because
@@ -132,30 +132,10 @@ secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
 # Locally there is no Google at all: `SUPABASE_AUTH_GOOGLE_CLIENT_ID` and
 # `SUPABASE_AUTH_GOOGLE_SECRET` are unset on a developer's machine, the consent
 # screen cannot be driven headlessly anyway, and a session for the local stack
-# is minted against its fixed JWT secret instead (`web/scripts/local-session.mjs`,
+# is minted against its fixed JWT secret instead (`web/e2e/local-session.ts`,
 # and "The local stack" in CLAUDE.md). Do not add
 # `http://localhost:54321/auth/v1/callback` to the real client so that the local
 # stack could use it: that puts a production credential in a development config,
 # and a second client would be a second consent screen to keep in step.
 redirect_uri = ""
 skip_nonce_check = false
-
-[edge_runtime]
-enabled = true
-policy = "oneshot"
-inspector_port = 8083
-
-# `supabase functions deploy` ships the modules `index.ts` imports and nothing
-# else, and the core is not imported: it is `Deno.readFile`d. Without this the
-# deployed function has no `.wasm` beside it and fails at boot on every call.
-# Relative to this directory.
-[functions.refresh-recs]
-enabled = true
-static_files = ["./functions/refresh-recs/core-wasm/*.wasm"]
-# The gateway's check is off because it is known to break under Supabase's
-# asymmetric JWT signing keys. What refuses an unauthenticated call is
-# the function itself: `callerUid` hands the bearer token to GoTrue's
-# `/auth/v1/user` and answers 401 unless GoTrue names an account, before any
-# query runs.
-verify_jwt = false
-

@@ -8,7 +8,7 @@
   import Input from "./ui/input.svelte";
   import Sheet from "./ui/sheet.svelte";
 
-  // The name friends see, changed from the viewer's own row. The name gate is the
+  // The name other accounts see, changed from the viewer's own row. The name gate is the
   // same field for an account that arrived with no name; this one can be walked
   // away from, because there is already a name to keep.
   //

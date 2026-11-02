@@ -34,17 +34,16 @@ export const PROJECT_ANON_KEY =
 // one. They are only ever read when `usingLocalStack()` is true, so a production
 // bundle carries whatever is above and nothing else.
 //
-// `scripts/local-session.mjs` declares the same two under the same names and
-// cannot import them: it runs under plain `node`, which does not read
-// TypeScript, and importing the script here would pull `postgres` into the app's
-// bundle. `tests/local-stack.test.ts` is what stops the two drifting.
+// `e2e/local-session.ts` imports these two, so the browser tests sign in to the
+// stack the app talks to; `tests/local-stack.test.ts` pins `serve-local.sh`'s
+// copies to them.
 export const LOCAL_SUPABASE_URL = "http://127.0.0.1:54321";
 export const LOCAL_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 
 // True when this build talks to a local `supabase start` rather than the real
 // project. Exposed so the UI can SAY so: a local stack is empty, which makes
-// every friend, request and recommendation vanish — a symptom with no visible
+// every account followed and every recommendation vanish — a symptom with no visible
 // cause unless something on screen admits which backend is behind it.
 //
 // The `DEV` half is what keeps localhost out of a production bundle. Vite
@@ -54,7 +53,7 @@ export const LOCAL_ANON_KEY =
 //
 // The condition is written out at each of its three uses, and not behind this
 // function, for that reason: a bundler folds `false && …` where it finds it,
-// and has no duty to look inside a function it calls. `check:pwa` fails an
+// and has no duty to look inside a function it calls. `bun e2e:pwa` fails an
 // export that carries the local address.
 export function usingLocalStack(): boolean {
   return import.meta.env.DEV && import.meta.env.VITE_LOCAL_SUPABASE === "1";

@@ -12,10 +12,8 @@ permissions:
   contents: read
 
 jobs:
-  # Its own job: the crate has no Node, no bun and no database, and it is where
-  # the Edge Function is compiled, because the wasm it reads is built here.
-  # The toolchain comes from rust/rust-toolchain.toml, which rustup honours on
-  # its own.
+  # Its own job: the crate has no Node, no bun and no database. The toolchain
+  # comes from rust/rust-toolchain.toml, which rustup honors on its own.
   rust:
     runs-on: ubuntu-latest
     defaults:
@@ -48,36 +46,16 @@ jobs:
         with:
           tool: wasm-pack@0.15.0
 
-      # Two targets, and only one of them has a caller that ships: `web` glue
-      # takes the bytes and is what the Deno Edge Function loads. The
-      # `nodejs` one is built because `examples/smoke.mjs` below runs it — the
-      # only thing that exercises the boundary outside Deno, and letting the
-      # untested target break unnoticed is what this line prevents.
+      # Two targets: `web` is what the browser loads, and is built again by the
+      # job that exports the site. The `nodejs` one is built because
+      # `examples/smoke.mjs` below runs it, the only thing that exercises the
+      # boundary outside a browser.
       - run: bash ../scripts/build-wasm.sh nodejs
 
       - run: bash ../scripts/build-wasm.sh web
 
       # The script resolves the module against its own path, so it runs from anywhere.
       - run: node examples/smoke.mjs
-
-      # The Edge Function, which nothing else compiles. `supabase functions
-      # deploy` bundles it with esbuild, which does not typecheck, and it
-      # imports `shared/src/entries.ts` — a file two other packages DO typecheck,
-      # so a signature change there is green in both and breaks only here. It
-      # runs in this job because this is where the `web` wasm it imports has
-      # just been built.
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: 2.9.6
-
-      - run: deno check supabase/functions/refresh-recs/index.ts
-        working-directory: .
-
-      # `deno lint` and not just `check`: `no-unused-vars` is the rule that
-      # catches an import left behind by a refactor, and `biome` never sees these
-      # files.
-      - run: deno lint supabase/functions/refresh-recs/index.ts
-        working-directory: .
 
   check:
     runs-on: ubuntu-latest
@@ -98,12 +76,27 @@ jobs:
       # The script, never a copy of its file list, which would drift silently.
       - run: bun run test
 
+      # The core the site ships, which the export bundles and nothing commits.
+      # After `lint` and `test`, which need no build of it.
+      - run: rustup show active-toolchain || rustup toolchain install
+        working-directory: rust
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.15.0
+
+      - run: bash ../scripts/build-wasm.sh web
+
       # The artifact a deploy publishes. It belongs in the gate and not only in
       # the deploy: web.yml builds the site in a job that `needs: supabase`, so
       # a build failing only there would go red after forward-only migrations
-      # and the Edge Function had reached production, leaving the database
-      # ahead of a site stuck on the last good version with no rollback on the
-      # free tier. It needs no secret and no stack.
+      # had reached production, leaving the database ahead of a site stuck on
+      # the last good version with no rollback on the free tier. It needs no
+      # secret and no stack.
       - run: bun export
 
   # The policy and privilege suites. Its own job because it needs the Supabase
@@ -138,6 +131,10 @@ jobs:
             echo "no base commit to compare against; nothing to check"
             exit 0
           fi
+          if ! git cat-file -e "$BASE:supabase/migrations/0001_fresh_schema.sql" 2>/dev/null; then
+            echo "the base predates the fresh start of the migration history; nothing to check"
+            exit 0
+          fi
           changed="$(git diff --name-status --diff-filter=MDR "$BASE" HEAD -- supabase/migrations)"
           if [ -n "$changed" ]; then
             echo "::error::a recorded migration changed; add a new one instead"
@@ -156,9 +153,7 @@ jobs:
       # is plpgsql_check inside the database and `test db` applies the migrations
       # to it. Docker is on the runner already; nothing here needs a project ref,
       # a key or a network. Only the database and what the suites touch: the
-      # Edge Runtime would serve the function, whose `static_files` name a
-      # `.wasm` this job never builds, and the rest is a browser UI and its
-      # logging.
+      # rest is a browser UI and its logging.
       - run: supabase start -x edge-runtime,studio,imgproxy,logflare,vector
 
       # `--fail-on error`: without it the lint prints what it finds and exits 0.
@@ -185,6 +180,6 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - run: bun run lint
+      - run: bun lint
 
       - run: bun test

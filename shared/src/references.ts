@@ -91,7 +91,7 @@ export type Source = {
 
 // Wikimedia's policy asks a browser client to name itself this way, since it
 // cannot set `User-Agent`.
-const WIKI_HEADERS = {
+export const WIKI_HEADERS = {
   "Api-User-Agent":
     "grapevine (https://grapevine.hafa.cc/; support@grapevine.hafa.cc)",
 };
@@ -233,12 +233,24 @@ const RATEABLE_INSTANCE: ReadonlySet<string> = new Set([
   "Q29168811", // animated feature film
   "Q202866", // animated film
   "Q93204", // documentary film
+  "Q24862", // short film
+  "Q17517379", // animated short film
+  "Q24869", // feature film
+  "Q25110269", // live-action/animated film
+  "Q98807719", // animated television film
+  "Q220898", // original video animation
   "Q24856", // film series
   "Q13593818", // film trilogy
   "Q5398426", // television series
   "Q526877", // web series
   "Q1259759", // miniseries
   "Q581714", // animated series
+  "Q117467246", // animated television series
+  "Q3464665", // television series season
+  "Q1261214", // television special
+  "Q123126551", // animated television special
+  "Q170238", // sitcom
+  "Q113671041", // original net animation series
   "Q63952888", // anime television series
   "Q15416", // television program
   "Q21191270", // television series episode
@@ -448,21 +460,32 @@ function claimed(
     .filter((id): id is string => typeof id === "string");
 }
 
+/**
+ * Whether a thing of these kinds is one somebody would rate: what it is an
+ * instance of (P31), a subclass of (P279), and for a person their occupations
+ * (P106).
+ */
+export function isRateableKind(
+  instanceOf: readonly string[],
+  subclassOf: readonly string[] = [],
+  occupations: readonly string[] = [],
+): boolean {
+  if (instanceOf.some((id) => RATEABLE_INSTANCE.has(id))) return true;
+  if ([...instanceOf, ...subclassOf].some((id) => RATEABLE_CLASS.has(id)))
+    return true;
+  return (
+    instanceOf.includes(HUMAN) && occupations.some((id) => PERFORMER.has(id))
+  );
+}
+
 /** Whether Wikidata's claims make this a thing somebody would rate. */
 export function isRateable(
   claims: Record<string, WikidataClaim[]> | undefined,
 ): boolean {
-  const instanceOf = claimed(claims, "P31");
-  if (instanceOf.some((id) => RATEABLE_INSTANCE.has(id))) return true;
-  if (
-    [...instanceOf, ...claimed(claims, "P279")].some((id) =>
-      RATEABLE_CLASS.has(id),
-    )
-  )
-    return true;
-  return (
-    instanceOf.includes(HUMAN) &&
-    claimed(claims, "P106").some((id) => PERFORMER.has(id))
+  return isRateableKind(
+    claimed(claims, "P31"),
+    claimed(claims, "P279"),
+    claimed(claims, "P106"),
   );
 }
 
@@ -652,21 +675,47 @@ function placeCandidate(properties: PhotonProperties): Candidate | null {
   };
 }
 
-function parsePhoton(answers: readonly unknown[]): Candidate[] {
-  const features = (answers[0] as { features?: unknown } | null)?.features;
+/** A place Photon answered with, and where it is. */
+export type FoundPlace = {
+  readonly candidate: Candidate;
+  // As OpenStreetMap spells it, before a qualifier is added.
+  readonly name: string;
+  // For comparing in memory. Never stored: names and ids alone keep
+  // OpenStreetMap's share-alike out of reach.
+  readonly position: Position | null;
+};
+
+/** The rateable places in one Photon answer, in its order, each once. */
+export function photonPlaces(answer: unknown): FoundPlace[] {
+  const features = (answer as { features?: unknown } | null)?.features;
   if (!Array.isArray(features)) return [];
-  const found: Candidate[] = [];
+  const found: FoundPlace[] = [];
   const seen = new Set<string>();
   for (const feature of features) {
-    const candidate = placeCandidate(
-      ((feature as { properties?: unknown } | null)?.properties ??
-        {}) as PhotonProperties,
-    );
+    const { properties, geometry } = (feature ?? {}) as {
+      properties?: PhotonProperties;
+      geometry?: { coordinates?: unknown };
+    };
+    const candidate = placeCandidate(properties ?? {});
     if (candidate === null || seen.has(candidate.ref)) continue;
     seen.add(candidate.ref);
-    found.push(candidate);
+    const [lon, lat] = Array.isArray(geometry?.coordinates)
+      ? geometry.coordinates
+      : [];
+    found.push({
+      candidate,
+      name: text(properties?.name) ?? "",
+      position:
+        typeof lat === "number" && typeof lon === "number"
+          ? { lat, lon }
+          : null,
+    });
   }
   return found;
+}
+
+function parsePhoton(answers: readonly unknown[]): Candidate[] {
+  return photonPlaces(answers[0]).map((place) => place.candidate);
 }
 
 /** Two decimals, about a kilometre: the most a place search is sent. */

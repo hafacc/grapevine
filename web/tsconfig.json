@@ -4,40 +4,38 @@
   "extends": "$app/tsconfig",
   "compilerOptions": {
     "strict": true,
-    // The scripts under `scripts/` that plain `node` runs are imported by the
-    // tests for their constants, not checked as TypeScript.
     "checkJs": false,
-    // `shared/` has no build step: it is TypeScript source, imported here and
-    // by the Edge Function, so id normalization has exactly one definition.
+    // `shared/` has no build step: it is TypeScript source, imported where it
+    // lives, so id normalization has exactly one definition.
     // `vite.config.ts` carries the same names for the bundler; these are for
     // the type checker and for `bun test`, which reads this file.
     // No `baseUrl`: paths resolve against this file's directory without one.
     "paths": {
       "grapevine-shared": ["../shared/src/index.ts"],
-      // `entries.ts` too, for the one type the Edge Function and this app both
-      // have to agree on. It is a separate entry because that module imports
-      // `./index.ts` by its real name — Deno resolves the path it is given —
-      // which is also why `allowImportingTsExtensions` is on.
+      // `entries.ts` too: what turns the core's answer into the list. It
+      // imports `./index.ts` by its real name, which is why
+      // `allowImportingTsExtensions` is on.
       "grapevine-shared/entries": ["../shared/src/entries.ts"],
       // The *suggested* rail's estimator, its own entry because it is the one
-      // module here nothing on a server imports — it reads the viewer's own
-      // ratings and nothing else (DESIGN §2.11), and folding it into
-      // `index.ts` would put it in the Edge Function's bundle.
+      // module that reads the viewer's own ratings and nothing else
+      // (DESIGN §2.9).
       "grapevine-shared/suggest-attributes": [
         "../shared/src/suggest-attributes.ts"
       ],
-      // The list's query language, for the same reason: only the client reads
-      // it.
+      // The list's query language.
       "grapevine-shared/search": ["../shared/src/search.ts"],
       // The indices a thing links to, and how add looks a name up in them:
       // only the browser asks them.
-      "grapevine-shared/references": ["../shared/src/references.ts"]
+      "grapevine-shared/references": ["../shared/src/references.ts"],
+      // Reading another service's export and matching what is in it: only
+      // the browser imports.
+      "grapevine-shared/import": ["../shared/src/import/index.ts"]
     },
     // TypeScript does not sweep `node_modules/@types`, so anything not reached
     // by an explicit reference has to be named here. `$app/types` is
     // SvelteKit's. Nothing references bun-types, and without it the `bun:test`
     // imports fail to resolve. `node` rides along as a bun-types dependency;
-    // naming it keeps `scripts/seed-local.ts`'s `process`/`Buffer` independent
+    // naming it keeps `e2e/`'s `process`/`Buffer` independent
     // of that.
     "types": ["$app/types", "bun", "node"]
   },
@@ -46,6 +44,8 @@
     "src/**/*.svelte",
     "scripts/**/*.ts",
     "tests/**/*.ts",
+    "e2e/**/*.ts",
+    "playwright.config.ts",
     "vite.config.ts"
   ],
   "exclude": ["node_modules"]

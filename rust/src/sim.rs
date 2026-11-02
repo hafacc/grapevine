@@ -1,5 +1,5 @@
-//! Synthetic worlds: latent taste, homophilous friendships, and an oracle for who really
-//! agrees with whom.
+//! Synthetic worlds: latent taste, people who mostly follow others like themselves, and an
+//! oracle for who really agrees with whom.
 
 use crate::ids::{ItemId, Ratable, TagId, UserId};
 use crate::rng::Rng;
@@ -20,21 +20,30 @@ pub struct WorldConfig {
     pub cluster_spread: f64,
     /// Noise on a reported rating relative to true preference.
     pub noise: f64,
-    /// Probability of an edge between two users in the same cluster.
+    /// Probability that two users in the same cluster follow each other.
     pub p_same_cluster: f64,
-    /// Probability of an edge between two users in different clusters.
+    /// Probability that two users in different clusters follow each other.
     pub p_other_cluster: f64,
     /// Fraction of the catalog each user rates.
     pub rated_fraction: f64,
-    /// Items everyone likes and everyone rates: the unanimous tail that chance weighting
-    /// discounts (DESIGN §2.2).
+    /// How far a user's liking for a whole category strays from what their taste says of its
+    /// things, in the units of an affinity: each user draws one offset per category. Zero draws
+    /// nothing and consumes nothing from the random stream.
+    pub category_bias: f64,
+    /// Kinds inside each category: an item carries its category's tag and, with this above
+    /// zero, the tag of one of that many kinds within it, as a `fantasy` is a `book`. Zero
+    /// draws nothing and consumes nothing from the random stream.
+    pub subcategories: usize,
+    /// `category_bias`, for the kinds inside a category: one further offset per user per kind.
+    pub subcategory_bias: f64,
+    /// Items everyone likes and everyone rates.
     pub consensus_items: usize,
     /// Size of the tag vocabulary; an item carries the tag of its category.
     pub tags: usize,
-    /// Chance that a user who rates an item also rates its tag.
+    /// Chance that a user who rates an item also puts its category's tag on it.
     pub tag_rated_fraction: f64,
-    /// Factual attributes (`quiet`, `loud`, ...) with correlated truths, for DESIGN §2.8's
-    /// attribute pairs. Zero draws nothing and consumes nothing from the random stream.
+    /// Factual attributes (`quiet`, `loud`, ...) with correlated truths. Zero draws nothing and
+    /// consumes nothing from the random stream.
     pub attributes: usize,
     /// How many independent properties the attributes describe. Attribute `t` points along
     /// property `t % attribute_axes`, positively when `t / attribute_axes` is even and negatively
@@ -44,10 +53,28 @@ pub struct WorldConfig {
     /// How far an attribute's direction strays from its axis: zero makes a pair of opposites
     /// perfectly anti-correlated.
     pub attribute_spread: f64,
-    /// Chance that a user who rates an item also rates each one of the attributes.
+    /// Chance that a user who rates an item considers each one of the attributes for it.
     pub attribute_rated_fraction: f64,
-    /// Noise on a reported attribute thumb relative to the item's true value.
+    /// Noise on whether a user sees an attribute as applying, relative to the item's truth.
     pub attribute_noise: f64,
+    /// The chance a user's thumb on an attribute is simply their thumb on the item. Otherwise
+    /// it is a judgment of its own, of how good an example the item is, which every user sees
+    /// alike plus noise. One consumes nothing from the random stream.
+    pub example_follows_liking: f64,
+    /// The share of users who put attributes on at the flip of a coin: people whose use of a
+    /// word says nothing about anybody else's. Zero consumes nothing from the random stream.
+    pub careless_taggers: f64,
+    /// Added to every affinity: above zero, most thumbs are up. An affinity's spread is about
+    /// `1/√dimensions`.
+    pub generosity: f64,
+    /// How far an item's affinity for everyone strays from zero: some things nearly everyone
+    /// likes and some nearly no one does, so the rate of a like differs by thing. Zero draws
+    /// nothing and consumes nothing from the random stream.
+    pub quality_spread: f64,
+    /// How much less often a user rates a thing they would not like: at one, nobody rates what
+    /// they would dislike. What is rated is then liked more often than what is not. Zero
+    /// consumes nothing more from the random stream.
+    pub selectivity: f64,
 }
 
 impl Default for WorldConfig {
@@ -62,6 +89,9 @@ impl Default for WorldConfig {
             p_same_cluster: 0.18,
             p_other_cluster: 0.02,
             rated_fraction: 0.35,
+            category_bias: 0.0,
+            subcategories: 0,
+            subcategory_bias: 0.0,
             consensus_items: 0,
             tags: 6,
             tag_rated_fraction: 0.0,
@@ -70,6 +100,11 @@ impl Default for WorldConfig {
             attribute_spread: 0.3,
             attribute_rated_fraction: 0.1,
             attribute_noise: 0.3,
+            example_follows_liking: 1.0,
+            careless_taggers: 0.0,
+            generosity: 0.0,
+            quality_spread: 0.0,
+            selectivity: 0.0,
         }
     }
 }
@@ -102,8 +137,8 @@ impl World {
     }
 }
 
-/// Builds a world: taste vectors around cluster centres, items in the same space, friendships
-/// by homophily, and a random slice of the catalog rated by each user.
+/// Builds a world: taste vectors around cluster centres, items in the same space, follows by
+/// homophily, and a random slice of the catalog rated by each user.
 pub fn simulate(config: &WorldConfig, rng: &mut Rng) -> World {
     let centres: Vec<Vec<f64>> = (0..config.cluster_proportions.len())
         .map(|_| unit_vector(config.dimensions, rng))
@@ -158,15 +193,53 @@ pub fn simulate(config: &WorldConfig, rng: &mut Rng) -> World {
         })
         .collect();
 
+    let tag_count = config.tags.max(1);
+    let bias: Vec<Vec<f64>> = (0..config.users)
+        .map(|_| {
+            if config.category_bias > 0.0 {
+                (0..tag_count)
+                    .map(|_| config.category_bias * rng.normal())
+                    .collect()
+            } else {
+                vec![0.0; tag_count]
+            }
+        })
+        .collect();
+    let kinds = config.subcategories;
+    let kind_of =
+        |item: usize| (item % tag_count) * kinds.max(1) + (item / tag_count) % kinds.max(1);
+    let kind_bias: Vec<Vec<f64>> = (0..config.users)
+        .map(|_| {
+            if kinds > 0 && config.subcategory_bias > 0.0 {
+                (0..tag_count * kinds)
+                    .map(|_| config.subcategory_bias * rng.normal())
+                    .collect()
+            } else {
+                Vec::new()
+            }
+        })
+        .collect();
+    let quality: Vec<f64> = if config.quality_spread > 0.0 {
+        (0..config.items)
+            .map(|_| config.quality_spread * rng.normal())
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let affinity = |user: usize, item: usize| {
+        dot(&taste[user], &item_vectors[item])
+            + bias[user][item % tag_count]
+            + kind_bias[user].get(kind_of(item)).copied().unwrap_or(0.0)
+            + config.generosity
+            + quality.get(item).copied().unwrap_or(0.0)
+    };
+
     // The first `consensus_items` are liked by everyone, whatever their taste.
-    let true_preference: Vec<Vec<i8>> = taste
-        .iter()
-        .map(|user_taste| {
-            item_vectors
-                .iter()
-                .enumerate()
-                .map(|(index, item)| {
-                    if index < config.consensus_items || dot(user_taste, item) >= 0.0 {
+    let true_preference: Vec<Vec<i8>> = (0..config.users)
+        .map(|user| {
+            (0..config.items)
+                .map(|item| {
+                    if item < config.consensus_items || affinity(user, item) >= 0.0 {
                         1
                     } else {
                         -1
@@ -183,12 +256,14 @@ pub fn simulate(config: &WorldConfig, rng: &mut Rng) -> World {
     let items: Vec<ItemId> = (0..config.items)
         .map(|index| builder.item(&format!("i{index}")))
         .collect();
-    let tag_count = config.tags.max(1);
     let tags: Vec<TagId> = (0..tag_count)
         .map(|index| builder.tag(&format!("t{index}")))
         .collect();
     let item_tag: Vec<TagId> = (0..config.items)
         .map(|index| tags[index % tag_count])
+        .collect();
+    let kind_tags: Vec<TagId> = (0..tag_count * kinds)
+        .map(|index| builder.tag(&format!("t{}.{}", index / kinds, index % kinds)))
         .collect();
 
     for first in 0..config.users {
@@ -200,37 +275,42 @@ pub fn simulate(config: &WorldConfig, rng: &mut Rng) -> World {
                 config.p_other_cluster
             };
             if rng.chance(probability) {
-                builder.edge(users[first], users[second]);
+                builder
+                    .follow(users[first], users[second])
+                    .follow(users[second], users[first]);
             }
         }
     }
 
-    let mut rated_by: Vec<Vec<usize>> = vec![Vec::new(); config.users];
+    let mut rated_by: Vec<Vec<(usize, i8)>> = vec![Vec::new(); config.users];
     for (index, user) in users.iter().enumerate() {
         for (item_index, &item) in items.iter().enumerate() {
             let always = item_index < config.consensus_items;
             if !always && !rng.chance(config.rated_fraction) {
                 continue;
             }
-            rated_by[index].push(item_index);
+            if !always
+                && config.selectivity > 0.0
+                && affinity(index, item_index) < 0.0
+                && rng.chance(config.selectivity)
+            {
+                continue;
+            }
             let value = if always {
                 1
             } else {
-                reported(
-                    dot(&taste[index], &item_vectors[item_index]),
-                    config.noise,
-                    rng,
-                )
+                reported(affinity(index, item_index), config.noise, rng)
             };
-            builder.rate_at(
-                *user,
-                Ratable::Item(item),
-                value,
-                order_stamp(*user, Ratable::Item(item)),
-            );
+            rated_by[index].push((item_index, value));
+            builder.rate(*user, Ratable::Item(item), value);
             if config.tag_rated_fraction > 0.0 && rng.chance(config.tag_rated_fraction) {
+                // A good thing of its kind is, here, a good example of the kind.
                 let tagged = Ratable::Tag(item, item_tag[item_index]);
-                builder.rate_at(*user, tagged, 1, order_stamp(*user, tagged));
+                builder.rate(*user, tagged, value);
+                if kinds > 0 {
+                    let narrower = Ratable::Tag(item, kind_tags[kind_of(item_index)]);
+                    builder.rate(*user, narrower, value);
+                }
             }
         }
     }
@@ -251,13 +331,13 @@ pub fn simulate(config: &WorldConfig, rng: &mut Rng) -> World {
 
 /// Factual attributes whose truths are correlated because several describe the same property
 /// of an item, some the opposite way round: `a0` and `a{axes}` are a `quiet` and a `loud`.
-/// An attribute is a fact about the item, not a taste, so every user's thumb on it is the same
-/// truth plus noise.
+/// Whether an attribute applies is a fact about the item, so every user sees the same truth plus
+/// noise, and puts the attribute on when they see it.
 fn add_attributes(
     config: &WorldConfig,
     users: &[UserId],
     items: &[ItemId],
-    rated_by: &[Vec<usize>],
+    rated_by: &[Vec<(usize, i8)>],
     builder: &mut crate::snapshot::SnapshotBuilder,
     rng: &mut Rng,
 ) {
@@ -283,19 +363,44 @@ fn add_attributes(
         })
         .collect();
     let properties: Vec<Vec<f64>> = (0..items.len()).map(|_| unit_vector(axes, rng)).collect();
+    let separate = config.example_follows_liking < 1.0;
+    let quality: Vec<Vec<f64>> = if separate {
+        (0..items.len())
+            .map(|_| (0..config.attributes).map(|_| rng.normal()).collect())
+            .collect()
+    } else {
+        Vec::new()
+    };
     for (index, &user) in users.iter().enumerate() {
-        for &item_index in &rated_by[index] {
+        let careless = config.careless_taggers > 0.0 && rng.chance(config.careless_taggers);
+        for &(item_index, value) in &rated_by[index] {
             for (attribute_index, &attribute) in attributes.iter().enumerate() {
                 if !rng.chance(config.attribute_rated_fraction) {
                     continue;
                 }
-                let value = reported(
-                    dot(&properties[item_index], &directions[attribute_index]),
-                    config.attribute_noise,
-                    rng,
-                );
-                let tagged = Ratable::Tag(items[item_index], attribute);
-                builder.rate_at(user, tagged, value, order_stamp(user, tagged));
+                let applies = if careless {
+                    rng.chance(0.5)
+                } else {
+                    reported(
+                        dot(&properties[item_index], &directions[attribute_index]),
+                        config.attribute_noise,
+                        rng,
+                    ) > 0
+                };
+                // Whoever thinks it applies puts it on. Their thumb on it is their thumb on the
+                // thing, or their own reading of how good an example the thing is.
+                if applies {
+                    let thumb = if separate && !rng.chance(config.example_follows_liking) {
+                        reported(
+                            quality[item_index][attribute_index],
+                            config.attribute_noise,
+                            rng,
+                        )
+                    } else {
+                        value
+                    };
+                    builder.rate(user, Ratable::Tag(items[item_index], attribute), thumb);
+                }
             }
         }
     }
@@ -330,25 +435,3 @@ fn dot(one: &[f64], other: &[f64]) -> f64 {
         .map(|(left, right)| left * right)
         .sum()
 }
-
-/// When a simulated person gave a thumb, as an order stamp (`Snapshot::stamps`): a hash of who
-/// and what, so that of any two people who rated the same thing each went first about half the
-/// time, and so that drawing it takes nothing from the random stream a world is built from.
-/// Always in `[1, 2³¹)`: zero is "no order known", and everything above is left for accounts
-/// added to a world afterwards, which rate after everyone in it.
-fn order_stamp(user: UserId, ratable: Ratable) -> u32 {
-    let key = match ratable {
-        Ratable::Item(item) => u64::from(item.0),
-        Ratable::Tag(item, tag) => (1 << 40) | (u64::from(item.0) << 20) | u64::from(tag.0),
-    };
-    let mut value = (u64::from(user.0) << 42) ^ key;
-    value = value.wrapping_add(0x9E37_79B9_7F4A_7C15);
-    value = (value ^ (value >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    value = (value ^ (value >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    value ^= value >> 31;
-    1 + (value % ((1 << 31) - 1)) as u32
-}
-
-/// The stamp of a thumb given after every thumb of a simulated world: what an account added to
-/// it afterwards, a bot, necessarily has.
-pub const AFTER_THE_WORLD: u32 = u32::MAX;

@@ -1,9 +1,11 @@
 <script lang="ts">
   import EntityView from "../lib/components/entity-view.svelte";
   import FeedView from "../lib/components/feed-view.svelte";
+  import ImportView from "../lib/components/import-view.svelte";
   import LinkQuestion from "../lib/components/link-question.svelte";
   import LockedScreen from "../lib/components/locked-screen.svelte";
   import Mark from "../lib/components/mark.svelte";
+  import OfferOrApp from "../lib/components/offer-or-app.svelte";
   import PeopleView from "../lib/components/people-view.svelte";
   import ReportsView from "../lib/components/reports-view.svelte";
   import Button from "../lib/components/ui/button.svelte";
@@ -90,49 +92,53 @@
        rule down each side and the bare canvas beyond it (DESIGN-UI, "Layout").
        A bar that spanned the screen would put the back button and the avatar a
        screen's width away from the list they act on. -->
-  <div
-    class="mx-auto flex h-dvh w-full max-w-[720px] flex-col md:border-x md:border-border"
-  >
-    {#if grapevine.listenersLost}
-      <!-- Reload rather than a retry button: the store has already retried
-           and given up, and a reload is what re-runs auth from scratch, which
-           covers the likeliest causes. A client cannot talk a server out of a
-           refusal, so this is disclosure. -->
-      <div
-        class="flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-2.5"
-      >
-        <p class="min-w-0 flex-1 text-[15px] text-muted">
-          grapevine stopped receiving updates, so this screen may be out of
-          date.
-        </p>
-        <Button
-          variant="secondary"
-          onclick={() => window.location.reload()}
-          class="shrink-0"
+  <OfferOrApp>
+    <div
+      class="mx-auto flex h-dvh w-full max-w-[720px] flex-col md:border-x md:border-border"
+    >
+      {#if grapevine.listenersLost}
+        <!-- Reload rather than a retry button: the store has already retried
+             and given up, and a reload is what re-runs auth from scratch, which
+             covers the likeliest causes. A client cannot talk a server out of a
+             refusal, so this is disclosure. -->
+        <div
+          class="flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-2.5"
         >
-          reload
-        </Button>
-      </div>
-    {/if}
-    <!-- A flex column, because a screen fills the height it is given: one
-         says so with `h-full` and another with `flex-1`, and both need a
-         parent that has a height to give.
-
-         Four screens (DESIGN §1). Each one fills the height it is given and
-         carries its own title bar and its own scroller, so there is no frame
-         here to keep in step with four layouts. -->
-    <div class="flex min-h-0 flex-grow flex-col">
-      {#if screen.kind === "item"}
-        <EntityView itemId={screen.id} />
-      {:else if screen.kind === "people"}
-        <PeopleView />
-      {:else if screen.kind === "reports" && grapevine.profile?.admin}
-        <ReportsView />
-      {:else}
-        <!-- The list, and for the moment before the store puts anybody who
-             is not an admin there. -->
-        <FeedView />
+          <p class="min-w-0 flex-1 text-[15px] text-muted">
+            grapevine stopped receiving updates, so this screen may be out of
+            date.
+          </p>
+          <Button
+            variant="secondary"
+            onclick={() => window.location.reload()}
+            class="shrink-0"
+          >
+            reload
+          </Button>
+        </div>
       {/if}
+      <!-- A flex column, because a screen fills the height it is given: one
+           says so with `h-full` and another with `flex-1`, and both need a
+           parent that has a height to give.
+
+           Five screens (DESIGN §1). Each one fills the height it is given and
+           carries its own title bar and its own scroller, so there is no frame
+           here to keep in step with five layouts. -->
+      <div class="flex min-h-0 flex-grow flex-col">
+        {#if screen.kind === "item"}
+          <EntityView itemId={screen.id} />
+        {:else if screen.kind === "people"}
+          <PeopleView />
+        {:else if screen.kind === "import"}
+          <ImportView />
+        {:else if screen.kind === "reports" && grapevine.profile?.admin}
+          <ReportsView />
+        {:else}
+          <!-- The list, and for the moment before the store puts anybody who
+               is not an admin there. -->
+          <FeedView />
+        {/if}
+      </div>
     </div>
-  </div>
+  </OfferOrApp>
 {/if}

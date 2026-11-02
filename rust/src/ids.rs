@@ -39,7 +39,7 @@ pub fn is_normalized_id(text: &str) -> bool {
     length > 0
 }
 
-/// A user (viewer, friend, or anyone in reach).
+/// An account: the viewer, or one the viewer follows.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct UserId(pub u32);
 

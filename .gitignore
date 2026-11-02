@@ -5,7 +5,7 @@
 # wasm-pack output, one directory per target: built from rust/ by CI and by the
 # local script, never committed.
 rust/core-wasm/
-supabase/functions/refresh-recs/core-wasm/
+web/core-wasm/
 
 # Rust build output
 rust/target/

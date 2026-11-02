@@ -1,4 +1,5 @@
 import { confusableSkeleton, foldId } from "grapevine-shared";
+import type { TagEntry } from "grapevine-shared/entries";
 import {
   bestSegmentation,
   foldQuery,
@@ -14,18 +15,19 @@ import {
   type TagRelation,
   type TermMatch,
 } from "grapevine-shared/search";
-import { cautiousScore } from "./bar";
+import { barValue } from "./bar";
+import { ratingOf } from "./ratings";
 import type { Item, Ratings, RatingValue, RecsEntry } from "./types";
 
 export { foldQuery };
 
-/** The viewer's own thumb on a thing (`tag` empty) or on one of its attributes. */
-function ownRating(
-  ratings: Ratings,
-  itemId: string,
-  tag: string,
-): RatingValue | null {
-  return ratings[itemId]?.[tag] ?? null;
+const ownRating = ratingOf;
+
+// A feed entry's word on one attribute, by its own keys only: an attribute
+// may be named `constructor`.
+function tagEntry(entry: RecsEntry | undefined, tag: string): TagEntry | null {
+  if (entry === undefined || !Object.hasOwn(entry.tags, tag)) return null;
+  return entry.tags[tag] ?? null;
 }
 
 /**
@@ -59,24 +61,43 @@ export function matchesText(foldedQuery: string, candidate: string): boolean {
   return false;
 }
 
-/** One attribute of a thing, as a row or a chip draws it. */
+/**
+ * One attribute of a thing, as a row or a chip draws it. A rating of an
+ * attribute says it applies, whichever way the thumb points; the thumb says
+ * how good an example of it the thing is.
+ */
 export type Attribute = {
   readonly tag: string;
-  // §2.6's `s_u(i,t)`. Null is "nothing in reach has weighed in" — an attribute
-  // the viewer rated themselves and nobody else did — which a bar draws as no
-  // score rather than as the middle.
+  // How good an example, as the bar draws it: `barValue` of what the
+  // accounts the viewer follows said. Null is "nobody has said" — an attribute
+  // only the viewer rated — which a bar draws as no score rather than as the
+  // middle.
   readonly score: number | null;
+  // How far it counts as on the thing, in [0, 1]: one where the viewer rated
+  // it, otherwise how far the followed accounts' thumbs on it lean up.
+  readonly applies: number;
   readonly own: RatingValue | null;
 };
 
 /**
- * Every attribute a thing carries for this viewer: the ones their own feed
- * scores, plus every one they have rated themselves.
+ * Whether a thing is shown as having an attribute: the viewer rated it, which
+ * `attributesOf` reads as applying whichever way the thumb points, or the
+ * accounts they follow put it on and their thumbs on it lean up. One they
+ * mostly thumbed down is found by a search and not shown (DESIGN §1).
+ */
+export function carries(attribute: Attribute): boolean {
+  return attribute.applies > 0.5;
+}
+
+/**
+ * Every attribute known about a thing for this viewer: the ones their own
+ * feed scores, plus every one they have rated themselves. `carries`
+ * says which of them the thing is shown as having.
  *
  * Most uncertain first, which on §2.6's `−1..1` scale is `|s|` ascending and
  * puts "nothing known" at the very front (DESIGN §1). Ties alphabetical, so the
  * order is the same twice running. The union is what keeps an attribute somebody
- * has just added on screen: the feed is recomputed on a staleness window, so
+ * has just added on screen: the list is computed when the list is opened, so
  * until then their own thumb is the only trace of it.
  */
 export function attributesOf(
@@ -85,15 +106,21 @@ export function attributesOf(
   ratings: Ratings,
 ): Attribute[] {
   const tags = new Set<string>(Object.keys(entry?.tags ?? {}));
-  for (const tag of Object.keys(ratings[itemId] ?? {})) {
+  const rated = Object.hasOwn(ratings, itemId) ? ratings[itemId] : undefined;
+  for (const tag of Object.keys(rated ?? {})) {
     if (tag !== "") tags.add(tag);
   }
   return [...tags]
-    .map((tag) => ({
-      tag,
-      score: entry?.tags[tag] ?? null,
-      own: ownRating(ratings, itemId, tag),
-    }))
+    .map((tag) => {
+      const said = tagEntry(entry, tag);
+      const own = ownRating(ratings, itemId, tag);
+      return {
+        tag,
+        score: said === null ? null : barValue(said.score),
+        applies: own !== null ? 1 : (said?.applies ?? UNKNOWN_PRESENCE),
+        own,
+      };
+    })
     .sort((left, right) => {
       const leftSure = left.score === null ? -1 : Math.abs(left.score);
       const rightSure = right.score === null ? -1 : Math.abs(right.score);
@@ -108,11 +135,12 @@ export type FeedRow = {
   // The id IS what is drawn: it is the text somebody typed, folded, and there is
   // no name to look up (DESIGN §3.2).
   readonly itemId: string;
-  // The thing's `cautiousScore`, what the list is ranked by with an empty
-  // field. Null for a thing nothing in reach has scored.
+  // The thing's `barValue`, what the list is ranked by with an empty
+  // field. Null for a thing nothing has scored.
   readonly score: number | null;
-  // `W`, the tie-break after the score. Never drawn: a support figure is the
-  // kind of count DESIGN §4 keeps off every screen.
+  // The tie-break after the score, and nothing else: the score already holds
+  // how little stands behind it. Never drawn: a support figure is the kind of
+  // count DESIGN §4 keeps off every screen.
   readonly conf: number | null;
   // What this row's bar draws: the score of `matchedTag` when there is one,
   // `score` otherwise (DESIGN §1). Null is "nothing known yet", which the bar
@@ -134,7 +162,7 @@ export type FeedFilter = {
   // The eye: things the viewer has already answered are out of the way.
   readonly hideRated: boolean;
   // Catalog rows the field turned up (`searchItems`), merged in so a thing
-  // nobody in reach has rated is still found by its own name rather than added
+  // nobody the viewer follows has rated is still found by its own name rather than added
   // a second time. Ignored without a word to find: the list is the feed then,
   // not the catalog.
   readonly catalog?: readonly Item[];
@@ -155,16 +183,25 @@ export type FeedSearch = {
 export const UNKNOWN_PRESENCE = 0.5;
 
 /**
- * How present an attribute is on a thing, in `[0, 1]`: the viewer's own thumb
- * when there is one, 1 or 0; otherwise §2.6's score read as a probability.
- *
- * `s_u(i,t)` is `2·P(yes) − 1` for the viewer's own thumb, so `(1 + s) / 2` is
- * the chance they would say yes. No evidence leaves `s` at 0, which is exactly
- * `UNKNOWN_PRESENCE`: the mapping needs no constant.
+ * How present an attribute is on a thing, in `[0, 1]`: the chance it applies.
+ * One where the viewer rated it, whichever way: a bad fantasy is a fantasy.
  */
 export function presence(attribute: Attribute): number {
-  if (attribute.own !== null) return (1 + attribute.own) / 2;
-  else if (attribute.score !== null) return (1 + attribute.score) / 2;
+  return attribute.applies;
+}
+
+/**
+ * How good a thing is, or how good an example of an attribute, in `[0, 1]`:
+ * the viewer's own thumb when there is one, 1 or 0; otherwise the bar's value
+ * read back as the chance it was made from, `(1 + s) / 2`, with nothing known
+ * at one half.
+ */
+export function goodness(known: {
+  readonly score: number | null;
+  readonly own: RatingValue | null;
+}): number {
+  if (known.own !== null) return (1 + known.own) / 2;
+  else if (known.score !== null) return (1 + known.score) / 2;
   else return UNKNOWN_PRESENCE;
 }
 
@@ -190,7 +227,7 @@ type Candidate = {
   readonly entry: RecsEntry | undefined;
   readonly attributes: readonly Attribute[];
   readonly own: RatingValue | null;
-  // The thing's `cautiousScore`.
+  // The thing's `barValue`.
   readonly score: number | null;
   // The thing's own presence, what a piece of the query that reads as its
   // name contributes: how good it is, on the scale an attribute uses.
@@ -281,7 +318,8 @@ function relatedTo(
 
 /**
  * The best reading of one span on one row, or null when nothing on the row
- * answers it. `field` is the span's `@` or `#`: which readings it may take.
+ * answers it. `field` is `tag` for a span typed with `#`, which reads as an
+ * attribute only.
  *
  * Spelled readings — the name, which contributes how good the thing is, or an
  * attribute, which contributes how present it is — are compared by what they
@@ -316,7 +354,6 @@ function readSpan(
       tag: null,
       related: false,
     });
-  if (field === "name") return best;
   for (const attribute of candidate.attributes) {
     const match = tagMatch(span, attribute.tag);
     if (match === null) continue;
@@ -377,7 +414,10 @@ function toRow(candidate: Candidate, readings: readonly Reading[]): FeedRow {
     score: candidate.score,
     conf: entry?.conf ?? null,
     barScore:
-      matchedTag === null ? candidate.score : (entry?.tags[matchedTag] ?? null),
+      matchedTag === null
+        ? candidate.score
+        : (candidate.attributes.find((known) => known.tag === matchedTag)
+            ?.score ?? null),
     matchedTag,
     matchedTags: [
       ...new Set(
@@ -395,14 +435,15 @@ function toRow(candidate: Candidate, readings: readonly Reading[]): FeedRow {
  * The one list: the viewer's feed with the field empty, and what the query
  * matches otherwise (DESIGN §1 "Search").
  *
- * With no word to find it is every entry of the viewer's feed — every rated
- * thing in reach (DESIGN §2.6: nothing is hidden) — plus everything the viewer
- * has rated, ranked by `cautiousScore`, then by `conf`.
+ * With no word to find it is every entry of the viewer's feed — everything an
+ * account they follow rated (DESIGN §2: nothing is hidden) — plus everything
+ * the viewer has rated, ranked by `barValue`, then by `conf`.
  *
  * With words, a thing is on the list when any part of the query reads as its
  * name or one of its attributes, and is ranked by its strength: the geometric
- * mean, per typed word, of what each term contributes — the thing's
- * `cautiousScore` for a piece read as its name, the attribute's presence for one read as an
+ * mean, per typed word and once more for how good an example it is when no
+ * word read as its name, of what each term contributes — the thing's
+ * `barValue` for a piece read as its name, the attribute's presence for one read as an
  * attribute, both as `presence` reads them and discounted by how well they were
  * spelled, one minus that for a piece typed with `!`, and `UNKNOWN_PRESENCE`
  * for a word the thing says nothing about — under whichever split of the
@@ -419,9 +460,8 @@ export function searchFeed(
   const byItemId = new Map(entries.map((entry) => [entry.itemId, entry]));
   const itemIds = new Set<string>(byItemId.keys());
   // Everything the viewer has rated, the thing or only an attribute of it: the
-  // feed is written on a staleness window and leaves out what nobody else in
-  // reach has rated, so without this a thing rated with no friends is on no
-  // list at all once the field is cleared.
+  // feed leaves out what nobody they follow has rated, so without this a thing
+  // only they rated is on no list at all once the field is cleared.
   for (const itemId of Object.keys(ratings)) itemIds.add(itemId);
   if (words.length > 0) {
     for (const item of filter.catalog ?? []) itemIds.add(item.id);
@@ -434,7 +474,7 @@ export function searchFeed(
     const own = ownRating(ratings, itemId, "");
     if (filter.hideRated && own !== null) continue;
     const entry = byItemId.get(itemId);
-    const score = cautiousScore(entry?.score ?? null, entry?.conf ?? null);
+    const score = barValue(entry?.score ?? null);
     const attributes = attributesOf(itemId, entry, ratings);
     for (const attribute of attributes) tags.add(attribute.tag);
     candidates.push({
@@ -443,7 +483,7 @@ export function searchFeed(
       attributes,
       own,
       score,
-      presence: presence({ tag: "", score, own }),
+      presence: goodness({ score, own }),
     });
   }
 
@@ -536,11 +576,36 @@ export function searchFeed(
       for (let at = segment.start; at < segment.end; at += 1) live.add(at);
     }
     if (!visible) continue;
-    scored.push({
-      candidate,
-      strength: Math.exp(logSum / words.length),
-      readings,
-    });
+    // Asked for by what it is rather than by name, a thing is wanted in
+    // proportion to how good an example it is: `fantasy` is the good
+    // fantasies, which a book the viewer would not otherwise like can be. Each
+    // attribute asked for says how good an example the thing is where anybody
+    // has said, and how good the thing is where nobody has. A piece read as
+    // the name has already counted how good the thing is.
+    const named = readings.some((reading) => reading.tag === null);
+    const examples = named
+      ? []
+      : readings
+          .filter((reading) => reading.tag !== null && !reading.related)
+          .map((reading) => {
+            const attribute = candidate.attributes.find(
+              (known) => known.tag === reading.tag,
+            );
+            return attribute !== undefined &&
+              (attribute.own !== null || attribute.score !== null)
+              ? goodness(attribute)
+              : candidate.presence;
+          });
+    if (!named && examples.length === 0) examples.push(candidate.presence);
+    const example =
+      examples.reduce(
+        (sum, value) => sum + Math.log(Math.max(value, Number.MIN_VALUE)),
+        0,
+      ) / Math.max(examples.length, 1);
+    const strength = named
+      ? Math.exp(logSum / words.length)
+      : Math.exp((logSum + example) / (words.length + 1));
+    scored.push({ candidate, strength, readings });
   }
 
   words.forEach((word, index) => {

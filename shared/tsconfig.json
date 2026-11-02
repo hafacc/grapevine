@@ -8,9 +8,8 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "isolatedModules": true,
-    // `src/entries.ts` imports `./index.ts` by its real name: an Edge Function
-    // loads this TypeScript directly and Deno resolves the path it is given.
-    // Nothing here emits, so the extension never has to be rewritten.
+    // Modules import one another by their real names, `./index.ts`. Nothing
+    // here emits, so the extension never has to be rewritten.
     "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "noEmit": true,

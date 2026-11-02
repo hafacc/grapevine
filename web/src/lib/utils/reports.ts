@@ -1,7 +1,7 @@
 import { errorCode, supabase } from "./supabase";
 
 /**
- * Reports a thing's name for an admin to look at (0013, 0014).
+ * Reports a thing's name for an admin to look at.
  *
  * The name and nothing else: the row's author is the caller by default, and
  * nobody reads a report back through the API. Reporting a name twice is the
@@ -18,7 +18,7 @@ export function reportFailed(error: unknown): boolean {
   return error !== null && error !== undefined && errorCode(error) !== "23505";
 }
 
-// A reported name as the review queue shows it (0014).
+// A reported name as the review queue shows it.
 export type ReportedName = { itemId: string; reports: number };
 
 // Empty for anyone but an admin: the server answers nobody else.
@@ -31,7 +31,7 @@ export async function fetchReportedNames(): Promise<ReportedName[]> {
 }
 
 // Blocks it for good and takes it off every screen; its thumbs are deleted
-// in the background (`private.remove_name`, 0017).
+// in the background (`private.remove_name`).
 export async function removeReportedName(itemId: string): Promise<void> {
   const { error } = await supabase().rpc("remove_reported_name", {
     p_id: itemId,

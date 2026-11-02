@@ -139,7 +139,7 @@ describe("the estimator's module", () => {
       new URL("../src/suggest-attributes.ts", import.meta.url),
       "utf8",
     );
-    expect(source).not.toMatch(/neighbourhood|visit_mass|user_recs|supabase/);
+    expect(source).not.toMatch(/account_thumbs|followed_stamps|supabase/);
     // It imports nothing at all, which is the strongest form of "local": there
     // is no module it could reach a server through.
     expect(source).not.toMatch(/^import\s/m);

@@ -79,7 +79,8 @@ function listFilter(values: readonly string[]): string {
 
 type RefRow = { item_id: string; source: SourceKey; ref: string };
 
-async function readCatalogView(
+/** What the catalog holds under these candidates' names and links. */
+export async function readCatalogView(
   candidates: readonly Candidate[],
 ): Promise<CatalogView> {
   const names = [...new Set(candidates.flatMap((entry) => entry.names))];

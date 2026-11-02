@@ -14,8 +14,8 @@
   /**
    * What the viewer's own feed makes of a thing or one of its attributes.
    *
-   * `score` is what to draw on `−1..1`: an item's `cautiousScore`, an
-   * attribute's own score. Null is nothing known yet, drawn as an empty track.
+   * `score` is what to draw on `−1..1`: an item's `barValue`, or an
+   * attribute's. Null is nothing known yet, drawn as an empty track.
    *
    * No word beside it and no number ever (DESIGN §4). `role="img"` with a
    * sentence for a label, because four unlabelled boxes are nothing to a reader

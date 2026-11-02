@@ -8,7 +8,7 @@
   import Button from "./ui/button.svelte";
 
   /**
-   * What an account with no connection sees instead of the list (0010): the
+   * What an account that follows no other person sees instead of the list: the
    * server refuses every write it could make, so there is nothing here to write
    * with. It unlocks by accepting someone's live link, which `link-question`
    * asks in its place when this device holds one.

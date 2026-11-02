@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 const repo = join(import.meta.dir, "..", "..");
 const migration = readFileSync(
-  join(repo, "supabase", "migrations", "0006_realtime.sql"),
+  join(repo, "supabase", "migrations", "0004_realtime.sql"),
   "utf8",
 );
 
@@ -42,11 +42,13 @@ function subscribedTables(): string[] {
   return [...found].sort();
 }
 
-/** The tables `0006_realtime.sql` puts in the publication. */
+/** The tables `0004_realtime.sql` puts in the publication. */
 function publishedTables(): string[] {
-  const list = migration.match(/array\[([^\]]+)\]/);
-  if (list === null) return [];
-  return [...(list[1] ?? "").matchAll(/'([a-z_]+)'/g)]
+  return [
+    ...migration.matchAll(
+      /alter publication supabase_realtime add table public\.([a-z_]+)/g,
+    ),
+  ]
     .map((match) => match[1] ?? "")
     .sort();
 }
@@ -69,9 +71,9 @@ describe("the Realtime publication", () => {
 
   // Realtime applies the subscriber's own SELECT policy to each changed row —
   // except on a DELETE, where there is no row left to apply it to and every
-  // matching subscriber is sent the primary key. `friendships`' key is both
+  // matching subscriber is sent the primary key. `follows`' key is both
   // uuids, so a client subscribing with no filter would receive a pair for
-  // every unfriending in the instance. The publication is
+  // every unfollowing in the instance. The publication is
   // therefore inserts and updates only, and that is load-bearing rather than
   // tidy.
   it("publishes no delete events", () => {
