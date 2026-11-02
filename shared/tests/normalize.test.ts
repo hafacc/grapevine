@@ -2,7 +2,7 @@
 // against, and what tells two spellings a reader cannot distinguish apart.
 //
 // The refusals below are the client's copy of the `items.id` CHECK in
-// `supabase/migrations/0001_schema.sql`, and `09_items.test.sql` is the same
+// `supabase/migrations/0001_fresh_schema.sql`, and `05_items.test.sql` is the same
 // list against the database, which is the authority where the two disagree.
 
 import { describe, expect, it } from "bun:test";

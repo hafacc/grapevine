@@ -1,44 +1,53 @@
 <script lang="ts">
-  import { matchesPerson, type PersonRow } from "../utils/people";
+  import { byName, findAccounts } from "../utils/people";
   import { grapevine } from "../utils/store.svelte";
-  import Avatar from "./avatar.svelte";
+  import type { Account } from "../utils/types";
+  import { addToVine, removeFollower, removeFromVine } from "./account-actions";
+  import AccountRow from "./account-row.svelte";
   import DeleteAccountLine from "./delete-account.svelte";
-  import { confirm, run } from "./dialog.svelte";
+  import ExportLine from "./export-line.svelte";
   import InstallLine from "./install-line.svelte";
   import LinkRow from "./link-row.svelte";
   import LookupSettingsLines from "./lookup-settings.svelte";
   import MeLine from "./me-line.svelte";
   import ReportsLine from "./reports-line.svelte";
+  import TasteMapLine from "./taste-map-line.svelte";
+  import ActionRow from "./ui/action-row.svelte";
   import Icon from "./ui/icon.svelte";
-  import { LuChevronLeft, LuUserMinus } from "./ui/icons";
-  import RateRow from "./ui/rate-row.svelte";
+  import { LuChevronLeft, LuFileUp, LuX } from "./ui/icons";
   import SearchField from "./ui/search-field.svelte";
 
   let query = $state("");
 
-  const matching = $derived(
-    query.length === 0
-      ? grapevine.friends
-      : grapevine.friends.filter((person) => matchesPerson(person, query)),
+  const searching = $derived(query.trim().length > 0);
+  // Every prefilled account, to browse as well as to search for.
+  const critics = $derived([...grapevine.prefilled].sort(byName));
+  const inVine = $derived(
+    new Set(grapevine.following.map((account) => account.uid)),
+  );
+  const followsYou = $derived(
+    new Set(grapevine.followers.map((account) => account.uid)),
+  );
+  // Everybody the viewer may see at all, and nobody else: the search asks the
+  // server nothing, so it can never become a lookup of a person.
+  const found = $derived(
+    searching
+      ? findAccounts(query, [
+          ...grapevine.following,
+          ...grapevine.followers,
+          ...grapevine.prefilled,
+        ])
+      : [],
   );
 
-  async function dropFriend(person: PersonRow): Promise<void> {
-    // The last connection locks the account (0010), which is said first. An
-    // admin is never locked (0014).
-    const last = grapevine.friends.length === 1 && !grapevine.profile?.admin;
-    const sure = await confirm({
-      title: `remove ${person.displayName || "someone"} from your vine?`,
-      body: last
-        ? "they're the last person in your vine. your account will be locked until someone sends you a link."
-        : "you'll no longer shape each other's lists. to undo it, one of you has to send a link.",
-      confirmLabel: "remove",
-      tone: "danger",
-    });
-    if (!sure) return;
-    run(
-      () => grapevine.unfriend(person.uid),
-      "that didn't work. check your connection and try again.",
-    );
+  // What a found row's left side does: an account in the vine leaves it, as
+  // under *your vine*; otherwise somebody following stops, as under *following
+  // you*.
+  function removing(account: Account): (() => void) | undefined {
+    if (inVine.has(account.uid)) return () => void removeFromVine(account);
+    else if (followsYou.has(account.uid))
+      return () => void removeFollower(account);
+    else return undefined;
   }
 </script>
 
@@ -64,57 +73,88 @@
     <!-- Not filled: the section headings sit on the canvas (DESIGN-UI),
          and the rows bring their own surface. -->
     <div>
-      <MeLine />
-      <LinkRow />
-      <LookupSettingsLines />
-      <ReportsLine />
-      <InstallLine />
-
-      {#if matching.length > 0}
-        <h2 class="label px-4 pt-4 pb-2 text-[15px] text-muted">your vine</h2>
-        {#each matching as person (person.uid)}
-          <div>
-            <!-- No is the only answer a friend row takes: there is nothing
-                 to say yes to, and the word says what no does here. -->
-            <RateRow
-              subject={person.displayName || "someone"}
-              value={null}
-              sides="no"
-              labels={{ no: { word: "remove", icon: LuUserMinus } }}
-              onRate={() => void dropFriend(person)}
-              frameClass="bg-surface"
-            >
-              <!-- A row of the people list: avatar and name. No bar: a person
-                   does not have a score. -->
-              <div
-                data-person={person.uid}
-                class="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5"
-              >
-                <Avatar
-                  name={person.displayName}
-                  photoURL={person.photoURL}
-                  size={40}
-                />
-                <span
-                  class="min-w-0 flex-grow truncate text-[16px] font-medium"
-                >
-                  {person.displayName || "someone"}
-                </span>
-              </div>
-            </RateRow>
-          </div>
+      {#if searching}
+        {#each found as { account, matchedTags } (account.uid)}
+          <AccountRow
+            {account}
+            {matchedTags}
+            following={inVine.has(account.uid)}
+            onAdd={inVine.has(account.uid)
+              ? undefined
+              : () => addToVine(account)}
+            onRemove={removing(account)}
+            removeIcon={inVine.has(account.uid) ? undefined : LuX}
+          />
+        {:else}
+          <p class="px-4 py-4 text-[16px] text-muted">
+            nobody here by that name. to add someone, ask for their link.
+          </p>
         {/each}
-      {/if}
+      {:else}
+        <MeLine />
+        <LinkRow />
+        <LookupSettingsLines>
+          <!-- Gone while lookups are off, as the location row is: an import
+               matches through them. -->
+          <ActionRow
+            label="import ratings from another app"
+            word="import"
+            icon={LuFileUp}
+            onAct={() => grapevine.navigate({ kind: "import" })}
+            dataRow="import"
+          />
+          <ExportLine />
+        </LookupSettingsLines>
+        <TasteMapLine />
+        <ReportsLine />
+        <InstallLine />
 
-      {#if query.length > 0 && matching.length === 0}
-        <p class="px-4 py-4 text-[16px] text-muted">
-          nobody here by that name. to add someone, send them a link.
-        </p>
-      {/if}
+        {#if grapevine.following.length > 0}
+          <h2 class="label px-4 pt-4 pb-2 text-[15px] text-muted">your vine</h2>
+          {#each grapevine.following as account (account.uid)}
+            <AccountRow
+              {account}
+              onRemove={() => void removeFromVine(account)}
+            />
+          {/each}
+        {/if}
 
-      <!-- Last, under everything, so it is never where a thumb lands by
-           habit; hidden while filtering, which is about other people. -->
-      {#if query.length === 0}
+        {#if grapevine.followers.length > 0}
+          <h2 class="label px-4 pt-4 pb-2 text-[15px] text-muted">
+            following you
+          </h2>
+          {#each grapevine.followers as account (account.uid)}
+            <!-- Somebody already in the viewer's vine has nothing to add. -->
+            <AccountRow
+              {account}
+              following={inVine.has(account.uid)}
+              onAdd={inVine.has(account.uid)
+                ? undefined
+                : () => addToVine(account)}
+              onRemove={() => void removeFollower(account)}
+              removeIcon={LuX}
+            />
+          {/each}
+        {/if}
+
+        {#if critics.length > 0}
+          <h2 class="label px-4 pt-4 pb-2 text-[15px] text-muted">critics</h2>
+          {#each critics as account (account.uid)}
+            <AccountRow
+              {account}
+              following={inVine.has(account.uid)}
+              onAdd={inVine.has(account.uid)
+                ? undefined
+                : () => addToVine(account)}
+              onRemove={inVine.has(account.uid)
+                ? () => void removeFromVine(account)
+                : undefined}
+            />
+          {/each}
+        {/if}
+
+        <!-- Last, under everything, so it is never where a thumb lands by
+             habit. -->
         <DeleteAccountLine />
       {/if}
     </div>
@@ -129,7 +169,7 @@
         onChange={(next) => {
           query = next;
         }}
-        placeholder="filter by name"
+        placeholder="find people and critics"
       />
     </div>
   </div>

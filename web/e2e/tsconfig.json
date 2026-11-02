@@ -1,0 +1,10 @@
+{
+  // What Playwright's runner reads to resolve imports in `e2e/`. Type checking
+  // is `web/tsconfig.json`'s, which carries the same `paths`.
+  "compilerOptions": {
+    "paths": {
+      "grapevine-shared": ["../../shared/src/index.ts"],
+      "grapevine-shared/entries": ["../../shared/src/entries.ts"]
+    }
+  }
+}

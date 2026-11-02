@@ -1,0 +1,39 @@
+{
+  "tracks" : [ {
+    "artist" : "Radiohead",
+    "album" : "OK Computer",
+    "track" : "Paranoid Android",
+    "uri" : "spotify:track:6LgJvl0Xdtc73RJ1mmpotq"
+  }, {
+    "artist" : "Someone",
+    "album" : "A Song Without An Address",
+    "track" : "A Song Without An Address",
+    "uri" : ""
+  } ],
+  "albums" : [ {
+    "artist" : "The Beatles",
+    "album" : "Abbey Road (Remastered)",
+    "uri" : "spotify:album:0ETFjACtuP2ADo6LFhL6HN"
+  } ],
+  "shows" : [ {
+    "name" : "A Podcast",
+    "publisher" : "A Publisher",
+    "uri" : "spotify:show:5CfCWKI5pZ28U0uOzXkDHe"
+  } ],
+  "episodes" : [ ],
+  "bannedTracks" : [ {
+    "artist" : "Someone Else",
+    "album" : "Loud",
+    "track" : "Loud",
+    "uri" : "spotify:track:3oGvRB0MAfPseLw39gVzGh"
+  } ],
+  "artists" : [ {
+    "name" : "Radiohead",
+    "uri" : "spotify:artist:4Z8W4fKeB5YxbusRsdQVPb"
+  } ],
+  "bannedArtists" : [ {
+    "name" : "Another Band",
+    "uri" : "spotify:artist:4GNC7GD6oZMSxPGyXy4MNC"
+  } ],
+  "other" : [ "spotify:local:Some+Artist:Some+Album:Some+Song:200" ]
+}

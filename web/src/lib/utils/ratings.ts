@@ -12,7 +12,10 @@ export function ratingOf(
   itemId: string,
   tag: string,
 ): RatingValue | null {
-  return ratings[itemId]?.[tag] ?? null;
+  // Own keys only: a thing may be named `constructor`, and a tag `name`.
+  if (!Object.hasOwn(ratings, itemId)) return null;
+  const forItem = ratings[itemId] ?? {};
+  return Object.hasOwn(forItem, tag) ? (forItem[tag] ?? null) : null;
 }
 
 export type RatingsState = {
@@ -57,7 +60,12 @@ function applyLocal(
   value: RatingValue | null,
 ): void {
   const current = ratingsCell.get();
-  const forItem: Record<string, RatingValue> = { ...current.ratings[itemId] };
+  const forItem: Record<string, RatingValue> = Object.hasOwn(
+    current.ratings,
+    itemId,
+  )
+    ? { ...current.ratings[itemId] }
+    : {};
   if (value === null) delete forItem[tag];
   else forItem[tag] = value;
   const next: Record<string, Readonly<Record<string, RatingValue>>> = {
@@ -84,16 +92,31 @@ async function reload(uid: string): Promise<void> {
     if (error) throw error;
     return (data ?? []) as ItemRatingRow[];
   });
-  const ratings: Record<string, Record<string, RatingValue>> = {};
+  // No prototype: a thing may be named `__proto__`, and one named
+  // `constructor` must not find `Object`'s.
+  const ratings: Record<string, Record<string, RatingValue>> = Object.create(
+    null,
+  );
   for (const { item_id: itemId, tag, value } of rows) {
     // One row per thumb and a CHECK on the column, so this can only fail on a
     // schema that changed under a tab that was already open.
     if (value !== 1 && value !== -1) continue;
-    const forItem = ratings[itemId] ?? {};
+    const forItem: Record<string, RatingValue> =
+      ratings[itemId] ?? Object.create(null);
     forItem[tag] = value;
     ratings[itemId] = forItem;
   }
   ratingsCell.set({ uid, ratings, ready: true, failed: false });
+}
+
+/**
+ * Reads the viewer's thumbs again and answers them: for an import, which
+ * must not offer what is already rated, and which then writes many thumbs on
+ * the server at once.
+ */
+export async function reloadMyRatings(): Promise<Ratings> {
+  await reload(await ownUid());
+  return ratingsCell.get().ratings;
 }
 
 // The two halves of a thumb's key, joined the way the core joins them: no id
@@ -206,6 +229,12 @@ export function ensureRatingsLoaded(uid: string, generation: number): void {
     if (ratingsCell.get().uid === uid)
       ratingsCell.set({ ...ratingsCell.get(), ready: false, failed: true });
   });
+}
+
+/** The session is `uid`'s now, or nobody's: thumbs held for anybody else go. */
+export function forgetRatingsUnless(uid: string | null): void {
+  if (uid !== null && ratingsCell.get().uid === uid) return;
+  forgetRatings();
 }
 
 /** Nobody is signed in: the thumbs on screen were somebody's. */

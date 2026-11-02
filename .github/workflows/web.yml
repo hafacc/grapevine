@@ -2,9 +2,8 @@ name: deploy web
 
 # By hand, from main, and nothing else. Not on a published Release: a release
 # runs on its tag, and the `github-pages` environment accepts deploys from main
-# only, so the run would apply the migrations and replace the function, and
-# then be refused at the last job, leaving the database ahead of a site stuck
-# on the last good version.
+# only, so the run would apply the migrations and then be refused at the last
+# job, leaving the database ahead of a site stuck on the last good version.
 on:
   workflow_dispatch:
 
@@ -22,12 +21,12 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   # Before the site, so a deploy can never publish a frontend expecting a policy
-  # or a function that isn't live yet. If this job fails, Pages never runs and the
+  # or a database function that isn't live yet. If this job fails, Pages never runs and the
   # site stays on the last good version.
   #
   # Long-lived secrets: Supabase has no equivalent of workload identity
-  # federation, so `db push`, `config push` and `functions deploy` authenticate
-  # with a personal access token and the database password, and `config push` needs the Google OAuth
+  # federation, so `db push` and `config push` authenticate with a personal
+  # access token and the database password, and `config push` needs the Google OAuth
   # client's id and secret because `config.toml` names them as `env(...)`.
   # CLAUDE.md, "Supabase setup", is where they come from.
   supabase:
@@ -75,22 +74,6 @@ jobs:
         with:
           version: 2.117.0
 
-      # The Edge Function reads the core's `.wasm` from beside its entry point,
-      # and `functions deploy` uploads it only because `config.toml`'s
-      # `static_files` names it — it is read, not imported, so the
-      # bundler would not find it on its own. The `web` target is built here
-      # rather than downloaded, because a stale core is worse than the minute
-      # this costs.
-      - run: rustup show active-toolchain || rustup toolchain install
-        working-directory: rust
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: rust
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-pack@0.15.0
-      - run: bash scripts/build-wasm.sh web
-
       - run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
       # Read-only, and printed before the two steps below write anything: which
@@ -114,13 +97,6 @@ jobs:
       # for confirmation, and an unanswered prompt on a runner is a refusal.
       - run: supabase config push --project-ref "$SUPABASE_PROJECT_REF" --yes
 
-      # Unconditional, like the migrations: working out whether a function
-      # changed since the last release is more trouble than deploying it.
-      # `--use-api` bundles on Supabase's side, as a deploy from a machine with
-      # no Docker does; without it the runner's Docker would bundle them a
-      # second, untried way.
-      - run: supabase functions deploy refresh-recs --use-api --project-ref "$SUPABASE_PROJECT_REF"
-
   build:
     needs: supabase
     runs-on: ubuntu-latest
@@ -135,6 +111,18 @@ jobs:
           bun-version: 1.4.2
 
       - run: bun install --frozen-lockfile
+
+      # The core the site ships, built here rather than downloaded: a stale one
+      # is worse than the minute this costs.
+      - run: rustup show active-toolchain || rustup toolchain install
+        working-directory: rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.15.0
+      - run: bash ../scripts/build-wasm.sh web
 
       - run: bun export
 

@@ -1,44 +1,48 @@
 export type Profile = {
   readonly uid: string;
   // Whatever its owner typed, first name from Google by default. It is the only
-  // thing that says who somebody is: there is no handle, because nobody is
-  // found by typing anything (DESIGN §1).
+  // thing that says who a person is: a person has no handle, because no person
+  // is found by typing anything (DESIGN §1).
   readonly displayName: string;
   readonly photoURL: string | null;
   readonly createdAt: number;
-  // True while the account has no connection (0010): the server refuses every
-  // write it could make until it redeems a live link.
+  // True while the account follows no other person: the server refuses every
+  // write it could make until it accepts a live link.
   readonly locked: boolean;
-  // A row in `private.admins` (0014): never locked, and shown the review queue
-  // for reported names.
+  // A row in `private.admins`: never locked, and shown the review queue for
+  // reported names.
   readonly admin: boolean;
   // No `email` and no `phone`, deliberately — a contact detail exists on the
   // auth account only, in a schema the API does not serve.
 };
 
-// One side of a friendship, joined to the other party's profile at read time.
-// Nothing here is a copy the database keeps: a friend may read your profile, so
-// a rename heals everywhere at once instead of being rewritten per edge.
-export type Friend = {
+// Another account, as anyone allowed to see it sees it: somebody the viewer
+// follows, somebody following them, or a prefilled account. Read from its
+// profile each time, so a rename shows everywhere at once.
+export type Account = {
   readonly uid: string;
   readonly displayName: string;
   readonly photoURL: string | null;
-  readonly since: number;
+  // Made by us to hold a critic's or a publication's taste: nobody signs in
+  // to it, and anyone may find and follow it.
+  readonly prefilled: boolean;
+  // A prefilled account's, shown as `@handle`. A person has none.
+  readonly handle: string | null;
+  // The attributes a prefilled account's thumbs use, on the most things
+  // first: what the people screen's search finds it by, as a thing by its
+  // attributes. A person's is empty.
+  readonly tags: readonly string[];
 };
 
-// A public-safe identity, for wherever two people can't yet read each other.
-export type Party = {
-  readonly uid: string;
-  readonly displayName: string;
-  readonly photoURL: string | null;
-};
-
-// Four screens (DESIGN §1): the list, a thing, the people, and an admin's
-// reported names. Every variant round-trips through `screenHash`/`screenForHash`,
-// so each screen has a URL — `#/`, `#/item/<id>`, `#/people` and `#/reports`.
+// Five screens (DESIGN §1): the list, a thing, the people, importing, and an
+// admin's reported names. Every variant round-trips through
+// `screenHash`/`screenForHash`, so each screen has a URL — `#/`, `#/item/<id>`,
+// `#/people`, `#/import` and `#/reports`.
 export type Screen =
   | { readonly kind: "list" }
   | { readonly kind: "people" }
+  // Nothing of an import is in the address: a reload starts it over.
+  | { readonly kind: "import" }
   // Only an admin's: anybody else who opens it is put on the list, as for a
   // fragment that names no screen.
   | { readonly kind: "reports" }

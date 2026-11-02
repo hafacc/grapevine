@@ -1,4 +1,4 @@
-//! Writes a simulated world as JSON, for seeding the local stack and for `compute-user`.
+//! Writes a simulated world as JSON, for seeding the local stack.
 //!
 //! `cargo run --features serde --example dump-world -- --seed 7 [--users 60] [--items 120]`
 //! `  [--rated-fraction 0.35] [--tag-rated-fraction 0] [--p-same-cluster 0.18]`
@@ -28,8 +28,6 @@ fn main() -> ExitCode {
             "--tag-rated-fraction" => {
                 config.tag_rated_fraction = value.parse().unwrap_or(config.tag_rated_fraction);
             }
-            // The two edge probabilities: at the default density every pair is
-            // two hops apart, and a spread-out world needs them lower.
             "--p-same-cluster" => {
                 config.p_same_cluster = value.parse().unwrap_or(config.p_same_cluster);
             }

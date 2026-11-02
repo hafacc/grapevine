@@ -12,9 +12,7 @@ import type { Ratings } from "./types";
  * The signed-in user's own thumbs.
  *
  * Fetched on mount rather than subscribed: these rows change when this person
- * swipes something, which this tab already knows about — and the one channel a
- * viewer's own screen needs is the feed, whose rewrite comes from somewhere
- * else. `setRating` and `clearRating` apply their change here first and put it
+ * swipes something, which this tab already knows about. `setRating` and `clearRating` apply their change here first and put it
  * back if the write is refused.
  *
  * Called while a component is being set up; read the fields off what it

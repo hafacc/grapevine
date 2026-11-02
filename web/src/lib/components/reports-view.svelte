@@ -25,7 +25,7 @@
   import RateRow from "./ui/rate-row.svelte";
 
   /**
-   * The review queue, for an admin (0014): every reported name, most reported
+   * The review queue, for an admin: every reported name, most reported
    * first. Remove deletes the name for everyone; dismiss keeps it and clears its
    * reports. The page puts anybody else on the list, and the server answers them
    * nothing.

@@ -22,8 +22,8 @@ export function foldQuery(typed: string): string {
   return searchFold(typed.toLowerCase().normalize("NFKC"));
 }
 
-/** Where a term looks: a thing's name, its attributes, or either. */
-export type SearchField = "any" | "name" | "tag";
+/** Where a term looks: a thing's name or its attributes, or its attributes only. */
+export type SearchField = "any" | "tag";
 
 /** One whitespace-separated word of a query. */
 export type SearchWord = {
@@ -34,7 +34,7 @@ export type SearchWord = {
   readonly raw: string;
   // Typed with a leading `!`: the term it starts ranks low-rated first.
   readonly low: boolean;
-  // Typed with a leading `@` (names) or `#` (attributes), after any `!`.
+  // Typed with a leading `#` (attributes), after any `!` and `@`.
   readonly field: SearchField;
 };
 
@@ -51,12 +51,16 @@ export type ParsedQuery = {
  * collides with a name.
  */
 export const LOW_FIRST = "!";
-export const NAMES_ONLY = "@";
+export const RESERVED = "@";
 export const TAGS_ONLY = "#";
 
 /**
  * Words split on whitespace. A word may start with `!` (low-rated first), then
- * `@` (names only) or `#` (attributes only).
+ * `@`, then `#` (attributes only).
+ *
+ * `@` finds nothing of its own: the word is read without it. It stays reserved
+ * because accounts are found on the people screen, and a word that starts with
+ * one is still no name that could be added.
  *
  * NFKC first, so a full-width `！` is the ASCII one — the same folding that
  * refuses it in an id. Nothing is an error, because the field is parsed on
@@ -71,10 +75,9 @@ export function parseQuery(typed: string): ParsedQuery {
     let rest = raw;
     const low = rest.startsWith(LOW_FIRST);
     if (low) rest = rest.slice(LOW_FIRST.length);
-    let field: SearchField = "any";
-    if (rest.startsWith(NAMES_ONLY)) field = "name";
-    else if (rest.startsWith(TAGS_ONLY)) field = "tag";
-    if (field !== "any") rest = rest.slice(1);
+    if (rest.startsWith(RESERVED)) rest = rest.slice(RESERVED.length);
+    const field: SearchField = rest.startsWith(TAGS_ONLY) ? "tag" : "any";
+    if (field === "tag") rest = rest.slice(TAGS_ONLY.length);
     if (rest.length < raw.length) plain = false;
     const text = foldQuery(rest);
     if (text.length > 0) words.push({ text, raw, low, field });
@@ -356,9 +359,9 @@ export type ScoredThing = {
   readonly tags: Readonly<Record<string, number>>;
 };
 
-// `κ_s`: the one pseudo-thumb a certainty starts from (§2.6), in the same unit
-// as `W`, so a pair of attributes seen together on one thing reads as a hint
-// rather than a law.
+// `κ_s`: one pseudo-thumb, in the same unit as the count of followed accounts
+// behind a thing (`W` below), so a pair of attributes seen together on one
+// thing reads as a hint rather than a law.
 const KAPPA_S = 1;
 
 // As many as a search could use for one word; the rest are weaker by
@@ -369,8 +372,8 @@ export const RELATED_PER_TAG = 8;
  * Attribute nearness from the viewer's own feed, and nothing else.
  *
  * A weighted cosine of two attributes' scores across the things in the feed,
- * each thing weighted by its certainty's evidence `W` (§2.6), and shrunk by
- * the one pseudo-thumb that certainty starts from:
+ * each thing weighted by how many followed accounts rated it, `W` (§2.6), and
+ * shrunk by one pseudo-thumb:
  *
  *     ρ(a,b)  =  Σ_i W(i)·s(i,a)·s(i,b)  /  ( κ_s + sqrt(Σ_i W(i)·s(i,a)² · Σ_i W(i)·s(i,b)²) )
  *

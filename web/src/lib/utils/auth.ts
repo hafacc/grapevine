@@ -59,7 +59,7 @@ export function confirmsDeletion(typed: string): boolean {
   return typed.trim().toLowerCase() === DELETE_WORD;
 }
 
-// `delete_account` (0012) takes no argument: the account is the session's.
+// `delete_account` takes no argument: the account is the session's.
 export async function deleteAccount(): Promise<void> {
   const { error } = await supabase().rpc("delete_account");
   if (error) throw error;

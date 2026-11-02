@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-122.4241, 37.7614] },
+      "properties": { "date": "2025-01-07T23:00:13.001902Z", "five_star_rating_published": 5,
+        "google_maps_url": "https://www.google.com/maps/place//data=x",
+        "location": { "address": "600 Guerrero St, San Francisco, CA 94110, United States", "country_code": "US", "name": "Tartine Bakery" },
+        "review_text_published": "Worth the line." } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-122.4098, 37.8087] },
+      "properties": { "date": "2025-03-01T10:00:00Z", "five_star_rating_published": 1,
+        "location": { "address": "The Embarcadero, San Francisco, CA 94133, United States", "name": "Pier 39" } } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-122.4064, 37.7976] },
+      "properties": { "date": "2024-06-01T10:00:00Z", "five_star_rating_published": 3,
+        "location": { "name": "City Lights Booksellers & Publishers" } } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [0, 0] },
+      "properties": { "date": "2024-07-01T10:00:00Z", "five_star_rating_published": 4, "Comment": "No location information is available for this review." } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-122.41, 37.78] },
+      "properties": { "date": "2024-08-01T10:00:00Z", "five_star_rating_draft": 4, "location": { "name": "A Draft Cafe" } } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [0, 0] },
+      "properties": { "date": "2024-09-01T10:00:00Z", "five_star_rating_published": 5, "location": { "name": "Nowhere Diner" } } }
+  ]
+}

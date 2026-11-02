@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  const UPDATED = "september 26, 2026";
+  const UPDATED = "october 9, 2026";
 
   const GOOGLE_PRIVACY_URL = "https://policies.google.com/privacy";
 
@@ -14,7 +14,7 @@
     {
       name: "Supabase",
       url: "https://supabase.com/privacy",
-      use: "the database, sign-in sessions and the server functions",
+      use: "the database and sign-in sessions",
     },
     {
       name: "GitHub Pages",
@@ -29,12 +29,12 @@
     {
       name: "Wikipedia (Wikimedia Foundation)",
       url: "https://foundation.wikimedia.org/wiki/Policy:Privacy_policy",
-      use: "matches when you add a thing",
+      use: "matches when you add or import a thing",
     },
     {
       name: "Photon (komoot)",
       url: "https://www.komoot.com/privacy",
-      use: "matches for places when you add a thing",
+      use: "matches for places when you add or import a thing",
     },
     {
       name: "OpenStreetMap",
@@ -92,13 +92,11 @@
       Your display name (your first name, or "unknown" if Google sends none,
       until you change it) and photo address.
     </li>
-    <li>Your link and your vine.</li>
+    <li>Your link, who you follow and who follows you.</li>
     <li>Your ratings: which thing, up or down, and when.</li>
     <li>
-      Ratings you cleared: which thing and when, for about eight days, to update
-      lists.
+      When you last imported from each app, and how many ratings, for 30 days.
     </li>
-    <li>Your list, and the numbers used to build it.</li>
     <li>
       The names of things, and who added each. No user can see who added one.
     </li>
@@ -131,36 +129,36 @@
   <ul class={list}>
     <li>
       <strong>Your ratings:</strong>
-      only you. The server reads them to build lists for people near you in the
-      network, and keeps a private copy to refresh those lists, deleted after a
-      week unused. Those lists never say who rated what.
+      you, and <strong>anyone who follows you can read your ratings</strong>.
+      Their browser reads them to build their list.
     </li>
     <li>
       <strong>Your vine:</strong>
-      you, and each person in it sees that you are in theirs. Either of you can
-      remove the other.
+      you, and each account in it sees that you follow them. Either of you can
+      end it.
     </li>
     <li>
       <strong>Your name and photo:</strong>
-      your vine, and anyone holding your link, even signed out.
+      your vine, the people who follow you, and anyone holding your link, even
+      signed out.
     </li>
-    <li><strong>Your list:</strong> only you.</li>
+    <li>
+      <strong>Your list:</strong>
+      only you. Your browser builds it, and the server never holds it.
+    </li>
   </ul>
 
   <h2 class={h2}>your link</h2>
   <p class={p}>
-    Anyone with your link can join your vine. You can turn it off or replace it
-    at any time; people it already added stay.
+    Anyone with your link can follow you, and you can follow them back. You can
+    turn it off or replace it at any time; people who already follow you stay
+    until you remove them.
   </p>
 
-  <h2 class={h2}>what your list can give away</h2>
+  <h2 class={h2}>critics and publications</h2>
   <p class={p}>
-    No screen shows counts, averages, or who rated what. Even so,
-    <strong
-      >with exactly one person in your vine, your list is their ratings</strong
-    >, and theirs is yours. With a few, it still hints that someone close to you
-    liked a thing. No counts and a delay make it harder, not impossible, to tell
-    who.
+    Some accounts hold a critic's or a publication's published picks. grapevine
+    makes them by hand; nobody signs in to one, and anyone can follow one.
   </p>
 
   <h2 class={h2}>names of things</h2>
@@ -179,23 +177,31 @@
     Both can be turned off on the people screen. A thing you match keeps that
     site's id, so anyone can follow its link.
   </p>
+  <p class={p}>
+    Importing ratings works the same way: your browser reads the file itself and
+    asks Wikipedia and Wikidata about the titles and ids in it, and Photon about
+    the places and roughly where they are. They see those and your IP address,
+    not your ratings or your account.
+  </p>
 
   <h2 class={h2}>your browser</h2>
   <p class={p}>
     No analytics, ads or trackers. Your browser keeps your session, your theme,
-    whether you closed the list's hint, whether lookups and location are on, a
-    copy of your last list, and the app itself so it opens offline. The tab
-    keeps a link you opened until you answer it, and the screen you were on
-    while you sign in. Your photo loads from Google.
+    whether you closed the list's hint, whether you answered the offer to
+    import, how far an import you left had got, whether lookups and location are
+    on, a copy of your last list and of your vine's ratings, and the app itself
+    so it opens offline. The tab keeps a link you opened until you answer it,
+    and the screen you were on while you sign in. Your photo loads from Google.
   </p>
 
   <h2 class={h2}>leaving</h2>
   <p class={p}>
     Delete your account at the bottom of the people screen. Your profile,
-    ratings, list, vine, link and reports are removed at once. Names of things
-    you added stay. A one-way fingerprint of your Google account is kept until
-    midnight UTC, so deleting can't reset the daily limit. An account with an
-    empty vine is locked, not deleted.
+    ratings, vine, followers, link and reports are removed at once. Names of
+    things you added stay. A one-way fingerprint of your Google account is kept
+    until midnight UTC, or for 30 days after an import, so deleting can't reset
+    the daily limit or how often you can import. An account that follows no
+    other person is locked, not deleted.
   </p>
 
   <h2 class={h2}>children</h2>

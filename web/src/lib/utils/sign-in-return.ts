@@ -2,7 +2,7 @@
 //
 // The provider's redirect lands on `redirectTo` with a `?code=` or an error in
 // the query and nothing else, so two things a signed-out visitor had are lost
-// on arrival: the fragment of the link they opened (a friend's `#/item/...`),
+// on arrival: the fragment of the link they opened (somebody's `#/item/...`),
 // and — when Google refused or they cancelled — any sign that something went
 // wrong, since supabase-js only logs a failed callback.
 

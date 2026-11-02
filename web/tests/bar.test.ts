@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
-  cautiousScore,
+  barValue,
   fillFor,
   fillTone,
   SEGMENTS,
@@ -36,48 +36,21 @@ describe("fillFor", () => {
   });
 });
 
-// The posterior mean with W thumbs of evidence and one pseudo-thumb of prior,
-// on the bar's scale: s · W / (1 + W).
-describe("cautiousScore", () => {
-  it("is high only with a high score and much behind it", () => {
-    expect(cautiousScore(0.9, 9)).toBeCloseTo(0.81, 10);
-    expect(cautiousScore(0.9, 0.1)).toBeCloseTo(0.9 / 11, 10);
-    expect(cautiousScore(0.9, 9) ?? 0).toBeGreaterThan(
-      cautiousScore(0.9, 0.1) ?? 1,
-    );
+// The core's score is the chance itself, every doubt already inside it, so
+// the bar draws it as it is.
+describe("barValue", () => {
+  it("is the score itself", () => {
+    expect(barValue(0.9)).toBe(0.9);
+    expect(barValue(-0.45)).toBe(-0.45);
+    expect(barValue(0)).toBe(0);
   });
 
-  it("ranks a strong score with little behind it below a milder, well-supported one", () => {
-    expect(cautiousScore(0.95, 0.2) ?? 1).toBeLessThan(
-      cautiousScore(0.5, 5) ?? 0,
-    );
-  });
-
-  // A lower quantile would draw a thing little stands behind as disliked.
-  it("pulls a dislike toward the middle as well, not past it", () => {
-    expect(cautiousScore(-0.9, 1)).toBeCloseTo(-0.45, 10);
-    expect(cautiousScore(-0.9, 0.1) ?? -1).toBeGreaterThan(-0.1);
-  });
-
-  it("draws an attribute's score, which carries no weight, as it is", () => {
-    expect(cautiousScore(0.6, null)).toBe(0.6);
-  });
-
-  // `W = 0` is a thing carried only by an attribute of it: its own score is
-  // the prior, which the bar draws as nothing known.
-  it("has nothing to draw with no score, no evidence, or a number that is not one", () => {
-    expect(cautiousScore(null, 3)).toBeNull();
-    expect(cautiousScore(0, 0)).toBeNull();
-    expect(cautiousScore(0.5, -1)).toBeNull();
-    expect(cautiousScore(0.5, Number.NaN)).toBeNull();
-    expect(cautiousScore(Number.NaN, 3)).toBeNull();
-  });
-
-  it("is the score itself with unbounded evidence", () => {
-    expect(cautiousScore(0.7, Number.POSITIVE_INFINITY)).toBe(0.7);
+  it("has nothing to draw with no score, or a number that is not one", () => {
+    expect(barValue(null)).toBeNull();
+    expect(barValue(Number.NaN)).toBeNull();
+    expect(barValue(Number.POSITIVE_INFINITY)).toBeNull();
   });
 });
-
 
 describe("segmentFills", () => {
   it("fills left to right", () => {

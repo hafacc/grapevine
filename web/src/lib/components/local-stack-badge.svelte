@@ -3,8 +3,8 @@
 
   // Says which backend this build is talking to, because the difference is
   // otherwise invisible and its symptoms look like bugs: a local stack starts
-  // empty, so a real account's friends, requests and recommendations are all
-  // simply absent. Folded out of production entirely by the `DEV` half of
+  // empty, so a real account's vine and recommendations are simply
+  // absent. Folded out of production entirely by the `DEV` half of
   // `usingLocalStack`.
 </script>
 

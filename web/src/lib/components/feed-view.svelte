@@ -26,13 +26,13 @@
     chooseMatch as pickMatch,
     resolveMatches,
   } from "../utils/references";
-  import { isForbiddenCall } from "../utils/refusal";
   import { historyScroll, rememberScroll } from "../utils/router";
   import { grapevine } from "../utils/store.svelte";
   import type { RatingValue } from "../utils/types";
   import AvatarButton from "./avatar-button.svelte";
   import ItemRow from "./item-row.svelte";
   import LoadFailure from "./load-failure.svelte";
+  import Mark from "./mark.svelte";
   import MatchSheet from "./match-sheet.svelte";
   import NothingYet from "./nothing-yet.svelte";
   import AddButton from "./ui/add-button.svelte";
@@ -48,10 +48,10 @@
   /**
    * The one list, and the whole app around it (DESIGN §1).
    *
-   * With the field empty it is the viewer's feed in §2.6's order; typing filters
+   * With the field empty it is the viewer's list in §2.6's order; typing filters
    * it by name and by attribute and merges in whatever the catalog holds under
    * that prefix, so a thing that exists is found rather than made a second time.
-   * A row is the only way to a thing.
+   * A row is the only way to a thing. Accounts are found on the people screen.
    */
   const recs = useMyRecs();
   const mine = useMyRatings();
@@ -79,8 +79,9 @@
     if (uid !== null) markHintSeen(uid);
   }
 
-  // Only words: `!`, `@` and `#` steer a search over what the viewer already
-  // holds, and nothing typed with one is a name that could be found or added.
+  // Only words: `!` and `#` steer a search over what the viewer already
+  // holds, `@` starts no name, and nothing typed with one of the three is a
+  // name that could be found or added.
   const plain = $derived(parseQuery(query).plain);
   // What a disabled add shows: the query as a name would be folded, operators
   // and all, since it cannot be one.
@@ -121,26 +122,22 @@
     };
   });
 
-  // On open, and nowhere else. `refresh-recs` decides whether that means
-  // anything: a feed checked under ten minutes ago with no new thumb behind it
-  // comes straight back, so this is not a recompute per visit.
-  // A 403 is the function refusing a locked caller, which this tab had not
-  // heard about yet.
+  // On open, and not on each thumb: a list that re-ranks under a finger is a
+  // row that moves as it is swiped. `refreshMyRecs` computes nothing when
+  // neither the viewer's thumbs nor a followed account's have changed.
   onMount(() => {
-    refreshMyRecs().catch((failure) => {
-      console.error("refreshRecs", failure);
-      if (isForbiddenCall(failure))
-        void grapevine
-          .recheckLocked()
-          .catch((error) => console.error("locked", error));
-    });
+    refreshMyRecs().catch((failure) => console.error("refreshRecs", failure));
   });
 
-  // From the viewer's own feed and nothing else, so it discloses nothing
-  // (DESIGN §4); recomputed only when the feed changes.
+  // Recomputed only when the list changes.
   const relation = $derived(
     relationFrom(
-      recs.entries.map((entry) => ({ weight: entry.conf, tags: entry.tags })),
+      recs.entries.map((entry) => ({
+        weight: entry.conf,
+        tags: Object.fromEntries(
+          Object.entries(entry.tags).map(([name, tag]) => [name, tag.applies]),
+        ),
+      })),
     ),
   );
   // A step behind the field, so a keystroke is drawn before a long feed has
@@ -190,9 +187,11 @@
   // folded text, and a label with the capitals left in names a thing that
   // will never exist.
   const typedId = $derived(idProblem === null ? normalizeId(query) : null);
-  // No feed has ever been written and the ask to write one failed, so the empty
-  // list is the failure's and not the viewer's.
-  const neverComputed = $derived(recs.refreshFailed && recs.computedAt === 0);
+  // Nothing drawn yet and nothing known to be wrong: the thumbs are being
+  // read and the list computed, which a first open can wait on for seconds.
+  const loading = $derived(
+    !recs.ready && !recs.failed && recs.entries.length === 0,
+  );
 
   // Written continuously rather than on the way out: a browser Back gives no
   // chance to save anything first.
@@ -313,7 +312,7 @@
          against the canvas beside it. -->
     <div class="flex flex-grow flex-col md:bg-surface">
       <p aria-live="polite" class="sr-only">{status}</p>
-      {#if recs.failed || neverComputed}
+      {#if recs.failed}
         <div class="p-4">
           <LoadFailure subject="your recommendations" />
         </div>
@@ -340,6 +339,11 @@
           </IconButton>
         </div>
       {/if}
+      {#if loading && query.length === 0}
+        <div class="flex flex-grow items-center justify-center p-8">
+          <Mark pulsing />
+        </div>
+      {/if}
       {#each rows as row (row.itemId)}
         <ItemRow
           {row}
@@ -354,7 +358,6 @@
       {#if rows.length === 0 &&
         recs.ready &&
         !recs.failed &&
-        !neverComputed &&
         listQuery === query &&
         (query.length === 0 || !searching)}
         {#if allHidden}

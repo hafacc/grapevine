@@ -8,7 +8,7 @@
   import Wordmark from "./wordmark.svelte";
 
   // Everyone who belongs here was invited by a person, so there is nobody to
-  // persuade. The page confirms that this is the thing their friend meant and gets
+  // persuade. The page confirms that this is the thing that person meant and gets
   // out of the way: one screen, one object to act on, nothing to scroll past. The
   // smallness is the argument — a feature list would be selling something the
   // visitor was already given.
@@ -17,7 +17,7 @@
   // signed out lands on that screen the moment the door opens, off the stack the
   // store already seeded.
 
-  // A friending link names its owner here, before sign-in: the link is the
+  // A link names its owner here, before sign-in: the link is the
   // authority to see their name and photo, and the question after sign-in
   // (`link-question.svelte`) is the consent. Nothing is said about a link until
   // the lookup answers. A dead one is said here, before anybody goes through

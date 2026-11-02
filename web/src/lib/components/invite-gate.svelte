@@ -37,7 +37,7 @@
       grapevine.dismissInvite();
       void alert({
         title: "that's your own link",
-        body: "send it to someone you want in your vine.",
+        body: "send it to someone who wants to add you to their vine.",
       });
     }
   });

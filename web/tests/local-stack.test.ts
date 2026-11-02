@@ -1,23 +1,38 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
-  LOCAL_ANON_KEY as SCRIPT_ANON_KEY,
-  LOCAL_SUPABASE_URL as SCRIPT_URL,
-} from "../scripts/local-session.mjs";
-import { LOCAL_ANON_KEY, LOCAL_SUPABASE_URL } from "../src/lib/utils/project.ts";
+  LOCAL_DB_URL,
+  LOCAL_JWT_SECRET,
+  LOCAL_SUPABASE_URL,
+} from "../e2e/local-session.ts";
 
-// The app and the check scripts talk to one local stack, and neither can import
-// the other's copy of its address: `project.ts` must not pull `postgres` into
-// the browser bundle, and `local-session.mjs` runs under plain `node`, which
-// does not read TypeScript. So the two literals are pinned to each other here
-// instead — a mismatch is a check that signs a session for one origin and drives
-// a browser pointed at another, which fails as "the signed-in app never
-// rendered" and says nothing about why.
-describe("the local stack has one address", () => {
-  it("agrees on the URL", () => {
-    expect(SCRIPT_URL).toBe(LOCAL_SUPABASE_URL);
+// `supabase/tests/serve-local.sh` serves a stack with no Docker at the real
+// one's addresses, and is a shell script: it cannot import them. A drifted
+// secret there is every signed-in request refused, which a test reports as a
+// screen that never rendered.
+describe("the stack with no Docker is the same stack", () => {
+  const script = readFileSync(
+    join(import.meta.dir, "..", "..", "supabase", "tests", "serve-local.sh"),
+    "utf8",
+  );
+  const assigned = (name: string): string | undefined =>
+    script.match(new RegExp(`^${name}="?([^"\\n]*)"?$`, "m"))?.[1];
+
+  it("signs with the secret the tests sign with", () => {
+    expect(assigned("JWT_SECRET")).toBe(LOCAL_JWT_SECRET);
   });
 
-  it("agrees on the anon key", () => {
-    expect(SCRIPT_ANON_KEY).toBe(LOCAL_ANON_KEY);
+  it("serves the API where the app looks for it", () => {
+    expect(assigned("API_PORT")).toBe(new URL(LOCAL_SUPABASE_URL).port);
+  });
+
+  it("serves the database the tests connect to", () => {
+    const database = new URL(LOCAL_DB_URL);
+    expect(assigned("DB_PORT")).toBe(database.port);
+    expect(assigned("PGDATABASE")).toBe(database.pathname.slice(1));
+    expect(script).toContain(
+      `alter role ${database.username} password '${database.password}'`,
+    );
   });
 });

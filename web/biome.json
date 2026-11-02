@@ -5,6 +5,7 @@
     "includes": [
       "src/**/*.{ts,svelte}",
       "scripts/**/*.{ts,mjs}",
+      "e2e/**/*.{ts,json}",
       "sw/**/*.ts",
       "*.{json,js,mjs,ts}"
     ],

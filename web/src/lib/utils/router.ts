@@ -5,6 +5,7 @@ import type { Screen } from "./types";
 export const LIST_SCREEN: Screen = { kind: "list" };
 const PEOPLE_SCREEN: Screen = { kind: "people" };
 const REPORTS_SCREEN: Screen = { kind: "reports" };
+const IMPORT_SCREEN: Screen = { kind: "import" };
 
 // The fragment rather than a path, because the site is a static export with no
 // server to route with. The ids are not secrets — every read they name is gated
@@ -17,6 +18,8 @@ export function screenHash(screen: Screen): string {
       return "#/people";
     case "reports":
       return "#/reports";
+    case "import":
+      return "#/import";
     case "item":
       return `#/item/${encodeURIComponent(screen.id)}`;
   }
@@ -42,6 +45,7 @@ export function screenForHash(hash: string): Screen | null {
     case 1:
       if (first === "people") return PEOPLE_SCREEN;
       else if (first === "reports") return REPORTS_SCREEN;
+      else if (first === "import") return IMPORT_SCREEN;
       else return null;
     case 2:
       if (first === "item") {

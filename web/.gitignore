@@ -5,3 +5,7 @@ out/
 
 # Compiled from sw/sw.ts (see vite.config.ts).
 static/sw.js
+
+# Playwright's output for the last `bun e2e` run.
+test-results/
+playwright-report/

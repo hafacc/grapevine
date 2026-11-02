@@ -50,10 +50,11 @@
     ownAttributes,
     suggestAttributes,
   } from "grapevine-shared/suggest-attributes";
-  import { cautiousScore } from "../utils/bar";
+  import { barValue } from "../utils/bar";
   import {
     type Attribute,
     attributesOf,
+    carries,
     foldQuery,
     matchesText,
   } from "../utils/discover";
@@ -173,35 +174,36 @@
   const own = $derived(ratingOf(mine.ratings, itemId, ""));
 
   const attributes = $derived.by(() => {
-    const listed = attributesOf(itemId, entry, mine.ratings);
+    const listed = attributesOf(itemId, entry, mine.ratings).filter(carries);
     const already = new Set(listed.map((attribute) => attribute.tag));
-    // Nothing in reach has weighed in on one of these — that is what makes it a
+    // Nobody the viewer follows has weighed in on one of these — that is what makes it a
     // proposal — so they sort where `attributesOf` puts an unknown score
     // anyway, and the one just tapped is at the top because it is the row the
     // viewer reached for.
     const proposed: Attribute[] = provisional
       .filter((tag) => !already.has(tag))
-      .map((tag) => ({ tag, score: null, own: null }));
+      .map((tag) => ({
+        tag,
+        score: null,
+        applies: 1,
+        own: null,
+      }));
     return [...proposed, ...listed];
   });
 
   /**
-   * The *suggested* rail: attributes to propose on this thing, worked out from
-   * the viewer's own ratings on the client and nothing else (DESIGN §2.11).
+   * The *suggested* rail: attributes to propose on this thing, the ones the
+   * viewer's own ratings suggest (DESIGN §2.11).
    *
    * The ratings are what re-rank it: a thumb given here lands in that map before
    * anything is sent, so the row reorders on the swipe rather than on a reply.
    */
-  const suggested = $derived.by(() => {
-    const proposed = suggestAttributes(
-      mine.ratings,
-      ownAttributes(mine.ratings, itemId),
-    );
+  const suggested = $derived(
     // Dropped only where the viewer's own tap already put the row on screen.
-    // Dropping what the SCREEN carries would let somebody else's thumb decide
-    // what is proposed, which is the one thing §2.11 exists to make impossible.
-    return proposed.filter((tag) => !provisional.includes(tag));
-  });
+    suggestAttributes(mine.ratings, ownAttributes(mine.ratings, itemId)).filter(
+      (tag) => !provisional.includes(tag),
+    ),
+  );
   const folded = $derived(foldQuery(query));
   const shown = $derived(
     attributes.filter(
@@ -242,7 +244,7 @@
 
   // Anyone can name a thing and nobody can rename one, so a name that is abuse,
   // a private person or spam is reported to the owner, who can remove it for
-  // everyone (0013). No reason is asked for: the owner reads the name.
+  // everyone. No reason is asked for: the owner reads the name.
   async function report(): Promise<void> {
     const id = itemId;
     const sure = await confirm({
@@ -314,10 +316,7 @@
           <Icon icon={LuExternalLink} size={20} aria-hidden="true" />
         </a>
       {/if}
-      <Bar
-        subject={itemId}
-        score={cautiousScore(entry?.score ?? null, entry?.conf ?? null)}
-      />
+      <Bar subject={itemId} score={barValue(entry?.score ?? null)} />
       <AvatarButton onAccent={own === 1} />
     </RateRow>
   </div>

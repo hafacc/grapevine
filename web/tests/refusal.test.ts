@@ -3,8 +3,7 @@ import { forgetHintsSeen } from "../src/lib/utils/first-run";
 import { asksAboutLink, heldLink } from "../src/lib/utils/invites";
 import {
   explainWriteFailure,
-  isForbiddenCall,
-  lockedAfterUnfriend,
+  lockedAfterUnfollow,
   NAME_REMOVED_MESSAGE,
 } from "../src/lib/utils/refusal";
 import { reportFailed } from "../src/lib/utils/reports";
@@ -58,26 +57,17 @@ describe("explainWriteFailure", () => {
   });
 });
 
-describe("isForbiddenCall", () => {
-  it("recognizes the function refusing a locked caller", () => {
-    expect(isForbiddenCall({ context: { status: 403 } })).toBe(true);
-    expect(isForbiddenCall({ context: { status: 500 } })).toBe(false);
-    expect(isForbiddenCall({ status: 403 })).toBe(false);
-    expect(isForbiddenCall(null)).toBe(false);
-  });
-});
-
-describe("lockedAfterUnfriend", () => {
+describe("lockedAfterUnfollow", () => {
   it("takes the server's answer", async () => {
-    expect(await lockedAfterUnfriend(answers(false), 0, false)).toBe(false);
-    expect(await lockedAfterUnfriend(answers(true), 3, false)).toBe(true);
+    expect(await lockedAfterUnfollow(answers(false), 0, false)).toBe(false);
+    expect(await lockedAfterUnfollow(answers(true), 3, false)).toBe(true);
   });
 
-  // The friend is gone either way, so a failed read is not a failed removal.
-  it("falls back to the friends left when the check fails", async () => {
-    expect(await lockedAfterUnfriend(unreachable, 0, false)).toBe(true);
-    expect(await lockedAfterUnfriend(unreachable, 1, false)).toBe(false);
-    expect(await lockedAfterUnfriend(unreachable, 0, true)).toBe(false);
+  // The follow is gone either way, so a failed read is not a failed removal.
+  it("falls back to the people still followed when the check fails", async () => {
+    expect(await lockedAfterUnfollow(unreachable, 0, false)).toBe(true);
+    expect(await lockedAfterUnfollow(unreachable, 1, false)).toBe(false);
+    expect(await lockedAfterUnfollow(unreachable, 0, true)).toBe(false);
   });
 });
 

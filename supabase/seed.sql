@@ -1,8 +1,15 @@
--- Applied by `supabase db reset` after every migration.
+-- Applied by `supabase db reset` and `supabase start` after every migration.
 --
--- Deliberately empty. A seeded world needs `auth.users` rows, which the
--- simulator's dump supplies, and the script that loads one is part of the
--- checks rather than of the database: `supabase db reset` must produce a
--- database that is exactly the schema and nothing else, so that a check which
--- seeds its own world is comparing against zero rather than against whatever
--- happened to be in here.
+-- Deliberately empty. `supabase test db` runs the suites against this
+-- database, and they count whole tables (every follow, every auth user, every
+-- prefilled account), so a row here is a row in each of those counts. A check
+-- that needs a world seeds its own, and is then comparing against zero rather
+-- than against whatever happened to be in here.
+--
+-- A prefilled account is loaded by hand, on any database:
+--
+--   select private.load_prefilled('handle', 'Display Name', '[
+--     {"item": "dune", "search_id": "dune", "value": 1,
+--      "source": "wikidata", "ref": "Q190192"},
+--     {"item": "dune", "tag": "slow", "value": -1}
+--   ]'::jsonb);

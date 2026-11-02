@@ -46,12 +46,19 @@ describe("parseQuery", () => {
     expect(words.map((word) => [word.text, word.low, word.field])).toEqual([
       ["coffee", false, "any"],
       ["hip", true, "any"],
-      ["dune", false, "name"],
+      ["dune", false, "any"],
       ["quiet", false, "tag"],
-      ["dune", true, "name"],
+      ["dune", true, "any"],
       ["quiet", true, "tag"],
     ]);
     expect(plain).toBe(false);
+  });
+
+  // Accounts are found on the people screen: here `@` is dropped, and what
+  // follows it is read as any other word, still no name to add.
+  it("reads a word after @ as the word alone", () => {
+    expect(parseQuery("@#quiet").words[0]?.field).toBe("tag");
+    expect(parseQuery("@pizza").plain).toBe(false);
   });
 
   it("quotes a word back as typed, operators and all", () => {
@@ -61,7 +68,7 @@ describe("parseQuery", () => {
   // The same NFKC that refuses `！hip` as an id reads it as the operator here.
   it("reads a full-width ! as the ASCII one", () => {
     expect(parseQuery("！hip").words[0]?.low).toBe(true);
-    expect(parseQuery("＠dune").words[0]?.field).toBe("name");
+    expect(parseQuery("＠dune").words[0]?.text).toBe("dune");
   });
 
   it("keeps an operator that does not start the word", () => {

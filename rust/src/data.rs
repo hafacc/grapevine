@@ -1,24 +1,23 @@
 //! The boundary form of everything: string ids, plain maps, one JSON document.
 //!
-//! The core works in interned integers; callers — the Edge Function, the examples, the
-//! seeding scripts — work in the string ids the database stores.
+//! The core works in interned integers; callers — the browser, the examples — work in the
+//! string ids the database stores.
 //!
 //! This is also where a snapshot is *sanitized*. The `ratings` row constraints refuse most of
 //! what follows, but a schema is a thing that changes, and a crafted `1.5`, `true` or a key with
-//! a control character in it must not fail the recompute of every viewer within reach of its
-//! author. So nothing here refuses: a value that is not exactly `±1` or `±2` (the order bit)
-//! and a key whose halves are not usable ids are dropped, and the rest of the snapshot computes.
+//! a control character in it must not fail the list of everyone who follows its author. So
+//! nothing here refuses: a value that is not exactly `±1` and a key whose halves are not usable
+//! ids are dropped, and the rest of the snapshot computes.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{RATABLE_JOIN, Ratable, UserId, is_normalized_id};
-use crate::priors::PairTallies;
+use crate::ids::{RATABLE_JOIN, Ratable, is_normalized_id};
 use crate::sim::{World, WorldConfig};
 use crate::snapshot::Snapshot;
-use crate::witness::UserResult;
+use crate::tensor::Fit;
 
 /// One rating exactly as it arrived, before anything decides whether it is a thumb.
 ///
@@ -30,22 +29,15 @@ use crate::witness::UserResult;
 pub struct RatingValue(f64);
 
 impl RatingValue {
-    /// The thumb, `1` or `-1`, and nothing else. `2` and `-2` are the same thumbs marked as
-    /// given after the viewer's own thumb on the same thing (DESIGN section 3.4): the order is
-    /// all the neighbourhood says about time, one bit per rating and never a clock.
+    /// The thumb, `1` or `-1`, and nothing else.
     pub fn thumb(self) -> Option<i8> {
-        if self.0 == 1.0 || self.0 == 2.0 {
+        if self.0 == 1.0 {
             Some(1)
-        } else if self.0 == -1.0 || self.0 == -2.0 {
+        } else if self.0 == -1.0 {
             Some(-1)
         } else {
             None
         }
-    }
-
-    /// Whether this thumb was given after the viewer's own on the same thing.
-    pub fn is_later(self) -> bool {
-        self.0 == 2.0 || self.0 == -2.0
     }
 }
 
@@ -64,7 +56,6 @@ impl From<f64> for RatingValue {
 #[cfg(feature = "serde")]
 impl Serialize for RatingValue {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        // `±2` stays `±2`: the order bit is part of the value.
         match self.thumb() {
             Some(_) => serializer.serialize_i8(self.0 as i8),
             None => serializer.serialize_f64(self.0),
@@ -147,29 +138,16 @@ impl<'de> Deserialize<'de> for RatingValue {
     }
 }
 
-/// A friend graph and everyone's ratings, as the loader read them.
-///
-/// Adjacency arrives *directed*, one list per node whose own row was read, because the loader stops
-/// at a budget: a loaded node names people nobody loaded, and their side of the edge is simply not
-/// in the snapshot. An edge survives only where both endpoints name each other, or where one of
-/// them was never read (DESIGN section 3.4).
+/// Who follows whom and everyone's thumbs, as the browser read them.
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(default, rename_all = "camelCase"))]
 pub struct SnapshotData {
     pub users: Vec<String>,
-    /// Who each node lists as a friend. One entry per node the loader read.
-    pub friend_ids: BTreeMap<String, Vec<String>>,
-    /// The nodes whose friend list was read. Everything else is a **boundary** node: present,
-    /// able to rate, with unknown adjacency. An empty list means the whole graph was read, which
-    /// is what a test or a simulated world hands over.
-    pub loaded: Vec<String>,
-    /// Undirected pairs, taken as given with no reciprocity check: a test's shorthand for
-    /// `friend_ids`.
-    pub edges: Vec<(String, String)>,
+    /// Who each account follows. The browser sends one entry, the viewer's.
+    pub follows: BTreeMap<String, Vec<String>>,
     /// user id to ratable — the item id, or the item id and the tag joined by `RATABLE_JOIN` —
-    /// to `1` or `-1`, or `2` or `-2` for a thumb given after the viewer's own, before
-    /// sanitizing.
+    /// to `1` or `-1`, before sanitizing.
     pub ratings: BTreeMap<String, BTreeMap<String, RatingValue>>,
 }
 
@@ -180,32 +158,31 @@ pub struct SnapshotData {
 pub struct ScoreData {
     pub score: f64,
     pub confidence: f64,
+    /// One for a thing itself; for a tag on a thing, `score` on `(0, 1)`.
+    pub applies: f64,
 }
 
-/// A person whose connections were not loaded, and how strongly a chain would reach them: the
-/// loader reads the strongest next (DESIGN section 3.4).
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
-pub struct BoundaryNodeData {
-    pub id: String,
-    pub strength: f64,
-}
-
-/// What one viewer's recompute returns.
+/// What one viewer's computation returns.
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct ResultData {
     pub viewer: String,
-    /// People with a non-zero chain.
-    pub reached: usize,
-    /// Strongest first. The loader reads those with `strength > 0` while `N_max` has room.
-    pub boundary_nodes: Vec<BoundaryNodeData>,
-    /// DESIGN section 2.9's per-viewer tallies. The caller stores them and a statement in the
-    /// database pools them; nothing else reads them back.
-    pub pairs: PairTallies,
     pub scores: BTreeMap<String, ScoreData>,
+    pub plot: PlotData,
+}
+
+/// The viewer's picture of how they depart from the accounts they follow
+/// (`crate::tensor::Plot`): a point per thing and a point per attribute, whose inner product is
+/// the viewer's score for the pair less what the accounts say of it.
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub struct PlotData {
+    /// As many numbers a point as the rank the result was computed at.
+    pub things: BTreeMap<String, Vec<f64>>,
+    /// By attribute; the empty name is liking the thing itself.
+    pub attributes: BTreeMap<String, Vec<f64>>,
 }
 
 /// A simulated world, ground truth included, as `dump-world` writes it.
@@ -215,13 +192,7 @@ pub struct ResultData {
 pub struct WorldData {
     pub seed: u64,
     pub config: WorldConfig,
-    /// Every thumb as `±1`: the world is nobody's view of it, so it carries no viewer's bit.
     pub snapshot: SnapshotData,
-    /// User id to ratable key to when that thumb was given, as an order (`Snapshot::stamps`); an
-    /// absent thumb has stamp zero. This is what the loader's `±2` is read from, as `rated_at`
-    /// is in the database, and seeding writes it there in the same order, so a seeded stack and
-    /// `WorldData::to_snapshot` agree on every viewer's bit.
-    pub stamps: BTreeMap<String, BTreeMap<String, u32>>,
     pub items: Vec<String>,
     /// Which cluster each user was drawn from, in `snapshot.users` order.
     pub clusters: Vec<usize>,
@@ -242,70 +213,19 @@ fn is_ratable(name: &str) -> bool {
 }
 
 impl SnapshotData {
-    /// Interns everything, drops every rating the core cannot read, and keeps only the edges
-    /// both endpoints agree on.
+    /// Interns everything and drops every rating the core cannot read.
     pub fn to_snapshot(&self) -> Snapshot {
-        self.build(None)
-    }
-
-    /// `to_snapshot`, with each thumb's order taken from `stamps` when given, in place of the
-    /// viewer's bit.
-    fn build(&self, stamps: Option<&BTreeMap<String, BTreeMap<String, u32>>>) -> Snapshot {
         let mut builder = Snapshot::builder();
         for name in &self.users {
             builder.user(name);
         }
-        for (owner, friends) in &self.friend_ids {
-            builder.user(owner);
-            for friend in friends {
-                builder.user(friend);
+        for (follower, followed) in &self.follows {
+            let from = builder.user(follower);
+            for name in followed {
+                let to = builder.user(name);
+                builder.follow(from, to);
             }
         }
-        for name in &self.loaded {
-            builder.user(name);
-        }
-
-        let read: BTreeSet<&str> = if self.loaded.is_empty() {
-            // No boundary: the whole graph is in hand, which is what a test world hands over.
-            BTreeSet::new()
-        } else {
-            self.loaded.iter().map(String::as_str).collect()
-        };
-        let is_read = |name: &str| read.is_empty() || read.contains(name);
-        let listed: BTreeMap<&str, BTreeSet<&str>> = self
-            .friend_ids
-            .iter()
-            .map(|(owner, friends)| {
-                (
-                    owner.as_str(),
-                    friends
-                        .iter()
-                        .map(String::as_str)
-                        .collect::<BTreeSet<&str>>(),
-                )
-            })
-            .collect();
-
-        for (owner, friends) in &self.friend_ids {
-            for friend in friends {
-                // An edge to a node nobody read is a boundary edge: the model reports it for the
-                // loader's next round, and refusing it would hide reach rather than verify it.
-                let mutual = listed
-                    .get(friend.as_str())
-                    .is_some_and(|theirs| theirs.contains(owner.as_str()));
-                if mutual || !is_read(friend) || !is_read(owner) {
-                    let first = builder.user(owner);
-                    let second = builder.user(friend);
-                    builder.edge(first, second);
-                }
-            }
-        }
-        for (one, other) in &self.edges {
-            let first = builder.user(one);
-            let second = builder.user(other);
-            builder.edge(first, second);
-        }
-
         for (name, ratings) in &self.ratings {
             let user = builder.user(name);
             for (ratable_name, &value) in ratings {
@@ -316,36 +236,7 @@ impl SnapshotData {
                     continue;
                 }
                 let ratable = builder.ratable(ratable_name);
-                let stamp = match stamps {
-                    Some(given) => given
-                        .get(name)
-                        .and_then(|owned| owned.get(ratable_name))
-                        .copied()
-                        .unwrap_or(0),
-                    // An order stamp relative to the viewer only: a thumb given after the
-                    // viewer's sorts after it, everything else sorts with it.
-                    None => {
-                        if value.is_later() {
-                            2
-                        } else {
-                            0
-                        }
-                    }
-                };
-                builder.rate_at(user, ratable, thumb, stamp);
-            }
-        }
-
-        if !read.is_empty() {
-            let unread: Vec<String> = builder
-                .user_names()
-                .iter()
-                .filter(|name| !read.contains(name.as_str()))
-                .cloned()
-                .collect();
-            for name in unread {
-                let user = builder.user(&name);
-                builder.set_loaded(user, false);
+                builder.rate(user, ratable, thumb);
             }
         }
         builder.build()
@@ -353,74 +244,63 @@ impl SnapshotData {
 }
 
 impl Snapshot {
-    /// The boundary form as the loader sends it to `viewer`: `±2` for a thumb given after the
-    /// viewer's own on the same thing, `±1` for every other (0015's `load_nodes`).
-    pub fn to_data(&self, viewer: UserId) -> SnapshotData {
-        self.data_with(|user, ratable, stamp| {
-            user != viewer
-                && self.rating(viewer, ratable).is_some()
-                && stamp > self.stamp(viewer, ratable)
-        })
-    }
-
-    fn data_with(&self, is_later: impl Fn(UserId, Ratable, u32) -> bool) -> SnapshotData {
-        let friend_ids = self
-            .users()
-            .filter(|&user| !self.friends(user).is_empty())
-            .map(|user| {
-                let friends = self
-                    .friends(user)
-                    .iter()
-                    .map(|&friend| self.user_name(friend).to_string())
-                    .collect();
-                (self.user_name(user).to_string(), friends)
-            })
-            .collect();
-        let ratings = self
-            .users()
-            .map(|user| {
-                let owned = self
-                    .ratings(user)
-                    .iter()
-                    .zip(self.stamps(user))
-                    .map(|(&(ratable, value), &stamp)| {
-                        let scale = if is_later(user, ratable, stamp) { 2 } else { 1 };
-                        (self.ratable_name(ratable), RatingValue::from(value * scale))
-                    })
-                    .collect();
-                (self.user_name(user).to_string(), owned)
-            })
-            .collect();
+    /// The boundary form of the whole snapshot.
+    pub fn to_data(&self) -> SnapshotData {
         SnapshotData {
             users: self
                 .users()
                 .map(|user| self.user_name(user).to_string())
                 .collect(),
-            friend_ids,
-            loaded: self
+            follows: self
                 .users()
-                .filter(|&user| self.is_loaded(user))
-                .map(|user| self.user_name(user).to_string())
+                .filter(|&user| !self.follows(user).is_empty())
+                .map(|user| {
+                    let followed = self
+                        .follows(user)
+                        .iter()
+                        .map(|&other| self.user_name(other).to_string())
+                        .collect();
+                    (self.user_name(user).to_string(), followed)
+                })
                 .collect(),
-            edges: Vec::new(),
-            ratings,
+            ratings: self
+                .users()
+                .map(|user| {
+                    let owned = self
+                        .ratings(user)
+                        .iter()
+                        .map(|&(ratable, value)| {
+                            (self.ratable_name(ratable), RatingValue::from(value))
+                        })
+                        .collect();
+                    (self.user_name(user).to_string(), owned)
+                })
+                .collect(),
         }
     }
 
     /// The boundary form of one result.
-    pub fn result_data(&self, result: &UserResult) -> ResultData {
+    pub fn result_data<const K: usize>(&self, fit: &Fit<K>) -> ResultData {
+        let result = &fit.result;
         ResultData {
             viewer: self.user_name(result.viewer).to_string(),
-            reached: result.reached,
-            boundary_nodes: result
-                .boundary
-                .iter()
-                .map(|node| BoundaryNodeData {
-                    id: self.user_name(node.user).to_string(),
-                    strength: node.strength,
-                })
-                .collect(),
-            pairs: result.pairs,
+            plot: PlotData {
+                things: fit
+                    .plot
+                    .things
+                    .iter()
+                    .map(|(&item, point)| (self.item_name(item).to_string(), point.to_vec()))
+                    .collect(),
+                attributes: fit
+                    .plot
+                    .attributes
+                    .iter()
+                    .map(|(&tag, point)| {
+                        let name = tag.map_or(String::new(), |tag| self.tag_name(tag).to_string());
+                        (name, point.to_vec())
+                    })
+                    .collect(),
+            },
             scores: result
                 .scores
                 .iter()
@@ -430,6 +310,7 @@ impl Snapshot {
                         ScoreData {
                             score: score.score,
                             confidence: score.confidence,
+                            applies: score.applies,
                         },
                     )
                 })
@@ -455,22 +336,7 @@ impl World {
         WorldData {
             seed,
             config: self.config.clone(),
-            snapshot: self.snapshot.data_with(|_, _, _| false),
-            stamps: self
-                .snapshot
-                .users()
-                .map(|user| {
-                    let owned = self
-                        .snapshot
-                        .ratings(user)
-                        .iter()
-                        .zip(self.snapshot.stamps(user))
-                        .filter(|&(_, &stamp)| stamp != 0)
-                        .map(|(&(ratable, _), &stamp)| (self.snapshot.ratable_name(ratable), stamp))
-                        .collect();
-                    (self.snapshot.user_name(user).to_string(), owned)
-                })
-                .collect(),
+            snapshot: self.snapshot.to_data(),
             items: self
                 .items()
                 .map(|item| self.snapshot.item_name(item).to_string())
@@ -478,13 +344,6 @@ impl World {
             clusters: self.cluster_of.clone(),
             true_preference: self.true_preference.clone(),
         }
-    }
-}
-
-impl WorldData {
-    /// The world with every thumb's order, so any viewer's bit is the one a seeded stack gives.
-    pub fn to_snapshot(&self) -> Snapshot {
-        self.snapshot.build(Some(&self.stamps))
     }
 }
 
@@ -513,18 +372,14 @@ mod tests {
     #[test]
     fn nothing_a_rating_map_can_hold_fails_the_boundary() {
         // Values a changed schema could let through, as JSON. Every one of them has to
-        // deserialize — a snapshot that fails here fails the recompute of every viewer in reach of it — and
-        // every one but the thumbs, with and without the order bit, has to come out as no
-        // rating at all.
+        // deserialize — a snapshot that fails here fails the list of everyone who follows its
+        // author — and every one but the two thumbs has to come out as no rating at all.
         for (document, thumb) in [
             ("1", Some(1)),
             ("-1", Some(-1)),
             ("1.0", Some(1)),
-            ("2", Some(1)),
-            ("-2", Some(-1)),
-            ("2.0", Some(1)),
-            ("3", None),
-            ("-3", None),
+            ("2", None),
+            ("-2", None),
             ("1.5", None),
             ("300", None),
             ("0", None),
@@ -540,36 +395,10 @@ mod tests {
         }
     }
 
+    /// The form a world leaves the crate in gives every viewer the result of the snapshot it
+    /// came from.
     #[test]
-    fn a_later_thumb_keeps_its_value_and_sorts_after_the_viewers() {
-        let data = SnapshotData {
-            users: vec!["u0".into(), "u1".into()],
-            ratings: ratings(&[("u0", &[("i0", 1.0)]), ("u1", &[("i0", -2.0), ("i1", 2.0)])]),
-            ..SnapshotData::default()
-        };
-        let snapshot = data.to_snapshot();
-        let viewer = snapshot.user_id("u0").expect("u0");
-        let other = snapshot.user_id("u1").expect("u1");
-        let item = snapshot.ratable_id("i0").expect("i0");
-        assert_eq!(snapshot.rating(other, item), Some(-1));
-        assert!(snapshot.stamp(other, item) > snapshot.stamp(viewer, item));
-    }
-
-    fn result_of(snapshot: &Snapshot, viewer: &str) -> ResultData {
-        let id = snapshot
-            .user_id(viewer)
-            .expect("the viewer is in every form");
-        let result = crate::witness::compute_user(snapshot, id, &crate::params::Params::default())
-            .unwrap_or_else(|error| panic!("{viewer}: {error}"));
-        snapshot.result_data(&result)
-    }
-
-    /// A world leaves the crate in two forms: the dump, which keeps every stamp, and what the
-    /// loader sends one viewer, which keeps only that viewer's bit. Both have to give each viewer
-    /// the bits and the result of the snapshot they came from, or `check:recs-parity` compares
-    /// two different questions.
-    #[test]
-    fn both_data_forms_keep_every_viewers_order() {
+    fn the_data_form_computes_what_the_snapshot_does() {
         let world = crate::sim::simulate(
             &crate::sim::WorldConfig {
                 users: 30,
@@ -580,69 +409,38 @@ mod tests {
             &mut crate::rng::Rng::new(5),
         );
         let original = &world.snapshot;
-        let dumped = world.to_data(5).to_snapshot();
-        let (mut later, mut earlier) = (0usize, 0usize);
+        let read = world.to_data(5).snapshot.to_snapshot();
         for viewer in original.users() {
-            let viewer_name = original.user_name(viewer);
-            let loaded = original.to_data(viewer).to_snapshot();
-            for other in original.users().filter(|&other| other != viewer) {
-                let other_name = original.user_name(other);
-                for &(ratable, _) in original.ratings(other) {
-                    if original.rating(viewer, ratable).is_none() {
-                        continue;
-                    }
-                    let bit = original.stamp(other, ratable) > original.stamp(viewer, ratable);
-                    if bit {
-                        later += 1;
-                    } else {
-                        earlier += 1;
-                    }
-                    let key = original.ratable_name(ratable);
-                    for (form, what) in [(&dumped, "dump"), (&loaded, "loaded")] {
-                        let (Some(mine), Some(theirs), Some(thing)) = (
-                            form.user_id(viewer_name),
-                            form.user_id(other_name),
-                            form.ratable_id(&key),
-                        ) else {
-                            panic!("{what}: {viewer_name}, {other_name} or {key:?} went missing");
-                        };
-                        assert_eq!(
-                            form.stamp(theirs, thing) > form.stamp(mine, thing),
-                            bit,
-                            "{what}: {other_name}'s {key:?} against {viewer_name}'s"
-                        );
-                    }
-                }
-            }
-
-            let expected = result_of(original, viewer_name);
-            for (form, what) in [(&dumped, "dump"), (&loaded, "loaded")] {
-                let got = result_of(form, viewer_name);
-                assert_eq!(got.reached, expected.reached, "{what}: {viewer_name}");
-                assert_eq!(
-                    got.scores.keys().collect::<Vec<_>>(),
-                    expected.scores.keys().collect::<Vec<_>>(),
-                    "{what}: {viewer_name}"
+            let name = original.user_name(viewer);
+            let options = crate::tensor::Options::default();
+            let expected = crate::tensor::decompose::<3>(original, viewer, &options)
+                .unwrap_or_else(|error| panic!("{name}: {error}"));
+            let other = read.user_id(name).expect("the viewer is in both forms");
+            let got = crate::tensor::decompose::<3>(&read, other, &options)
+                .unwrap_or_else(|error| panic!("{name}: {error}"));
+            // The data form interns in name order, so sums run in another order, and a fit that
+            // differs in its last digits can stop a sweep apart: equal to what a sweep still
+            // moves, not to the bit.
+            let (expected, got) = (original.result_data(&expected), read.result_data(&got));
+            assert_eq!(
+                got.scores.keys().collect::<Vec<_>>(),
+                expected.scores.keys().collect::<Vec<_>>(),
+                "{name}"
+            );
+            for (key, score) in &expected.scores {
+                let theirs = got.scores[key];
+                assert!(
+                    (theirs.score - score.score).abs() <= 1e-3
+                        && (theirs.confidence - score.confidence).abs() <= 1e-9,
+                    "{name}'s {key:?} is {theirs:?}, not {score:?}"
                 );
-                for (key, score) in &expected.scores {
-                    let theirs = got.scores[key];
-                    assert!(
-                        (theirs.score - score.score).abs() <= 1e-12
-                            && (theirs.confidence - score.confidence).abs() <= 1e-12,
-                        "{what}: {viewer_name}'s {key:?} is {theirs:?}, not {score:?}"
-                    );
-                }
             }
         }
-        assert!(
-            later > 0 && earlier > 0,
-            "the world has to hold both orders: {later} later, {earlier} not"
-        );
     }
 
     #[cfg(feature = "serde")]
     #[test]
-    fn the_order_survives_json() {
+    fn a_world_survives_json() {
         let world = crate::sim::simulate(
             &crate::sim::WorldConfig {
                 users: 12,
@@ -654,25 +452,7 @@ mod tests {
         let dump = world.to_data(3);
         let read: WorldData = serde_json::from_str(&serde_json::to_string(&dump).expect("a dump"))
             .expect("a dump reads back");
-        assert_eq!(
-            (&read.snapshot, &read.stamps),
-            (&dump.snapshot, &dump.stamps)
-        );
-
-        let viewer = world.snapshot.users().next().expect("a viewer");
-        let loaded = world.snapshot.to_data(viewer);
-        let read: SnapshotData =
-            serde_json::from_str(&serde_json::to_string(&loaded).expect("a snapshot"))
-                .expect("a snapshot reads back");
-        assert_eq!(read, loaded);
-        assert!(
-            loaded
-                .ratings
-                .values()
-                .flat_map(BTreeMap::values)
-                .any(|value| value.is_later()),
-            "somebody rated after the viewer"
-        );
+        assert_eq!(read, dump);
     }
 
     #[test]
@@ -687,6 +467,7 @@ mod tests {
                     ("i2", 300.0),
                     ("i3", f64::NAN),
                     ("i4", -1.0),
+                    ("i5", 2.0),
                     ("", 1.0),
                     ("\u{0}cheap", 1.0),
                     ("a\u{0}b\u{0}c", 1.0),
@@ -728,37 +509,18 @@ mod tests {
     }
 
     #[test]
-    fn an_edge_one_side_forgot_is_dropped() {
+    fn following_is_read_one_way() {
         let data = SnapshotData {
-            users: vec!["u0".into(), "u1".into(), "u2".into(), "far".into()],
-            friend_ids: [
-                ("u0".to_string(), vec!["u1".to_string(), "u2".to_string()]),
-                ("u1".to_string(), vec!["u0".to_string(), "far".to_string()]),
-                ("u2".to_string(), Vec::new()),
-            ]
-            .into_iter()
-            .collect(),
-            loaded: vec!["u0".into(), "u1".into(), "u2".into()],
+            users: vec!["u0".into(), "u1".into()],
+            follows: [("u0".to_string(), vec!["u1".to_string(), "u0".to_string()])]
+                .into_iter()
+                .collect(),
             ..SnapshotData::default()
         };
         let snapshot = data.to_snapshot();
         let viewer = snapshot.user_id("u0").expect("u0");
-        let stale = snapshot.user_id("u2").expect("u2");
-        let boundary = snapshot.user_id("far").expect("far");
-        assert_eq!(
-            snapshot.friends(viewer).len(),
-            1,
-            "u2 does not list u0 back, so that edge is dropped"
-        );
-        assert!(!snapshot.friends(viewer).contains(&stale));
-        assert!(
-            snapshot.is_loaded(viewer) && !snapshot.is_loaded(boundary),
-            "a node outside the loaded set has unknown adjacency"
-        );
-        let far_friend = snapshot.user_id("u1").expect("u1");
-        assert!(
-            snapshot.friends(far_friend).contains(&boundary),
-            "an edge into an unread node is a boundary edge, not a stale one"
-        );
+        let other = snapshot.user_id("u1").expect("u1");
+        assert_eq!(snapshot.follows(viewer), &[other]);
+        assert!(snapshot.follows(other).is_empty());
     }
 }

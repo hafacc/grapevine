@@ -134,7 +134,7 @@ export async function setInviteLink(): Promise<string> {
 
 // Off is a delete. Filtered on the token rather than the owner, because the
 // owner column is in no select grant and a filter needs one; the policy is what
-// keeps it to the caller's row. Friendships the link already made stay.
+// keeps it to the caller's row. Follows the link already made stay.
 export async function turnOffLink(token: string): Promise<void> {
   const { error } = await supabase()
     .from("invite_links")

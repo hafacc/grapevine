@@ -1,20 +1,14 @@
 import { useCell } from "./cell.svelte";
-import {
-  feedCell,
-  forgetFeed,
-  NO_ENTRIES,
-  releaseFeed,
-  retainFeed,
-} from "./recs";
+import { feedCell, forgetFeed, NO_ENTRIES, retainFeed } from "./recs";
 import { grapevine } from "./store.svelte";
+import { NO_PLOT, type TastePlot } from "./taste-map";
 import type { RecsEntry } from "./types";
 
 /**
- * The signed-in user's recommendations.
+ * The signed-in user's list.
  *
- * One Realtime channel, not a stamp to watch and a collection to re-read: the
- * payload of a feed rewritten by something other than this tab's own call IS the
- * feed. RLS applies to Realtime, so nobody receives another viewer's row.
+ * Computed in this browser from the viewer's own thumbs and the thumbs of the
+ * accounts they follow (`recs.ts`); nothing on a server holds it.
  *
  * Called while a component is being set up; read the fields off what it
  * returns rather than copying them out, so the reader follows a change.
@@ -22,6 +16,7 @@ import type { RecsEntry } from "./types";
 export function useMyRecs(): {
   readonly entries: readonly RecsEntry[];
   readonly byItemId: ReadonlyMap<string, RecsEntry>;
+  readonly plot: TastePlot;
   readonly computedAt: number;
   readonly ready: boolean;
   readonly failed: boolean;
@@ -36,9 +31,7 @@ export function useMyRecs(): {
       forgetFeed();
       return;
     }
-    const generation = grapevine.channelGeneration;
-    retainFeed(mine, generation);
-    return () => releaseFeed(mine, generation);
+    retainFeed(mine, grapevine.channelGeneration);
   });
 
   const view = $derived.by(() => {
@@ -46,6 +39,7 @@ export function useMyRecs(): {
     const mine = state.uid === uid;
     return {
       entries: mine ? state.entries : NO_ENTRIES,
+      plot: mine ? state.plot : NO_PLOT,
       computedAt: mine ? state.computedAt : 0,
       ready: mine && state.ready,
       failed: mine && state.failed,
@@ -53,10 +47,14 @@ export function useMyRecs(): {
     };
   });
   const entries = $derived(view.entries);
+  // Its own derived value, as `entries` is: `view` is a new object on every
+  // write to the cell, and the map lays its dots out again whenever this
+  // changes.
+  const plot = $derived(view.plot);
   const byItemId = $derived.by(() => {
     const byId = new Map<string, RecsEntry>();
-    // One entry per item across the whole feed — it is one recompute's answer,
-    // so nothing here has to decide which of two entries for an item is real.
+    // One entry per item across the whole list — it is one computation's
+    // answer, so nothing here has to decide which of two entries is real.
     for (const entry of entries) byId.set(entry.itemId, entry);
     return byId;
   });
@@ -67,6 +65,9 @@ export function useMyRecs(): {
     },
     get byItemId() {
       return byItemId;
+    },
+    get plot() {
+      return plot;
     },
     get computedAt() {
       return view.computedAt;

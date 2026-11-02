@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, type Snippet } from "svelte";
   import {
     type LookupSettings,
     lookupSettings,
@@ -10,6 +10,10 @@
   import RateRow from "./ui/rate-row.svelte";
 
   // Per device: what this browser sends when a thing is added (`/privacy/`).
+  // `children` are the rows that need lookups on, drawn under them and gone
+  // with them.
+  let { children }: { children?: Snippet } = $props();
+
   // Read after mount: storage is not there while a page is prerendered.
   let settings = $state.raw<LookupSettings>({
     lookUp: true,
@@ -80,5 +84,8 @@
       LuMapPin,
       LuMapPinOff,
     )}
+  {/if}
+  {#if settings.lookUp}
+    {@render children?.()}
   {/if}
 </div>

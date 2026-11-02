@@ -14,13 +14,16 @@
     "fmt": "bun --bun biome format --write",
     "lint": "bun --bun svelte-kit sync && bun --bun svelte-check --tsconfig ./tsconfig.json && bun --bun tsc --noEmit -p tsconfig.sw.json && bun --bun biome check",
     "test": "bun test",
-    "check:signin": "node scripts/signin-check.mjs",
-    "check:feed": "node scripts/feed-check.mjs",
-    "check:pwa": "node scripts/pwa-check.mjs",
-    "seed:local": "bun scripts/seed-local.ts",
-    "check:search-id": "bun scripts/search-id-check.ts",
-    "check:recs-function": "node scripts/recs-function-check.mjs",
-    "check:recs-parity": "node scripts/recs-parity-check.mjs"
+    "e2e": "playwright test",
+    "e2e:pwa": "playwright test --project pwa",
+    "e2e:stack": "playwright test --project stack",
+    "e2e:signin": "playwright test signin",
+    "e2e:feed": "playwright test feed",
+    "e2e:search-id": "playwright test search-id",
+    "e2e:map": "playwright test taste-map",
+    "stack:local": "bash ../supabase/tests/serve-local.sh",
+    "seed:local": "bun e2e/seed-local.ts",
+    "open:local": "bun e2e/open-local.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0"
@@ -29,6 +32,7 @@
     "@biomejs/biome": "^2.6.4",
     "@fontsource/barlow": "^5.3.0",
     "@fontsource/barlow-semi-condensed": "^5.3.0",
+    "@playwright/test": "^1.64.1",
     "@sveltejs/adapter-static": "^4.0.1",
     "@sveltejs/kit": "^3.1.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

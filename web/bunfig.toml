@@ -1,0 +1,3 @@
+# `bun test` finds the unit suites only: `e2e/*.spec.ts` are Playwright's.
+[test]
+root = "./tests"

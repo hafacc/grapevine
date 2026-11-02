@@ -1,32 +1,20 @@
-//! The input to every computation: a friend graph plus everyone's ratings.
+//! The input to every computation: who follows whom, and everyone's thumbs.
 
 use std::collections::HashMap;
 
-use crate::graph::Graph;
 use crate::ids::{ItemId, RATABLE_JOIN, Ratable, TagId, UserId};
 
-/// A friend graph and the ratings of everyone in it, with all identifiers interned.
+/// Who follows whom and the thumbs of everyone named, with all identifiers interned.
 ///
-/// Nothing here is per viewer: the same snapshot answers for every user in it.
-///
-/// A user may be *unloaded*: present, nameable, and rateable, but with a friend list nobody has
-/// read. That is a boundary node of DESIGN section 3.4 — reported for the loader's next round
-/// rather than treated as a leaf, because a node with no friends and a node whose friends are
-/// unknown are not the same answer. Everything a builder makes is loaded unless it says
-/// otherwise.
+/// Nothing here is per viewer: the same snapshot answers for every user in it. Following is one
+/// way: `follows(a)` holding `b` says nothing about `follows(b)`.
 #[derive(Clone, Debug, Default)]
 pub struct Snapshot {
     user_names: Vec<String>,
     item_names: Vec<String>,
     tag_names: Vec<String>,
-    adjacency: Vec<Vec<UserId>>,
-    loaded: Vec<bool>,
+    follows: Vec<Vec<UserId>>,
     ratings: Vec<Vec<(Ratable, i8)>>,
-    /// Beside each rating, when it was given, as an order and nothing more: a thumb with a
-    /// larger stamp was given after one with a smaller. Zero is "no later than anything", which
-    /// is what a snapshot without times holds, and what the boundary gives every thumb it does
-    /// not mark as given after the viewer's own (DESIGN §2.3).
-    stamps: Vec<Vec<u32>>,
 }
 
 impl Snapshot {
@@ -46,33 +34,18 @@ impl Snapshot {
         (0..self.user_names.len() as u32).map(UserId)
     }
 
-    /// The edges this snapshot knows about for `user`. For an unloaded user that is whatever
-    /// their neighbours listed, not their own answer — `is_loaded` is what says which.
-    pub fn friends(&self, user: UserId) -> &[UserId] {
-        &self.adjacency[user.index()]
+    pub fn tag_count(&self) -> usize {
+        self.tag_names.len()
     }
 
-    /// Whether this user's friend list was read. Chains run only through loaded people.
-    pub fn is_loaded(&self, user: UserId) -> bool {
-        self.loaded[user.index()]
+    /// The accounts `user` follows, sorted.
+    pub fn follows(&self, user: UserId) -> &[UserId] {
+        &self.follows[user.index()]
     }
 
     /// One user's ratings, sorted by ratable, items before tags.
     pub fn ratings(&self, user: UserId) -> &[(Ratable, i8)] {
         &self.ratings[user.index()]
-    }
-
-    /// The order stamps of `ratings(user)`, position for position.
-    pub fn stamps(&self, user: UserId) -> &[u32] {
-        &self.stamps[user.index()]
-    }
-
-    /// When `user` rated `ratable`, as an order; zero when they did not, or when nobody knows.
-    pub fn stamp(&self, user: UserId, ratable: Ratable) -> u32 {
-        let owned = &self.ratings[user.index()];
-        owned
-            .binary_search_by_key(&ratable, |&(key, _)| key)
-            .map_or(0, |position| self.stamps[user.index()][position])
     }
 
     pub fn rating(&self, user: UserId, ratable: Ratable) -> Option<i8> {
@@ -130,7 +103,7 @@ impl Snapshot {
             .map(|index| TagId(index as u32))
     }
 
-    /// A builder seeded with this snapshot, for adding users, edges or ratings to a world.
+    /// A builder seeded with this snapshot, for adding users, follows or ratings to a world.
     pub fn edit(&self) -> SnapshotBuilder {
         let user_index = self
             .user_names
@@ -154,20 +127,8 @@ impl Snapshot {
             user_names: self.user_names.clone(),
             item_names: self.item_names.clone(),
             tag_names: self.tag_names.clone(),
-            adjacency: self.adjacency.clone(),
-            loaded: self.loaded.clone(),
-            ratings: self
-                .ratings
-                .iter()
-                .zip(&self.stamps)
-                .map(|(owned, stamps)| {
-                    owned
-                        .iter()
-                        .zip(stamps)
-                        .map(|(&(ratable, value), &stamp)| (ratable, value, stamp))
-                        .collect()
-                })
-                .collect(),
+            follows: self.follows.clone(),
+            ratings: self.ratings.clone(),
             user_index,
             item_index,
             tag_index,
@@ -175,29 +136,14 @@ impl Snapshot {
     }
 }
 
-impl Graph for Snapshot {
-    fn user_count(&self) -> usize {
-        self.user_names.len()
-    }
-
-    fn neighbors(&self, user: UserId) -> Option<&[UserId]> {
-        if self.loaded.get(user.index()).copied().unwrap_or(false) {
-            self.adjacency.get(user.index()).map(Vec::as_slice)
-        } else {
-            None
-        }
-    }
-}
-
-/// Interns names and accumulates edges and ratings.
+/// Interns names and accumulates follows and ratings.
 #[derive(Clone, Debug, Default)]
 pub struct SnapshotBuilder {
     user_names: Vec<String>,
     item_names: Vec<String>,
     tag_names: Vec<String>,
-    adjacency: Vec<Vec<UserId>>,
-    loaded: Vec<bool>,
-    ratings: Vec<Vec<(Ratable, i8, u32)>>,
+    follows: Vec<Vec<UserId>>,
+    ratings: Vec<Vec<(Ratable, i8)>>,
     user_index: HashMap<String, UserId>,
     item_index: HashMap<String, ItemId>,
     tag_index: HashMap<String, TagId>,
@@ -210,8 +156,7 @@ impl SnapshotBuilder {
         } else {
             let id = UserId(self.user_names.len() as u32);
             self.user_names.push(name.to_string());
-            self.adjacency.push(Vec::new());
-            self.loaded.push(true);
+            self.follows.push(Vec::new());
             self.ratings.push(Vec::new());
             self.user_index.insert(name.to_string(), id);
             id
@@ -245,35 +190,30 @@ impl SnapshotBuilder {
         }
     }
 
-    /// Adds a mutual friend edge. Self-loops and repeats are ignored.
-    pub fn edge(&mut self, one: UserId, other: UserId) -> &mut Self {
-        if one != other {
-            self.adjacency[one.index()].push(other);
-            self.adjacency[other.index()].push(one);
+    /// `follower` follows `followed`. Following oneself and repeats are ignored.
+    pub fn follow(&mut self, follower: UserId, followed: UserId) -> &mut Self {
+        if follower != followed {
+            self.follows[follower.index()].push(followed);
         }
         self
     }
 
-    /// Marks a user's friend list as read or unread. An unread one makes them a boundary node
-    /// (DESIGN section 3.4).
-    pub fn set_loaded(&mut self, user: UserId, loaded: bool) -> &mut Self {
-        self.loaded[user.index()] = loaded;
-        self
-    }
-
     /// Records a thumb. Anything but `1` or `-1` removes the rating rather than failing the
-    /// build, so one crafted row cannot fail every recompute that reaches it.
+    /// build, so one crafted row cannot fail the list of everyone who follows its author.
     pub fn rate(&mut self, user: UserId, ratable: Ratable, value: i8) -> &mut Self {
-        self.rate_at(user, ratable, value, 0)
-    }
-
-    /// Records a thumb with the order it was given in (`Snapshot::stamps`).
-    pub fn rate_at(&mut self, user: UserId, ratable: Ratable, value: i8, stamp: u32) -> &mut Self {
+        debug_assert!(
+            match ratable {
+                Ratable::Item(item) => item.index() < self.item_names.len(),
+                Ratable::Tag(item, tag) =>
+                    item.index() < self.item_names.len() && tag.index() < self.tag_names.len(),
+            },
+            "a rating names a thing or a tag this builder never interned"
+        );
         let owned = &mut self.ratings[user.index()];
         if value == 1 || value == -1 {
-            owned.push((ratable, value, stamp));
+            owned.push((ratable, value));
         } else {
-            owned.retain(|&(key, ..)| key != ratable);
+            owned.retain(|&(key, _)| key != ratable);
         }
         self
     }
@@ -291,34 +231,22 @@ impl SnapshotBuilder {
     }
 
     pub fn build(mut self) -> Snapshot {
-        for neighbors in &mut self.adjacency {
-            neighbors.sort_unstable();
-            neighbors.dedup();
+        for followed in &mut self.follows {
+            followed.sort_unstable();
+            followed.dedup();
         }
         for owned in &mut self.ratings {
             // A later thumb on the same ratable replaces an earlier one.
             owned.reverse();
-            owned.sort_by_key(|&(ratable, ..)| ratable);
-            owned.dedup_by_key(|&mut (ratable, ..)| ratable);
+            owned.sort_by_key(|&(ratable, _)| ratable);
+            owned.dedup_by_key(|&mut (ratable, _)| ratable);
         }
-        let (ratings, stamps) = self
-            .ratings
-            .into_iter()
-            .map(|owned| {
-                owned
-                    .into_iter()
-                    .map(|(ratable, value, stamp)| ((ratable, value), stamp))
-                    .unzip()
-            })
-            .unzip();
         Snapshot {
             user_names: self.user_names,
             item_names: self.item_names,
             tag_names: self.tag_names,
-            adjacency: self.adjacency,
-            loaded: self.loaded,
-            ratings,
-            stamps,
+            follows: self.follows,
+            ratings: self.ratings,
         }
     }
 }
@@ -351,16 +279,18 @@ mod tests {
     }
 
     #[test]
-    fn edges_are_mutual_deduped_and_sorted() {
+    fn follows_are_one_way_deduped_and_sorted() {
         let mut builder = Snapshot::builder();
         let first = builder.user("u0");
         let second = builder.user("u1");
-        builder.edge(first, second);
-        builder.edge(second, first);
-        builder.edge(first, first);
+        let third = builder.user("u2");
+        builder.follow(first, third);
+        builder.follow(first, second);
+        builder.follow(first, second);
+        builder.follow(first, first);
         let snapshot = builder.build();
-        assert_eq!(snapshot.friends(first), &[second]);
-        assert_eq!(snapshot.friends(second), &[first]);
+        assert_eq!(snapshot.follows(first), &[second, third]);
+        assert!(snapshot.follows(second).is_empty());
     }
 
     #[test]

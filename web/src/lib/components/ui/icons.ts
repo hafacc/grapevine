@@ -17,16 +17,41 @@ export type IconData = {
   ])[];
 };
 
+export const LuChartScatter: IconData = {
+  viewBox: "0 0 24 24",
+  stroked: true,
+  nodes: [
+    ["circle", { cx: "7.5", cy: "7.5", r: ".5", fill: "currentColor" }],
+    ["circle", { cx: "18.5", cy: "5.5", r: ".5", fill: "currentColor" }],
+    ["circle", { cx: "11.5", cy: "11.5", r: ".5", fill: "currentColor" }],
+    ["circle", { cx: "7.5", cy: "16.5", r: ".5", fill: "currentColor" }],
+    ["circle", { cx: "17.5", cy: "14.5", r: ".5", fill: "currentColor" }],
+    ["path", { d: "M3 3v16a2 2 0 0 0 2 2h16" }],
+  ],
+};
+
 export const LuCheck: IconData = {
   viewBox: "0 0 24 24",
   stroked: true,
   nodes: [["path", { d: "M20 6 9 17l-5-5" }]],
 };
 
+export const LuChevronDown: IconData = {
+  viewBox: "0 0 24 24",
+  stroked: true,
+  nodes: [["path", { d: "m6 9 6 6 6-6" }]],
+};
+
 export const LuChevronLeft: IconData = {
   viewBox: "0 0 24 24",
   stroked: true,
   nodes: [["path", { d: "m15 18-6-6 6-6" }]],
+};
+
+export const LuChevronUp: IconData = {
+  viewBox: "0 0 24 24",
+  stroked: true,
+  nodes: [["path", { d: "m18 15-6-6-6 6" }]],
 };
 
 export const LuCopy: IconData = {
@@ -90,6 +115,34 @@ export const LuEyeOff: IconData = {
       },
     ],
     ["path", { d: "m2 2 20 20" }],
+  ],
+};
+
+export const LuFileDown: IconData = {
+  viewBox: "0 0 24 24",
+  stroked: true,
+  nodes: [
+    [
+      "path",
+      { d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" },
+    ],
+    ["path", { d: "M14 2v4a2 2 0 0 0 2 2h4" }],
+    ["path", { d: "M12 18v-6" }],
+    ["path", { d: "m9 15 3 3 3-3" }],
+  ],
+};
+
+export const LuFileUp: IconData = {
+  viewBox: "0 0 24 24",
+  stroked: true,
+  nodes: [
+    [
+      "path",
+      { d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" },
+    ],
+    ["path", { d: "M14 2v4a2 2 0 0 0 2 2h4" }],
+    ["path", { d: "M12 12v6" }],
+    ["path", { d: "m15 15-3-3-3 3" }],
   ],
 };
 
@@ -341,6 +394,17 @@ export const LuUserMinus: IconData = {
   nodes: [
     ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }],
     ["circle", { cx: "9", cy: "7", r: "4" }],
+    ["line", { x1: "22", x2: "16", y1: "11", y2: "11" }],
+  ],
+};
+
+export const LuUserPlus: IconData = {
+  viewBox: "0 0 24 24",
+  stroked: true,
+  nodes: [
+    ["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }],
+    ["circle", { cx: "9", cy: "7", r: "4" }],
+    ["line", { x1: "19", x2: "19", y1: "8", y2: "14" }],
     ["line", { x1: "22", x2: "16", y1: "11", y2: "11" }],
   ],
 };
